@@ -175,6 +175,8 @@ export function CommunityChat() {
         clearInterval(recordingIntervalRef.current);
         recordingIntervalRef.current = null;
       }
+      // NÃO resetar recordingTime aqui - será usado no preview
+      // O recordingTime só será resetado quando o áudio for enviado ou cancelado
     }
 
     return () => {
@@ -217,9 +219,12 @@ export function CommunityChat() {
     setSelectedImage(null);
   };
 
+  const streamRef = useRef<MediaStream | null>(null);
+
   const handleStartRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -231,14 +236,17 @@ export function CommunityChat() {
       };
 
       mediaRecorder.onstop = () => {
+        // Preservar o tempo de gravação atual
+        const finalDuration = recordingTime;
+        
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioUrl = URL.createObjectURL(audioBlob);
         
-        if (recordingTime > 0) {
-          // Mostrar preview do áudio ao invés de enviar diretamente
+        if (finalDuration > 0) {
+          // Mostrar preview do áudio imediatamente
           setRecordedAudio({
             url: audioUrl,
-            duration: recordingTime,
+            duration: finalDuration,
             blob: audioBlob,
           });
         } else {
@@ -247,7 +255,10 @@ export function CommunityChat() {
         }
 
         // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
       };
 
       mediaRecorder.start();
@@ -261,9 +272,12 @@ export function CommunityChat() {
 
   const handleStopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+      // Parar a gravação - o onstop será chamado automaticamente
+      if (mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
       setIsRecording(false);
-      // Não resetar recordingTime ainda, será usado no preview
+      // Não resetar recordingTime - será usado no preview quando onstop for chamado
     }
   };
 
@@ -316,7 +330,7 @@ export function CommunityChat() {
       // Limpar URL do blob
       URL.revokeObjectURL(recordedAudio.url);
       setRecordedAudio(null);
-      setRecordingTime(0);
+      setRecordingTime(0); // Resetar apenas quando cancelar
       setPreviewCurrentTime(0);
       setIsPlayingPreview(false);
     }
