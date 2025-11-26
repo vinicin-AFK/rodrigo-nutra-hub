@@ -35,17 +35,17 @@ export function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <article className="glass-card rounded-2xl p-4 animate-fade-in">
+    <article className="glass-card rounded-2xl overflow-hidden animate-fade-in mb-4">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <img
           src={post.author.avatar}
           alt={post.author.name}
-          className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/30"
+          className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/30"
         />
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-foreground">{post.author.name}</h3>
+            <h3 className="font-semibold text-foreground text-sm">{post.author.name}</h3>
             {post.type === 'result' && (
               <span className="gold-badge text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
                 <Award className="w-3 h-3" />
@@ -59,71 +59,84 @@ export function PostCard({ post }: PostCardProps) {
         </div>
       </div>
 
-      {/* Content */}
-      <p className="text-foreground/90 mb-3 leading-relaxed">{post.content}</p>
-
-      {/* Result Badge */}
-      {post.resultValue && (
-        <div className="mb-3 p-3 rounded-xl bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/30">
-          <p className="text-sm text-muted-foreground">Resultado alcançado</p>
-          <p className="text-2xl font-bold text-gradient-fire">
-            R$ {post.resultValue.toLocaleString('pt-BR')}
-          </p>
+      {/* Image - estilo Instagram (quadrado) */}
+      {post.image && (
+        <div className="w-full aspect-square bg-secondary/30">
+          <img
+            src={post.image}
+            alt="Post"
+            className="w-full h-full object-cover"
+          />
         </div>
       )}
 
-      {/* Image */}
-      {post.image && (
-        <img
-          src={post.image}
-          alt="Post"
-          className="w-full rounded-xl mb-3 object-cover max-h-64"
-        />
-      )}
-
       {/* Actions */}
-      <div className="flex items-center gap-6 pt-3 border-t border-border/50">
-        <button
-          onClick={handleLike}
-          className="flex items-center gap-2 group relative"
-        >
-          {/* Particles */}
-          {particles.map((p) => (
-            <span
-              key={p}
-              className="fire-particle absolute text-primary"
-              style={{
-                left: `${Math.random() * 20 - 10}px`,
-                animationDelay: `${p * 0.1}s`,
-              }}
-            >
-              🔥
-            </span>
-          ))}
-          
-          <Flame
-            className={cn(
-              "w-6 h-6 transition-all duration-300",
-              isLiked ? "text-primary fill-primary" : "text-muted-foreground",
-              isAnimating && "animate-fire"
-            )}
-          />
-          <span className={cn(
-            "text-sm font-medium transition-colors",
-            isLiked ? "text-primary" : "text-muted-foreground"
-          )}>
-            {likes}
-          </span>
-        </button>
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex items-center gap-4 mb-2">
+          <button
+            onClick={handleLike}
+            className="flex items-center gap-2 group relative"
+          >
+            {/* Particles */}
+            {particles.map((p) => (
+              <span
+                key={p}
+                className="fire-particle absolute text-primary"
+                style={{
+                  left: `${Math.random() * 20 - 10}px`,
+                  animationDelay: `${p * 0.1}s`,
+                }}
+              >
+                🔥
+              </span>
+            ))}
+            
+            <Flame
+              className={cn(
+                "w-6 h-6 transition-all duration-300",
+                isLiked ? "text-primary fill-primary" : "text-muted-foreground",
+                isAnimating && "animate-fire"
+              )}
+            />
+          </button>
 
-        <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-          <MessageCircle className="w-5 h-5" />
-          <span className="text-sm">{post.comments}</span>
-        </button>
+          <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <MessageCircle className="w-6 h-6" />
+          </button>
 
-        <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors ml-auto">
-          <Share2 className="w-5 h-5" />
-        </button>
+          <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors ml-auto">
+            <Share2 className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Likes count */}
+        <div className="mb-2">
+          <span className="text-sm font-semibold text-foreground">{likes.toLocaleString()} curtidas</span>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4 pb-3">
+        <p className="text-foreground/90 mb-2 leading-relaxed text-sm">
+          <span className="font-semibold">{post.author.name}</span> {post.content}
+        </p>
+
+        {/* Result Badge */}
+        {post.resultValue && (
+          <div className="mb-2 p-3 rounded-xl bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/30">
+            <p className="text-xs text-muted-foreground mb-1">Resultado alcançado</p>
+            <p className="text-xl font-bold text-gradient-fire">
+              R$ {post.resultValue.toLocaleString('pt-BR')}
+            </p>
+          </div>
+        )}
+
+        {/* Comments count */}
+        {post.comments > 0 && (
+          <button className="text-muted-foreground text-sm hover:text-foreground transition-colors">
+            Ver todos os {post.comments} comentários
+          </button>
+        )}
       </div>
     </article>
   );

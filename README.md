@@ -62,7 +62,42 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/2c7f1fe4-401f-41e0-a889-ce0e4e05f5e5) and click on Share -> Publish.
+### Deploy no Vercel (Recomendado)
+
+O projeto está configurado para deploy automático no Vercel. Você pode fazer deploy de duas formas:
+
+#### Opção 1: Via Interface Web (Mais Fácil)
+
+1. Acesse [vercel.com](https://vercel.com) e faça login com sua conta GitHub
+2. Clique em "Add New Project"
+3. Importe o repositório deste projeto
+4. A Vercel detectará automaticamente as configurações (Vite + React)
+5. Clique em "Deploy"
+6. Pronto! Seu projeto estará no ar
+
+#### Opção 2: Via CLI
+
+```sh
+# Instalar a CLI do Vercel (se ainda não tiver)
+npm i -g vercel
+
+# Fazer login
+vercel login
+
+# Deploy (na raiz do projeto)
+vercel
+
+# Para produção
+vercel --prod
+```
+
+#### Deploy Automático
+
+Após conectar o repositório, a Vercel fará deploy automático sempre que você fizer push para a branch `main`.
+
+### Outras opções
+
+Você também pode usar o [Lovable](https://lovable.dev/projects/2c7f1fe4-401f-41e0-a889-ce0e4e05f5e5) e clicar em Share -> Publish.
 
 ## Can I connect a custom domain to my Lovable project?
 

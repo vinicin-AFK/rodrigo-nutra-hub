@@ -52,40 +52,33 @@ const Index = () => {
     switch (activeTab) {
       case 'home':
         return (
-          <div className="space-y-6">
-            <UserHeader />
-            
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                onClick={() => setActiveTab('ai-copy')}
-                variant="outline"
-                className="h-auto py-4 flex-col gap-2"
+          <div className="space-y-4">
+            {/* Header estilo Instagram */}
+            <div className="text-center py-4">
+              <h2 className="text-2xl font-bold text-foreground mb-2">NutraHub</h2>
+              <p className="text-muted-foreground text-sm">
+                Faça postagens de seus resultados e ganhe pontos para resgatar prêmios
+              </p>
+            </div>
+
+            {/* Botão de criar postagem */}
+            <div className="flex justify-center mb-4">
+              <Button 
+                onClick={() => setIsCreatePostOpen(true)} 
+                variant="fire" 
+                className="w-full max-w-md"
               >
-                <span className="text-2xl">✨</span>
-                <span className="text-sm">Gerar Copy</span>
-              </Button>
-              <Button
-                onClick={() => setActiveTab('ai-creative')}
-                variant="outline"
-                className="h-auto py-4 flex-col gap-2"
-              >
-                <span className="text-2xl">🎬</span>
-                <span className="text-sm">Criar Roteiro</span>
+                <Plus className="w-4 h-4 mr-2" />
+                Criar Postagem
               </Button>
             </div>
 
-            {/* Recent Activity */}
-            <div>
-              <h3 className="text-lg font-bold text-foreground mb-4">🔥 Atividade Recente</h3>
-              <div className="space-y-4">
-                {allPosts.slice(0, 3).map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-              </div>
+            {/* Feed de postagens estilo Instagram */}
+            <div className="space-y-4">
+              {allPosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
             </div>
-
-            <PlaquesShowcase currentSales={currentUser.totalSales} />
           </div>
         );
 

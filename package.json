@@ -8,7 +8,13 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "commit": "git add -A && git commit -m",
+    "push": "git push",
+    "commit:push": "git add -A && git commit -m \"$npm_config_message\" && git push",
+    "save": "git add -A && git commit -m \"Auto commit: $(date +'%Y-%m-%d %H:%M:%S')\" && git push",
+    "deploy": "npm run build && vercel --prod",
+    "deploy:preview": "npm run build && vercel"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
