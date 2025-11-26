@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, MessageCircle } from 'lucide-react';
 import { BottomNav } from '@/components/BottomNav';
 import { PostCard } from '@/components/PostCard';
@@ -13,7 +13,9 @@ import { CreatePostModal } from '@/components/CreatePostModal';
 import { ProfileModal } from '@/components/ProfileModal';
 import { AIFabButton } from '@/components/AIFabButton';
 import { AchievementNotification } from '@/components/AchievementNotification';
+import { CommentsModal } from '@/components/CommentsModal';
 import { PlaquesShowcase } from '@/components/PlaquesShowcase';
+import { Comment } from '@/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { posts, users, prizes, currentUser as fallbackUser } from '@/data/mockData';
@@ -23,12 +25,39 @@ import { cn } from '@/lib/utils';
 
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
+const POSTS_STORAGE_KEY = 'nutraelite_posts';
+
+// Carregar postagens salvas
+const loadSavedPosts = (): Post[] => {
+  try {
+    const saved = localStorage.getItem(POSTS_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.map((post: any) => ({
+        ...post,
+        createdAt: new Date(post.createdAt),
+        author: {
+          ...post.author,
+        },
+        commentsList: post.commentsList?.map((c: any) => ({
+          ...c,
+          createdAt: new Date(c.createdAt),
+        })) || [],
+      }));
+    }
+  } catch (error) {
+    console.error('Erro ao carregar postagens:', error);
+  }
+  return posts;
+};
+
 const Index = () => {
   const { user, addPoints, userPoints, updateStats, stats } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [allPosts, setAllPosts] = useState<Post[]>(posts);
+  const [allPosts, setAllPosts] = useState<Post[]>(loadSavedPosts());
+  const [selectedPostForComments, setSelectedPostForComments] = useState<Post | null>(null);
 
   // Usar dados do usuário autenticado ou fallback
   const currentUser = user ? {
@@ -38,6 +67,25 @@ const Index = () => {
     avatar: user.avatar || fallbackUser.avatar,
     level: user.level || fallbackUser.level,
   } : fallbackUser;
+
+  // Salvar postagens no localStorage sempre que mudarem
+  useEffect(() => {
+    if (allPosts.length > 0) {
+      try {
+        const serializable = allPosts.map(post => ({
+          ...post,
+          createdAt: post.createdAt.toISOString(),
+          commentsList: post.commentsList?.map(c => ({
+            ...c,
+            createdAt: c.createdAt.toISOString(),
+          })) || [],
+        }));
+        localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
+      } catch (error) {
+        console.error('Erro ao salvar postagens:', error);
+      }
+    }
+  }, [allPosts]);
 
   const handleNewPost = (content: string, resultValue?: number, image?: string) => {
     const newPost: Post = {
@@ -51,23 +99,32 @@ const Index = () => {
       resultValue,
       type: resultValue ? 'result' : 'post',
       image: image,
+      commentsList: [],
     };
-    setAllPosts([newPost, ...allPosts]);
+    
+    const updatedPosts = [newPost, ...allPosts];
+    setAllPosts(updatedPosts);
+    
+    // Salvar imediatamente
+    try {
+      const serializable = updatedPosts.map(post => ({
+        ...post,
+        createdAt: post.createdAt.toISOString(),
+        commentsList: post.commentsList?.map(c => ({
+          ...c,
+          createdAt: c.createdAt.toISOString(),
+        })) || [],
+      }));
+      localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
+    } catch (error) {
+      console.error('Erro ao salvar postagem:', error);
+    }
     
     // Adicionar 2 pontos por postagem
     addPoints(2);
     
     // Atualizar stats e verificar conquistas
     updateStats({ postsCount: allPosts.length + 1 });
-    
-    // Verificar conquista de primeira postagem
-    const achievement = unlockAchievement('first_post');
-    if (achievement) {
-      toast({
-        title: `🏆 Conquista Desbloqueada!`,
-        description: `${achievement.icon} ${achievement.name}`,
-      });
-    }
     
     toast({
       title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
@@ -88,6 +145,57 @@ const Index = () => {
         // Em produção, isso viria do backend
         updateStats({ likesReceived: (post.likes || 0) + 1 });
       }
+    }
+  };
+
+  const handleOpenComments = (postId: string) => {
+    const post = allPosts.find(p => p.id === postId);
+    if (post) {
+      setSelectedPostForComments(post);
+    }
+  };
+
+  const handleAddComment = (postId: string, content: string) => {
+    const newComment: Comment = {
+      id: Date.now().toString(),
+      author: currentUser,
+      content,
+      createdAt: new Date(),
+    };
+
+    const updatedPosts = allPosts.map(post => {
+      if (post.id === postId) {
+        const updatedCommentsList = [...(post.commentsList || []), newComment];
+        return {
+          ...post,
+          comments: updatedCommentsList.length,
+          commentsList: updatedCommentsList,
+        };
+      }
+      return post;
+    });
+
+    setAllPosts(updatedPosts);
+
+    // Salvar imediatamente
+    try {
+      const serializable = updatedPosts.map(post => ({
+        ...post,
+        createdAt: post.createdAt.toISOString(),
+        commentsList: post.commentsList?.map(c => ({
+          ...c,
+          createdAt: c.createdAt.toISOString(),
+        })) || [],
+      }));
+      localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
+    } catch (error) {
+      console.error('Erro ao salvar comentário:', error);
+    }
+
+    // Atualizar post selecionado para mostrar o novo comentário
+    const updatedPost = updatedPosts.find(p => p.id === postId);
+    if (updatedPost) {
+      setSelectedPostForComments(updatedPost);
     }
   };
 
@@ -142,7 +250,12 @@ const Index = () => {
             {/* Feed de postagens estilo Instagram */}
             <div className="space-y-4">
               {allPosts.filter(post => post && post.author).map((post) => (
-                <PostCard key={post.id} post={post} onLike={handleLike} />
+                <PostCard 
+                  key={post.id} 
+                  post={post} 
+                  onLike={handleLike}
+                  onComment={handleOpenComments}
+                />
               ))}
             </div>
           </div>
@@ -304,6 +417,16 @@ const Index = () => {
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
       />
+
+      {/* Comments Modal */}
+      {selectedPostForComments && (
+        <CommentsModal
+          isOpen={!!selectedPostForComments}
+          onClose={() => setSelectedPostForComments(null)}
+          post={selectedPostForComments}
+          onAddComment={handleAddComment}
+        />
+      )}
     </div>
   );
 };

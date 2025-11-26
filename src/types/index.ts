@@ -8,6 +8,13 @@ export interface User {
   totalSales: number;
 }
 
+export interface Comment {
+  id: string;
+  author: User;
+  content: string;
+  createdAt: Date;
+}
+
 export interface Post {
   id: string;
   author: User;
@@ -19,6 +26,7 @@ export interface Post {
   createdAt: Date;
   resultValue?: number;
   type: 'post' | 'result';
+  commentsList?: Comment[];
 }
 
 export interface Prize {

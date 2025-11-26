@@ -127,13 +127,15 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               >
                 <Camera className="w-4 h-4 text-white" />
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageSelect}
-                className="hidden"
-              />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                    capture="environment"
+                    multiple={false}
+                  />
             </div>
           </div>
 

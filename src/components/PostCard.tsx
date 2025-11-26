@@ -7,9 +7,10 @@ import { useAuth } from '@/contexts/AuthContext';
 interface PostCardProps {
   post: Post;
   onLike?: (postId: string, isLiked: boolean) => void;
+  onComment?: (postId: string) => void;
 }
 
-export function PostCard({ post, onLike }: PostCardProps) {
+export function PostCard({ post, onLike, onComment }: PostCardProps) {
   const { addPoints, user, achievements } = useAuth();
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [likes, setLikes] = useState(post.likes);
@@ -173,7 +174,10 @@ export function PostCard({ post, onLike }: PostCardProps) {
             )}
           </button>
 
-          <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+          <button 
+            onClick={() => onComment && onComment(post.id)}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
             <MessageCircle className="w-6 h-6" />
           </button>
         </div>
@@ -201,9 +205,12 @@ export function PostCard({ post, onLike }: PostCardProps) {
         )}
 
         {/* Comments count */}
-        {post.comments > 0 && (
-          <button className="text-muted-foreground text-sm hover:text-foreground transition-colors">
-            Ver todos os {post.comments} comentários
+        {(post.comments > 0 || (post.commentsList && post.commentsList.length > 0)) && (
+          <button 
+            onClick={() => onComment && onComment(post.id)}
+            className="text-muted-foreground text-sm hover:text-foreground transition-colors"
+          >
+            Ver todos os {post.commentsList?.length || post.comments} comentários
           </button>
         )}
       </div>
