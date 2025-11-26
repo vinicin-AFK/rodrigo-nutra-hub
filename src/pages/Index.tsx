@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
 const Index = () => {
-  const { user, addPoints, userPoints } = useAuth();
+  const { user, addPoints, userPoints, updateStats, unlockAchievement } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -56,6 +56,18 @@ const Index = () => {
     // Adicionar 2 pontos por postagem
     addPoints(2);
     
+    // Atualizar stats e verificar conquistas
+    updateStats({ postsCount: allPosts.length + 1 });
+    
+    // Verificar conquista de primeira postagem
+    const achievement = unlockAchievement('first_post');
+    if (achievement) {
+      toast({
+        title: `🏆 Conquista Desbloqueada!`,
+        description: `${achievement.icon} ${achievement.name}`,
+      });
+    }
+    
     toast({
       title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
       description: resultValue 
@@ -66,7 +78,16 @@ const Index = () => {
 
   const handleLike = (postId: string, isLiked: boolean) => {
     // Pontos já são adicionados no PostCard quando curte
-    // Esta função pode ser usada para outras ações futuras
+    // Atualizar stats de curtidas recebidas (simulado - em produção viria do backend)
+    // Por enquanto, incrementamos quando alguém curte um post do usuário
+    if (isLiked) {
+      const post = allPosts.find(p => p.id === postId);
+      if (post && post.author.id === currentUser.id) {
+        // Simular incremento de curtidas recebidas
+        // Em produção, isso viria do backend
+        updateStats({ likesReceived: (post.likes || 0) + 1 });
+      }
+    }
   };
 
   const handleRedeemPrize = (prize: typeof prizes[0]) => {
@@ -81,6 +102,21 @@ const Index = () => {
     
     // Deduzir pontos (adicionar pontos negativos)
     addPoints(-prize.pointsCost);
+    
+    // Atualizar stats e verificar conquistas
+    const currentPrizes = (user as any)?.prizesRedeemed || 0;
+    updateStats({ prizesRedeemed: currentPrizes + 1 });
+    
+    // Verificar conquista de primeiro prêmio
+    if (currentPrizes === 0) {
+      const achievement = unlockAchievement('first_prize');
+      if (achievement) {
+        toast({
+          title: `🏆 Conquista Desbloqueada!`,
+          description: `${achievement.icon} ${achievement.name}`,
+        });
+      }
+    }
     
     toast({
       title: "🎁 Prêmio resgatado!",

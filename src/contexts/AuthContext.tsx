@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Achievement, ACHIEVEMENTS } from '@/types/achievements';
 
 interface User {
   id: string;
@@ -25,11 +26,19 @@ interface AuthContextType {
   userPoints: number;
   userPlan: Plan | null;
   nextPlan: Plan | null;
+  achievements: Achievement[];
+  stats: {
+    postsCount: number;
+    likesReceived: number;
+    prizesRedeemed: number;
+  };
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   addPoints: (points: number) => void;
   updateProfile: (data: { name?: string; avatar?: string }) => Promise<void>;
+  unlockAchievement: (achievementId: string) => Achievement | null;
+  updateStats: (stats: { postsCount?: number; likesReceived?: number; prizesRedeemed?: number }) => void;
 }
 
 const PLANS: Plan[] = [
@@ -62,9 +71,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'nutraelite_auth';
 
+const STATS_KEY = 'nutraelite_stats';
+const ACHIEVEMENTS_KEY = 'nutraelite_achievements';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [stats, setStats] = useState({
+    postsCount: 0,
+    likesReceived: 0,
+    prizesRedeemed: 0,
+  });
 
   // Carregar sessão salva ao iniciar
   useEffect(() => {
@@ -87,6 +105,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(STORAGE_KEY);
       }
     }
+    
+    // Carregar stats
+    const savedStats = localStorage.getItem(STATS_KEY);
+    if (savedStats) {
+      try {
+        setStats(JSON.parse(savedStats));
+      } catch (error) {
+        console.error('Erro ao carregar stats:', error);
+      }
+    }
+    
+    // Carregar conquistas
+    const savedAchievements = localStorage.getItem(ACHIEVEMENTS_KEY);
+    if (savedAchievements) {
+      try {
+        const unlocked = JSON.parse(savedAchievements);
+        const achievementsWithStatus = ACHIEVEMENTS.map(achievement => {
+          const unlockedData = unlocked.find((u: any) => u.id === achievement.id);
+          return {
+            ...achievement,
+            unlockedAt: unlockedData?.unlockedAt ? new Date(unlockedData.unlockedAt) : undefined,
+            progress: unlockedData?.progress || 0,
+          };
+        });
+        setAchievements(achievementsWithStatus);
+      } catch (error) {
+        console.error('Erro ao carregar conquistas:', error);
+      }
+    } else {
+      // Inicializar com todas as conquistas não desbloqueadas
+      setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: 0 })));
+    }
+    
     setIsLoading(false);
   }, []);
 
@@ -318,6 +369,103 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const unlockAchievement = (achievementId: string): Achievement | null => {
+    const achievement = ACHIEVEMENTS.find(a => a.id === achievementId);
+    if (!achievement) return null;
+
+    // Verificar se já está desbloqueada
+    const existing = achievements.find(a => a.id === achievementId);
+    if (existing?.unlockedAt) return null;
+
+    // Desbloquear
+    const unlockedAchievement: Achievement = {
+      ...achievement,
+      unlockedAt: new Date(),
+      progress: achievement.target || 1,
+    };
+
+    const updatedAchievements = achievements.map(a =>
+      a.id === achievementId ? unlockedAchievement : a
+    );
+    setAchievements(updatedAchievements);
+
+    // Salvar no localStorage
+    const unlocked = updatedAchievements
+      .filter(a => a.unlockedAt)
+      .map(a => ({
+        id: a.id,
+        unlockedAt: a.unlockedAt?.toISOString(),
+        progress: a.progress,
+      }));
+    localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(unlocked));
+
+    return unlockedAchievement;
+  };
+
+  const updateStats = (newStats: { postsCount?: number; likesReceived?: number; prizesRedeemed?: number }) => {
+    setStats(prev => {
+      const updated = { ...prev, ...newStats };
+      localStorage.setItem(STATS_KEY, JSON.stringify(updated));
+      
+      // Verificar conquistas baseadas em stats atualizados
+      setTimeout(() => {
+        // Verificar conquistas de postagens
+        if (newStats.postsCount !== undefined) {
+          if (updated.postsCount >= 1) checkAchievement('first_post');
+          if (updated.postsCount >= 10) checkAchievement('10_posts');
+          if (updated.postsCount >= 50) checkAchievement('50_posts');
+          if (updated.postsCount >= 100) checkAchievement('100_posts');
+        }
+
+        // Verificar conquistas de curtidas
+        if (newStats.likesReceived !== undefined) {
+          if (updated.likesReceived >= 1) checkAchievement('first_like');
+          if (updated.likesReceived >= 10) checkAchievement('10_likes');
+          if (updated.likesReceived >= 50) checkAchievement('50_likes');
+          if (updated.likesReceived >= 100) checkAchievement('100_likes');
+          if (updated.likesReceived >= 500) checkAchievement('500_likes');
+        }
+
+        // Verificar conquistas de prêmios
+        if (newStats.prizesRedeemed !== undefined) {
+          if (updated.prizesRedeemed >= 1) checkAchievement('first_prize');
+          if (updated.prizesRedeemed >= 5) checkAchievement('5_prizes');
+        }
+      }, 0);
+      
+      return updated;
+    });
+  };
+
+  const checkAchievement = (achievementId: string): Achievement | null => {
+    return unlockAchievement(achievementId);
+  };
+
+  // Verificar conquistas de pontos e rank quando pontos mudarem
+  useEffect(() => {
+    if (!user) return;
+
+    // Conquistas de pontos
+    if (userPoints >= 100) checkAchievement('100_points', true);
+    if (userPoints >= 500) checkAchievement('500_points', true);
+    if (userPoints >= 1000) checkAchievement('1000_points', true);
+
+    // Conquistas de rank
+    if (userPlan) {
+      const rankAchievements: Record<string, string> = {
+        bronze: 'rank_bronze',
+        silver: 'rank_silver',
+        gold: 'rank_gold',
+        platinum: 'rank_platinum',
+        diamond: 'rank_diamond',
+      };
+      const achievementId = rankAchievements[userPlan.id];
+      if (achievementId) {
+        checkAchievement(achievementId, true);
+      }
+    }
+  }, [userPoints, userPlan, user]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -327,11 +475,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userPoints,
         userPlan,
         nextPlan,
+        achievements,
+        stats,
         login,
         register,
         logout,
         addPoints,
         updateProfile,
+        unlockAchievement,
+        updateStats,
       }}
     >
       {children}

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Camera, Crown, TrendingUp, Award, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AchievementsSection } from '@/components/AchievementsSection';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -211,6 +212,9 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               <p className="text-xs text-muted-foreground">Nível</p>
             </div>
           </div>
+
+          {/* Achievements */}
+          <AchievementsSection />
 
           {/* Actions */}
           <div className="flex gap-2">
