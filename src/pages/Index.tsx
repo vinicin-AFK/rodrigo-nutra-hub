@@ -59,9 +59,10 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [allPosts, setAllPosts] = useState<Post[]>([]);
+  // Inicializar com postagens salvas ou mockadas
+  const [allPosts, setAllPosts] = useState<Post[]>(() => loadSavedPosts());
   const [selectedPostForComments, setSelectedPostForComments] = useState<Post | null>(null);
-  const [isPostsLoaded, setIsPostsLoaded] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Usar dados do usuário autenticado ou fallback
   const currentUser = user ? {
@@ -72,18 +73,18 @@ const Index = () => {
     level: user.level || fallbackUser.level,
   } : fallbackUser;
 
-  // Carregar postagens ao montar o componente (apenas uma vez)
+  // Marcar que o carregamento inicial foi concluído
   useEffect(() => {
-    if (!isPostsLoaded) {
-      const saved = loadSavedPosts();
-      setAllPosts(saved);
-      setIsPostsLoaded(true);
-    }
-  }, [isPostsLoaded]);
+    // Aguardar um tick para garantir que o estado inicial foi definido
+    const timer = setTimeout(() => {
+      setIsInitialLoad(false);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
-  // Salvar postagens no localStorage sempre que mudarem
+  // Salvar postagens no localStorage sempre que mudarem (exceto no carregamento inicial)
   useEffect(() => {
-    if (allPosts.length > 0) {
+    if (!isInitialLoad && allPosts.length >= 0) {
       try {
         const serializable = allPosts.map(post => ({
           ...post,
@@ -94,11 +95,12 @@ const Index = () => {
           })) || [],
         }));
         localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
+        console.log('Postagens salvas:', serializable.length);
       } catch (error) {
         console.error('Erro ao salvar postagens:', error);
       }
     }
-  }, [allPosts]);
+  }, [allPosts, isInitialLoad]);
 
   const handleNewPost = (content: string, resultValue?: number, image?: string) => {
     const newPost: Post = {
