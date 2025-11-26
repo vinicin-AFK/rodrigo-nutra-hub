@@ -33,21 +33,24 @@ const loadSavedPosts = (): Post[] => {
     const saved = localStorage.getItem(POSTS_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      return parsed.map((post: any) => ({
-        ...post,
-        createdAt: new Date(post.createdAt),
-        author: {
-          ...post.author,
-        },
-        commentsList: post.commentsList?.map((c: any) => ({
-          ...c,
-          createdAt: new Date(c.createdAt),
-        })) || [],
-      }));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((post: any) => ({
+          ...post,
+          createdAt: new Date(post.createdAt),
+          author: {
+            ...post.author,
+          },
+          commentsList: post.commentsList?.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt),
+          })) || [],
+        }));
+      }
     }
   } catch (error) {
     console.error('Erro ao carregar postagens:', error);
   }
+  // Se não houver postagens salvas, retornar postagens mockadas
   return posts;
 };
 
@@ -67,6 +70,14 @@ const Index = () => {
     avatar: user.avatar || fallbackUser.avatar,
     level: user.level || fallbackUser.level,
   } : fallbackUser;
+
+  // Carregar postagens ao montar o componente
+  useEffect(() => {
+    const saved = loadSavedPosts();
+    if (saved.length > 0) {
+      setAllPosts(saved);
+    }
+  }, []);
 
   // Salvar postagens no localStorage sempre que mudarem
   useEffect(() => {
@@ -102,29 +113,36 @@ const Index = () => {
       commentsList: [],
     };
     
-    const updatedPosts = [newPost, ...allPosts];
-    setAllPosts(updatedPosts);
-    
-    // Salvar imediatamente
-    try {
-      const serializable = updatedPosts.map(post => ({
-        ...post,
-        createdAt: post.createdAt.toISOString(),
-        commentsList: post.commentsList?.map(c => ({
-          ...c,
-          createdAt: c.createdAt.toISOString(),
-        })) || [],
-      }));
-      localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
-    } catch (error) {
-      console.error('Erro ao salvar postagem:', error);
-    }
+    // Usar função de atualização para garantir que não perdemos postagens existentes
+    setAllPosts(prevPosts => {
+      const updatedPosts = [newPost, ...prevPosts];
+      
+      // Salvar imediatamente
+      try {
+        const serializable = updatedPosts.map(post => ({
+          ...post,
+          createdAt: post.createdAt.toISOString(),
+          commentsList: post.commentsList?.map(c => ({
+            ...c,
+            createdAt: c.createdAt.toISOString(),
+          })) || [],
+        }));
+        localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
+      } catch (error) {
+        console.error('Erro ao salvar postagem:', error);
+      }
+      
+      return updatedPosts;
+    });
     
     // Adicionar 2 pontos por postagem
     addPoints(2);
     
     // Atualizar stats e verificar conquistas
-    updateStats({ postsCount: allPosts.length + 1 });
+    setAllPosts(prevPosts => {
+      updateStats({ postsCount: prevPosts.length + 1 });
+      return prevPosts;
+    });
     
     toast({
       title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
@@ -163,40 +181,43 @@ const Index = () => {
       createdAt: new Date(),
     };
 
-    const updatedPosts = allPosts.map(post => {
-      if (post.id === postId) {
-        const updatedCommentsList = [...(post.commentsList || []), newComment];
-        return {
+    // Usar função de atualização para garantir que não perdemos postagens
+    setAllPosts(prevPosts => {
+      const updatedPosts = prevPosts.map(post => {
+        if (post.id === postId) {
+          const updatedCommentsList = [...(post.commentsList || []), newComment];
+          return {
+            ...post,
+            comments: updatedCommentsList.length,
+            commentsList: updatedCommentsList,
+          };
+        }
+        return post;
+      });
+
+      // Salvar imediatamente
+      try {
+        const serializable = updatedPosts.map(post => ({
           ...post,
-          comments: updatedCommentsList.length,
-          commentsList: updatedCommentsList,
-        };
+          createdAt: post.createdAt.toISOString(),
+          commentsList: post.commentsList?.map(c => ({
+            ...c,
+            createdAt: c.createdAt.toISOString(),
+          })) || [],
+        }));
+        localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
+      } catch (error) {
+        console.error('Erro ao salvar comentário:', error);
       }
-      return post;
+
+      // Atualizar post selecionado para mostrar o novo comentário
+      const updatedPost = updatedPosts.find(p => p.id === postId);
+      if (updatedPost) {
+        setSelectedPostForComments(updatedPost);
+      }
+
+      return updatedPosts;
     });
-
-    setAllPosts(updatedPosts);
-
-    // Salvar imediatamente
-    try {
-      const serializable = updatedPosts.map(post => ({
-        ...post,
-        createdAt: post.createdAt.toISOString(),
-        commentsList: post.commentsList?.map(c => ({
-          ...c,
-          createdAt: c.createdAt.toISOString(),
-        })) || [],
-      }));
-      localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
-    } catch (error) {
-      console.error('Erro ao salvar comentário:', error);
-    }
-
-    // Atualizar post selecionado para mostrar o novo comentário
-    const updatedPost = updatedPosts.find(p => p.id === postId);
-    if (updatedPost) {
-      setSelectedPostForComments(updatedPost);
-    }
   };
 
   const handleRedeemPrize = (prize: typeof prizes[0]) => {
