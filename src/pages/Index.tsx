@@ -18,6 +18,7 @@ import { PlaquesShowcase } from '@/components/PlaquesShowcase';
 import { Comment } from '@/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePosts } from '@/hooks/usePosts';
 import { posts, users, prizes, currentUser as fallbackUser } from '@/data/mockData';
 import { Post } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -80,99 +81,47 @@ const Index = () => {
     level: user.level || fallbackUser.level,
   } : fallbackUser;
 
-  // Marcar que o carregamento inicial foi concluído
-  useEffect(() => {
-    // Aguardar um tick para garantir que o estado inicial foi definido
-    const timer = setTimeout(() => {
-      setIsInitialLoad(false);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Salvar postagens no localStorage sempre que mudarem (exceto no carregamento inicial)
-  useEffect(() => {
-    if (!isInitialLoad) {
-      try {
-        const serializable = allPosts.map(post => ({
-          ...post,
-          createdAt: post.createdAt.toISOString(),
-          commentsList: post.commentsList?.map(c => ({
-            ...c,
-            createdAt: c.createdAt.toISOString(),
-          })) || [],
-        }));
-        localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
-        console.log('✅ Postagens salvas no localStorage:', serializable.length);
-      } catch (error) {
-        console.error('❌ Erro ao salvar postagens:', error);
-      }
-    } else {
-      console.log('⏳ Carregamento inicial, não salvando ainda...');
-    }
-  }, [allPosts, isInitialLoad]);
 
   const handleNewPost = async (content: string, resultValue?: number, image?: string) => {
-    const newPost: Post = {
-      id: Date.now().toString(),
-      author: currentUser,
-      content,
-      likes: 0,
-      comments: 0,
-      isLiked: false,
-      createdAt: new Date(),
-      resultValue,
-      type: resultValue ? 'result' : 'post',
-      image: image,
-      commentsList: [],
-    };
-    
-    // Usar função de atualização para garantir que não perdemos postagens existentes
-    setAllPosts(prevPosts => {
-      const updatedPosts = [newPost, ...prevPosts];
+    try {
+      await createPost(content, resultValue, image);
       
-      // Salvar imediatamente
-      try {
-        const serializable = updatedPosts.map(post => ({
-          ...post,
-          createdAt: post.createdAt.toISOString(),
-          commentsList: post.commentsList?.map(c => ({
-            ...c,
-            createdAt: c.createdAt.toISOString(),
-          })) || [],
-        }));
-        localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
-      } catch (error) {
-        console.error('Erro ao salvar postagem:', error);
-      }
+      // Adicionar 2 pontos por postagem
+      await addPoints(2);
       
-      return updatedPosts;
-    });
-    
-    // Adicionar 2 pontos por postagem
-    await addPoints(2);
-    
-    // Atualizar stats e verificar conquistas
-    await updateStats({ postsCount: allPosts.length + 1 });
-    
-    toast({
-      title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
-      description: resultValue 
-        ? `+${Math.floor(resultValue / 100)} pontos ganhos!` 
-        : "Seu post foi compartilhado com a comunidade. +2 pontos!",
-    });
+      // Atualizar stats e verificar conquistas
+      await updateStats({ postsCount: allPosts.length + 1 });
+      
+      toast({
+        title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
+        description: resultValue 
+          ? `+${Math.floor(resultValue / 100)} pontos ganhos!` 
+          : "Seu post foi compartilhado com a comunidade. +2 pontos!",
+      });
+    } catch (error) {
+      console.error('Erro ao criar postagem:', error);
+      toast({
+        title: "Erro ao publicar",
+        description: "Não foi possível publicar. Tente novamente.",
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleLike = async (postId: string, isLiked: boolean) => {
-    // Pontos já são adicionados no PostCard quando curte
-    // Atualizar stats de curtidas recebidas (simulado - em produção viria do backend)
-    // Por enquanto, incrementamos quando alguém curte um post do usuário
-    if (isLiked) {
-      const post = allPosts.find(p => p.id === postId);
-      if (post && post.author.id === currentUser.id) {
-        // Simular incremento de curtidas recebidas
-        // Em produção, isso viria do backend
-        await updateStats({ likesReceived: (post.likes || 0) + 1 });
+    try {
+      await likePost(postId);
+      
+      // Pontos já são adicionados no PostCard quando curte
+      // Atualizar stats de curtidas recebidas
+      if (isLiked) {
+        const post = allPosts.find(p => p.id === postId);
+        if (post && post.author.id === currentUser.id) {
+          await updateStats({ likesReceived: (post.likes || 0) + 1 });
+        }
       }
+    } catch (error) {
+      console.error('Erro ao curtir postagem:', error);
     }
   };
 
@@ -183,51 +132,23 @@ const Index = () => {
     }
   };
 
-  const handleAddComment = (postId: string, content: string) => {
-    const newComment: Comment = {
-      id: Date.now().toString(),
-      author: currentUser,
-      content,
-      createdAt: new Date(),
-    };
-
-    // Usar função de atualização para garantir que não perdemos postagens
-    setAllPosts(prevPosts => {
-      const updatedPosts = prevPosts.map(post => {
-        if (post.id === postId) {
-          const updatedCommentsList = [...(post.commentsList || []), newComment];
-          return {
-            ...post,
-            comments: updatedCommentsList.length,
-            commentsList: updatedCommentsList,
-          };
-        }
-        return post;
-      });
-
-      // Salvar imediatamente
-      try {
-        const serializable = updatedPosts.map(post => ({
-          ...post,
-          createdAt: post.createdAt.toISOString(),
-          commentsList: post.commentsList?.map(c => ({
-            ...c,
-            createdAt: c.createdAt.toISOString(),
-          })) || [],
-        }));
-        localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
-      } catch (error) {
-        console.error('Erro ao salvar comentário:', error);
-      }
-
+  const handleAddComment = async (postId: string, content: string) => {
+    try {
+      await addComment(postId, content);
+      
       // Atualizar post selecionado para mostrar o novo comentário
-      const updatedPost = updatedPosts.find(p => p.id === postId);
+      const updatedPost = allPosts.find(p => p.id === postId);
       if (updatedPost) {
         setSelectedPostForComments(updatedPost);
       }
-
-      return updatedPosts;
-    });
+    } catch (error) {
+      console.error('Erro ao adicionar comentário:', error);
+      toast({
+        title: "Erro ao comentar",
+        description: "Não foi possível adicionar o comentário. Tente novamente.",
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleRedeemPrize = async (prize: typeof prizes[0]) => {
