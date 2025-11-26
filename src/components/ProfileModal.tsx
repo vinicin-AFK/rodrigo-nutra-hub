@@ -12,14 +12,6 @@ interface ProfileModalProps {
   onClose: () => void;
 }
 
-const PLANS = [
-  { id: 'bronze', name: 'Bronze', minPoints: 0, color: 'text-amber-600', icon: '🥉' },
-  { id: 'silver', name: 'Prata', minPoints: 100, color: 'text-gray-400', icon: '🥈' },
-  { id: 'gold', name: 'Ouro', minPoints: 500, color: 'text-yellow-500', icon: '🥇' },
-  { id: 'platinum', name: 'Platina', minPoints: 1000, color: 'text-cyan-400', icon: '💎' },
-  { id: 'diamond', name: 'Diamante', minPoints: 5000, color: 'text-blue-500', icon: '💠' },
-];
-
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const { user, updateProfile, userPoints, userPlan, nextPlan } = useAuth();
   const [name, setName] = useState(user?.name || '');
