@@ -230,7 +230,7 @@ const Index = () => {
     });
   };
 
-  const handleRedeemPrize = (prize: typeof prizes[0]) => {
+  const handleRedeemPrize = async (prize: typeof prizes[0]) => {
     if (userPoints < prize.pointsCost) {
       toast({
         title: "Pontos insuficientes",
@@ -241,11 +241,11 @@ const Index = () => {
     }
     
     // Deduzir pontos (adicionar pontos negativos)
-    addPoints(-prize.pointsCost);
+    await addPoints(-prize.pointsCost);
     
     // Atualizar stats (vai verificar conquistas automaticamente)
     const currentPrizes = stats?.prizesRedeemed || 0;
-    updateStats({ prizesRedeemed: currentPrizes + 1 });
+    await updateStats({ prizesRedeemed: currentPrizes + 1 });
     
     toast({
       title: "🎁 Prêmio resgatado!",
