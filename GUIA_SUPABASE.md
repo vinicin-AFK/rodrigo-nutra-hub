@@ -55,7 +55,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 ## Passo 6: Criar Tabelas no Supabase
 
-No dashboard do Supabase, vá em **SQL Editor** e execute os seguintes comandos:
+⚠️ **IMPORTANTE**: Use o arquivo `supabase_setup.sql` que está na raiz do projeto!
+
+No dashboard do Supabase:
+1. Vá em **SQL Editor** (ícone de banco de dados no menu lateral)
+2. Clique em **New Query**
+3. Copie e cole TODO o conteúdo do arquivo `supabase_setup.sql`
+4. Clique em **Run** (ou pressione Ctrl+Enter)
+
+Ou execute os comandos SQL abaixo manualmente:
 
 ### Tabela de Usuários (extensão do auth.users)
 ```sql
