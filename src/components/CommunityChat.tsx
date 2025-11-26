@@ -168,7 +168,11 @@ export function CommunityChat() {
   useEffect(() => {
     if (isRecording) {
       recordingIntervalRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
+        setRecordingTime((prev) => {
+          const newTime = prev + 1;
+          recordingTimeRef.current = newTime; // Atualizar ref também
+          return newTime;
+        });
       }, 1000);
     } else {
       if (recordingIntervalRef.current) {
@@ -220,6 +224,7 @@ export function CommunityChat() {
   };
 
   const streamRef = useRef<MediaStream | null>(null);
+  const recordingTimeRef = useRef<number>(0);
 
   const handleStartRecording = async () => {
     try {
@@ -236,27 +241,23 @@ export function CommunityChat() {
       };
 
       mediaRecorder.onstop = () => {
-        // Capturar o tempo de gravação no momento exato
-        setRecordingTime((currentTime) => {
-          const finalDuration = currentTime;
-          
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          const audioUrl = URL.createObjectURL(audioBlob);
-          
-          if (finalDuration > 0) {
-            // Mostrar preview do áudio imediatamente
-            setRecordedAudio({
-              url: audioUrl,
-              duration: finalDuration,
-              blob: audioBlob,
-            });
-          } else {
-            // Se gravou menos de 1 segundo, descartar
-            URL.revokeObjectURL(audioUrl);
-          }
-
-          return currentTime; // Manter o tempo para o preview
-        });
+        // Usar o ref para garantir que temos o tempo correto
+        const finalDuration = recordingTimeRef.current;
+        
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        if (finalDuration > 0) {
+          // Mostrar preview do áudio imediatamente
+          setRecordedAudio({
+            url: audioUrl,
+            duration: finalDuration,
+            blob: audioBlob,
+          });
+        } else {
+          // Se gravou menos de 1 segundo, descartar
+          URL.revokeObjectURL(audioUrl);
+        }
 
         // Stop all tracks
         if (streamRef.current) {
@@ -268,6 +269,7 @@ export function CommunityChat() {
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
+      recordingTimeRef.current = 0;
     } catch (error) {
       console.error('Erro ao iniciar gravação:', error);
       alert('Não foi possível acessar o microfone. Verifique as permissões.');
@@ -318,6 +320,7 @@ export function CommunityChat() {
       
       setRecordedAudio(null);
       setRecordingTime(0);
+      recordingTimeRef.current = 0;
       setPreviewCurrentTime(0);
       setIsPlayingPreview(false);
     }
@@ -335,6 +338,7 @@ export function CommunityChat() {
       URL.revokeObjectURL(recordedAudio.url);
       setRecordedAudio(null);
       setRecordingTime(0); // Resetar apenas quando cancelar
+      recordingTimeRef.current = 0;
       setPreviewCurrentTime(0);
       setIsPlayingPreview(false);
     }
