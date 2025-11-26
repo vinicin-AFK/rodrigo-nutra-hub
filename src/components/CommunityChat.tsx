@@ -549,7 +549,10 @@ export function CommunityChat() {
 
       {/* Audio Preview */}
       {recordedAudio && !isRecording && (
-        <div className="absolute bottom-20 left-4 right-4 z-20">
+        <div className={cn(
+          "absolute left-4 right-4 z-20 transition-all",
+          showEmojiPicker || selectedImage ? "bottom-32" : "bottom-20"
+        )}>
           <div className="bg-white dark:bg-[#202c33] rounded-lg p-3 shadow-lg border border-[#00a884]/20">
             <div className="flex items-center gap-3">
               {/* Play/Pause button */}
@@ -596,12 +599,14 @@ export function CommunityChat() {
                 <button
                   onClick={handleCancelAudio}
                   className="w-8 h-8 rounded-full bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center transition-colors"
+                  title="Cancelar"
                 >
                   <X className="w-4 h-4 text-red-500" />
                 </button>
                 <button
                   onClick={handleSendAudio}
                   className="w-8 h-8 rounded-full bg-[#00a884] hover:bg-[#00a884]/90 flex items-center justify-center transition-colors"
+                  title="Enviar"
                 >
                   <Send className="w-4 h-4 text-white" />
                 </button>
