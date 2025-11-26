@@ -146,12 +146,15 @@ export function CommunityChat() {
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [recordedAudio, setRecordedAudio] = useState<{ url: string; duration: number; blob: Blob } | null>(null);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -231,20 +234,15 @@ export function CommunityChat() {
         const audioUrl = URL.createObjectURL(audioBlob);
         
         if (recordingTime > 0) {
-          const audioMessage: Message = {
-            id: Date.now().toString(),
-            content: '',
-            isUser: true,
-            timestamp: new Date(),
-            type: 'audio',
-            audioDuration: recordingTime,
-            audioUrl: audioUrl,
-            author: {
-              name: currentUser.name,
-              avatar: currentUser.avatar,
-            },
-          };
-          setMessages((prev) => [...prev, audioMessage]);
+          // Mostrar preview do áudio ao invés de enviar diretamente
+          setRecordedAudio({
+            url: audioUrl,
+            duration: recordingTime,
+            blob: audioBlob,
+          });
+        } else {
+          // Se gravou menos de 1 segundo, descartar
+          URL.revokeObjectURL(audioUrl);
         }
 
         // Stop all tracks
@@ -264,7 +262,68 @@ export function CommunityChat() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      // Não resetar recordingTime ainda, será usado no preview
+    }
+  };
+
+  const handleSendAudio = () => {
+    if (recordedAudio) {
+      const audioMessage: Message = {
+        id: Date.now().toString(),
+        content: '',
+        isUser: true,
+        timestamp: new Date(),
+        type: 'audio',
+        audioDuration: recordedAudio.duration,
+        audioUrl: recordedAudio.url,
+        author: {
+          name: currentUser.name,
+          avatar: currentUser.avatar,
+        },
+      };
+      setMessages((prev) => [...prev, audioMessage]);
+      setRecordedAudio(null);
       setRecordingTime(0);
+      setIsPlayingPreview(false);
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current = null;
+      }
+    }
+  };
+
+  const handleCancelAudio = () => {
+    if (recordedAudio) {
+      URL.revokeObjectURL(recordedAudio.url);
+      setRecordedAudio(null);
+      setRecordingTime(0);
+      setIsPlayingPreview(false);
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current = null;
+      }
+    }
+  };
+
+  const handlePlayPreview = () => {
+    if (!recordedAudio) return;
+
+    if (isPlayingPreview) {
+      // Pausar
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+      }
+      setIsPlayingPreview(false);
+    } else {
+      // Reproduzir
+      if (!previewAudioRef.current) {
+        previewAudioRef.current = new Audio(recordedAudio.url);
+        previewAudioRef.current.onended = () => {
+          setIsPlayingPreview(false);
+        };
+      }
+      previewAudioRef.current.play();
+      setIsPlayingPreview(true);
     }
   };
 
@@ -483,8 +542,72 @@ export function CommunityChat() {
             onClick={handleStopRecording}
             className="px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
           >
-            Enviar
+            Parar
           </button>
+        </div>
+      )}
+
+      {/* Audio Preview */}
+      {recordedAudio && !isRecording && (
+        <div className="absolute bottom-20 left-4 right-4 z-20">
+          <div className="bg-white dark:bg-[#202c33] rounded-lg p-3 shadow-lg border border-[#00a884]/20">
+            <div className="flex items-center gap-3">
+              {/* Play/Pause button */}
+              <button
+                onClick={handlePlayPreview}
+                className="flex-shrink-0 w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center hover:bg-[#00a884]/90 transition-colors"
+              >
+                {isPlayingPreview ? (
+                  <Pause className="w-5 h-5 text-white" />
+                ) : (
+                  <Play className="w-5 h-5 text-white ml-0.5" />
+                )}
+              </button>
+
+              {/* Waveform and duration */}
+              <div className="flex-1">
+                <div className="flex items-center gap-1 h-4 mb-1">
+                  {[...Array(20)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "w-0.5 rounded-full transition-all",
+                        isPlayingPreview
+                          ? "bg-[#00a884] animate-pulse"
+                          : "bg-[#00a884]/40"
+                      )}
+                      style={{
+                        height: isPlayingPreview
+                          ? `${Math.random() * 60 + 20}%`
+                          : `${Math.sin((i / 20) * Math.PI * 4) * 20 + 30}%`,
+                        minHeight: '4px',
+                        maxHeight: '16px',
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="text-xs text-[#667781] dark:text-[#8696a0]">
+                  {formatRecordingTime(recordedAudio.duration)}
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCancelAudio}
+                  className="w-8 h-8 rounded-full bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center transition-colors"
+                >
+                  <X className="w-4 h-4 text-red-500" />
+                </button>
+                <button
+                  onClick={handleSendAudio}
+                  className="w-8 h-8 rounded-full bg-[#00a884] hover:bg-[#00a884]/90 flex items-center justify-center transition-colors"
+                >
+                  <Send className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
