@@ -10,7 +10,7 @@ interface PostCardProps {
 }
 
 export function PostCard({ post, onLike }: PostCardProps) {
-  const { addPoints } = useAuth();
+  const { addPoints, user, achievements } = useAuth();
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [likes, setLikes] = useState(post.likes);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -64,6 +64,35 @@ export function PostCard({ post, onLike }: PostCardProps) {
     totalSales: 0,
   };
 
+  // Verificar se o autor é o usuário logado
+  const isCurrentUser = user && author.id === user.id;
+  
+  // Pegar conquistas desbloqueadas do usuário (apenas as mais importantes para mostrar)
+  const userAchievements = isCurrentUser 
+    ? achievements
+        .filter(a => a.unlockedAt)
+        .sort((a, b) => {
+          // Priorizar conquistas de rank e marcos importantes
+          const priorityOrder: Record<string, number> = {
+            'rank_diamond': 1,
+            'rank_platinum': 2,
+            'rank_gold': 3,
+            'rank_silver': 4,
+            'rank_bronze': 5,
+            '1000_points': 6,
+            '500_points': 7,
+            '100_points': 8,
+            '500_likes': 9,
+            '100_likes': 10,
+            '50_likes': 11,
+            '100_posts': 12,
+            '50_posts': 13,
+          };
+          return (priorityOrder[a.id] || 99) - (priorityOrder[b.id] || 99);
+        })
+        .slice(0, 3) // Mostrar apenas as 3 mais importantes
+    : [];
+
   return (
     <article className="glass-card rounded-2xl overflow-hidden animate-fade-in mb-4">
       {/* Header */}
@@ -74,8 +103,24 @@ export function PostCard({ post, onLike }: PostCardProps) {
           className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/30"
         />
         <div className="flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-foreground text-sm">{author.name || 'Usuário'}</h3>
+            
+            {/* Conquistas do usuário */}
+            {isCurrentUser && userAchievements.length > 0 && (
+              <div className="flex items-center gap-1">
+                {userAchievements.map((achievement) => (
+                  <span
+                    key={achievement.id}
+                    className="text-base leading-none"
+                    title={`${achievement.name} - ${achievement.description}`}
+                  >
+                    {achievement.icon}
+                  </span>
+                ))}
+              </div>
+            )}
+            
             {post.type === 'result' && (
               <span className="gold-badge text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
                 <Award className="w-3 h-3" />
