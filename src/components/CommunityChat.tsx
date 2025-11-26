@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Image as ImageIcon, Mic, Smile, Play, Pause, X } from 'lucide-react';
 import { Message } from '@/types';
 import { cn } from '@/lib/utils';
-import { currentUser, users } from '@/data/mockData';
+import { useCommunityMessages } from '@/hooks/useCommunityMessages';
+import { useAuth } from '@/contexts/AuthContext';
+import { currentUser as fallbackUser, users } from '@/data/mockData';
 
 // Componente para player de áudio
 function AudioPlayer({ 
@@ -132,54 +134,17 @@ function AudioPlayer({
   );
 }
 
-const COMMUNITY_MESSAGES_KEY = 'nutraelite_community_messages';
-
-// Mensagens iniciais padrão
-const getInitialMessages = (): Message[] => {
-  const saved = localStorage.getItem(COMMUNITY_MESSAGES_KEY);
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      // Converter timestamps de string para Date
-      return parsed.map((msg: any) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      }));
-    } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
-    }
-  }
-  
-  // Mensagens iniciais apenas se não houver mensagens salvas
-  return [
-    {
-      id: '1',
-      content: '👋 Bem-vindos à comunidade NutraElite!',
-      isUser: false,
-      timestamp: new Date(Date.now() - 3600000),
-      type: 'text',
-      author: {
-        name: 'SOCIO GUSTAVO',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-        role: 'admin',
-      },
-    },
-    {
-      id: '2',
-      content: '🔥 RESULTADO INSANO! Fechei mais uma venda de R$ 5.000!',
-      isUser: false,
-      timestamp: new Date(Date.now() - 1800000),
-      type: 'text',
-      author: {
-        name: users[0].name,
-        avatar: users[0].avatar,
-      },
-    },
-  ];
-};
-
 export function CommunityChat() {
-  const [messages, setMessages] = useState<Message[]>(getInitialMessages);
+  const { messages, isLoading: messagesLoading, sendMessage } = useCommunityMessages();
+  const { user } = useAuth();
+  
+  const currentUser = user ? {
+    ...fallbackUser,
+    name: user.name,
+    email: user.email,
+    avatar: user.avatar || fallbackUser.avatar,
+    level: user.level || fallbackUser.level,
+  } : fallbackUser;
 
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -295,38 +260,21 @@ export function CommunityChat() {
     }
   }, [messages, isMessagesLoaded]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() && !selectedImage) return;
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      content: input || (selectedImage ? '📷' : ''),
-      isUser: true,
-      timestamp: new Date(),
-      type: selectedImage ? 'image' : input.length <= 2 && /[\u{1F300}-\u{1F9FF}]/u.test(input) ? 'emoji' : 'text',
-      image: selectedImage || undefined,
-      author: {
-        name: currentUser.name,
-        avatar: currentUser.avatar,
-      },
-    };
-
-    setMessages((prev) => {
-      const updated = [...prev, newMessage];
-      // Salvar imediatamente para compartilhamento
-      try {
-        const serializable = updated.map(msg => ({
-          ...msg,
-          timestamp: msg.timestamp.toISOString(),
-        }));
-        localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
-      } catch (error) {
-        console.error('Erro ao salvar mensagem:', error);
-      }
-      return updated;
-    });
-    setInput('');
-    setSelectedImage(null);
+    try {
+      const messageType = selectedImage ? 'image' : input.length <= 2 && /[\u{1F300}-\u{1F9FF}]/u.test(input) ? 'emoji' : 'text';
+      await sendMessage(
+        input || (selectedImage ? '📷' : ''),
+        messageType,
+        selectedImage || undefined
+      );
+      setInput('');
+      setSelectedImage(null);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+    }
   };
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -416,57 +364,43 @@ export function CommunityChat() {
     }
   };
 
-  const handleSendAudio = () => {
+  const handleSendAudio = async () => {
     if (recordedAudio) {
-      // Criar nova URL para a mensagem (não revogar a original ainda)
-      const audioUrl = URL.createObjectURL(recordedAudio.blob);
-      
-      const audioMessage: Message = {
-        id: Date.now().toString(),
-        content: '',
-        isUser: true,
-        timestamp: new Date(),
-        type: 'audio',
-        audioDuration: recordedAudio.duration,
-        audioUrl: audioUrl,
-        author: {
-          name: currentUser.name,
-          avatar: currentUser.avatar,
-        },
-      };
-      
-      setMessages((prev) => {
-        const updated = [...prev, audioMessage];
-        // Salvar imediatamente para compartilhamento
-        try {
-          const serializable = updated.map(msg => ({
-            ...msg,
-            timestamp: msg.timestamp.toISOString(),
-            // Para áudio, manter a URL do blob (em produção, seria uma URL do servidor)
-            // Nota: Blob URLs não persistem entre sessões, mas a mensagem será salva
-          }));
-          localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
-        } catch (error) {
-          console.error('Erro ao salvar mensagem de áudio:', error);
-        }
-        return updated;
-      });
-      
-      // Limpar preview
-      if (previewAudioRef.current) {
-        previewAudioRef.current.pause();
-        previewAudioRef.current.src = '';
-        previewAudioRef.current = null;
+      try {
+        // Converter blob para base64 para salvar no Supabase
+        // Em produção, seria melhor fazer upload para Supabase Storage
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64Audio = reader.result as string;
+          
+          await sendMessage(
+            '',
+            'audio',
+            undefined,
+            base64Audio, // Salvar como base64 temporariamente
+            recordedAudio.duration
+          );
+          
+          // Limpar preview
+          if (previewAudioRef.current) {
+            previewAudioRef.current.pause();
+            previewAudioRef.current.src = '';
+            previewAudioRef.current = null;
+          }
+          
+          // Revogar URL do preview
+          URL.revokeObjectURL(recordedAudio.url);
+          
+          setRecordedAudio(null);
+          setRecordingTime(0);
+          recordingTimeRef.current = 0;
+          setPreviewCurrentTime(0);
+          setIsPlayingPreview(false);
+        };
+        reader.readAsDataURL(recordedAudio.blob);
+      } catch (error) {
+        console.error('Erro ao enviar áudio:', error);
       }
-      
-      // Revogar URL do preview
-      URL.revokeObjectURL(recordedAudio.url);
-      
-      setRecordedAudio(null);
-      setRecordingTime(0);
-      recordingTimeRef.current = 0;
-      setPreviewCurrentTime(0);
-      setIsPlayingPreview(false);
     }
   };
 
