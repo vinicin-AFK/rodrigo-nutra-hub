@@ -12,7 +12,8 @@ import { UserHeader } from '@/components/UserHeader';
 import { CreatePostModal } from '@/components/CreatePostModal';
 import { PlaquesShowcase } from '@/components/PlaquesShowcase';
 import { Button } from '@/components/ui/button';
-import { posts, users, prizes, currentUser } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { posts, users, prizes, currentUser as fallbackUser } from '@/data/mockData';
 import { Post } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -20,9 +21,19 @@ import { cn } from '@/lib/utils';
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
 const Index = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [allPosts, setAllPosts] = useState<Post[]>(posts);
+
+  // Usar dados do usuário autenticado ou fallback
+  const currentUser = user ? {
+    ...fallbackUser,
+    name: user.name,
+    email: user.email,
+    avatar: user.avatar || fallbackUser.avatar,
+    level: user.level || fallbackUser.level,
+  } : fallbackUser;
 
   const handleNewPost = (content: string, resultValue?: number) => {
     const newPost: Post = {
