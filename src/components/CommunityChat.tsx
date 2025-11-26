@@ -405,7 +405,7 @@ export function CommunityChat() {
                     : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-tl-none"
                 )}>
                   {message.type === 'audio' ? (
-                    {message.audioUrl ? (
+                    message.audioUrl ? (
                       <AudioPlayer
                         message={message}
                         isPlaying={playingAudio === message.id}
@@ -433,7 +433,7 @@ export function CommunityChat() {
                           </div>
                         </div>
                       </div>
-                    )}
+                    )
                   ) : message.type === 'image' && message.image ? (
                     <div className="max-w-[250px]">
                       <img
