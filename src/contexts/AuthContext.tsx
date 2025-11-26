@@ -307,7 +307,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Não é crítico, continuar
       }
       
-      return Promise.resolve();
+      // Retornar explicitamente
+      return;
     } catch (error) {
       console.error('updateProfile: Erro completo:', error);
       if (error instanceof Error) {
