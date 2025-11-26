@@ -13,15 +13,14 @@ import {
 import { currentUser as fallbackUser } from '@/data/mockData';
 
 export function UserHeader() {
-  const { user, logout } = useAuth();
+  const { user, logout, userPoints, userPlan } = useAuth();
   const navigate = useNavigate();
   
   // Usar dados do usuário autenticado ou fallback
   const displayUser = user || fallbackUser;
-  const userPoints = (user as any)?.points || fallbackUser.points || 0;
   const userRank = (user as any)?.rank || fallbackUser.rank || 999;
   const userTotalSales = (user as any)?.totalSales || fallbackUser.totalSales || 0;
-  const userLevel = user?.level || fallbackUser.level || 'Iniciante';
+  const userLevel = userPlan?.name || user?.level || fallbackUser.level || 'Iniciante';
 
   const handleLogout = () => {
     logout();
