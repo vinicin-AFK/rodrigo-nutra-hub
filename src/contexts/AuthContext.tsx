@@ -243,26 +243,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (data: { name?: string; avatar?: string }) => {
     if (!user) {
+      console.error('updateProfile: Usuário não autenticado');
       throw new Error('Usuário não autenticado');
     }
     
     try {
+      console.log('updateProfile: Dados recebidos:', data);
+      console.log('updateProfile: Usuário atual:', user);
+      
+      // Criar objeto atualizado
       const updatedUser: User = {
         ...user,
-        ...(data.name !== undefined && { name: data.name }),
-        ...(data.avatar !== undefined && { avatar: data.avatar }),
       };
       
+      // Atualizar nome se fornecido
+      if (data.name !== undefined) {
+        updatedUser.name = data.name;
+      }
+      
+      // Atualizar avatar se fornecido (pode ser string vazia para remover)
+      if (data.avatar !== undefined) {
+        updatedUser.avatar = data.avatar || undefined;
+      }
+      
+      console.log('updateProfile: Usuário atualizado:', updatedUser);
+      
+      // Atualizar estado
       setUser(updatedUser);
       
       // Salvar no localStorage
       const savedAuth = localStorage.getItem(STORAGE_KEY);
-      if (savedAuth) {
-        const authData = JSON.parse(savedAuth);
-        authData.user = updatedUser;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
-        
-        // Atualizar também na lista de usuários
+      if (!savedAuth) {
+        throw new Error('Sessão não encontrada no localStorage');
+      }
+      
+      const authData = JSON.parse(savedAuth);
+      authData.user = updatedUser;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
+      console.log('updateProfile: Dados salvos no localStorage');
+      
+      // Atualizar também na lista de usuários (se existir)
+      try {
         const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
         const userIndex = mockUsers.findIndex((u: any) => u.id === user.id);
         if (userIndex !== -1) {
@@ -277,13 +298,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             plan: updatedUser.plan,
           };
           localStorage.setItem('nutraelite_users', JSON.stringify(mockUsers));
+          console.log('updateProfile: Lista de usuários atualizada');
+        } else {
+          console.warn('updateProfile: Usuário não encontrado na lista de usuários');
         }
-      } else {
-        throw new Error('Sessão não encontrada');
+      } catch (listError) {
+        console.warn('updateProfile: Erro ao atualizar lista de usuários (não crítico):', listError);
+        // Não é crítico, continuar
       }
+      
+      return Promise.resolve();
     } catch (error) {
-      console.error('Erro ao atualizar perfil:', error);
-      throw error;
+      console.error('updateProfile: Erro completo:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Erro desconhecido ao atualizar perfil');
     }
   };
 

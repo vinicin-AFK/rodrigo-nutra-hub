@@ -65,22 +65,30 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         name: name.trim(),
       };
       
-      // Incluir avatar apenas se foi alterado (não vazio)
-      if (avatar) {
-        updateData.avatar = avatar;
-      }
+      // Sempre incluir avatar (mesmo que vazio, para permitir remover)
+      updateData.avatar = avatar || undefined;
       
+      console.log('Atualizando perfil com:', updateData);
       await updateProfile(updateData);
+      
       toast({
         title: 'Perfil atualizado!',
         description: 'Suas informações foram salvas com sucesso.',
       });
-      onClose();
+      
+      // Pequeno delay para garantir que o estado foi atualizado
+      setTimeout(() => {
+        onClose();
+      }, 100);
     } catch (error) {
-      console.error('Erro ao salvar perfil:', error);
+      console.error('Erro detalhado ao salvar perfil:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Não foi possível atualizar o perfil. Tente novamente.';
+      
       toast({
-        title: 'Erro',
-        description: error instanceof Error ? error.message : 'Não foi possível atualizar o perfil. Tente novamente.',
+        title: 'Erro ao salvar',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
