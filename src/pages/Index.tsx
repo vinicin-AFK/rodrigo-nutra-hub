@@ -111,7 +111,7 @@ const Index = () => {
     }
   }, [allPosts, isInitialLoad]);
 
-  const handleNewPost = (content: string, resultValue?: number, image?: string) => {
+  const handleNewPost = async (content: string, resultValue?: number, image?: string) => {
     const newPost: Post = {
       id: Date.now().toString(),
       author: currentUser,
@@ -149,13 +149,10 @@ const Index = () => {
     });
     
     // Adicionar 2 pontos por postagem
-    addPoints(2);
+    await addPoints(2);
     
     // Atualizar stats e verificar conquistas
-    setAllPosts(prevPosts => {
-      updateStats({ postsCount: prevPosts.length + 1 });
-      return prevPosts;
-    });
+    await updateStats({ postsCount: allPosts.length + 1 });
     
     toast({
       title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
@@ -165,7 +162,7 @@ const Index = () => {
     });
   };
 
-  const handleLike = (postId: string, isLiked: boolean) => {
+  const handleLike = async (postId: string, isLiked: boolean) => {
     // Pontos já são adicionados no PostCard quando curte
     // Atualizar stats de curtidas recebidas (simulado - em produção viria do backend)
     // Por enquanto, incrementamos quando alguém curte um post do usuário
@@ -174,7 +171,7 @@ const Index = () => {
       if (post && post.author.id === currentUser.id) {
         // Simular incremento de curtidas recebidas
         // Em produção, isso viria do backend
-        updateStats({ likesReceived: (post.likes || 0) + 1 });
+        await updateStats({ likesReceived: (post.likes || 0) + 1 });
       }
     }
   };

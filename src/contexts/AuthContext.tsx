@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Achievement, ACHIEVEMENTS } from '@/types/achievements';
+import { supabase } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -34,11 +36,11 @@ interface AuthContextType {
   };
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  addPoints: (points: number) => void;
+  logout: () => Promise<void>;
+  addPoints: (points: number) => Promise<void>;
   updateProfile: (data: { name?: string; avatar?: string }) => Promise<void>;
-  unlockAchievement: (achievementId: string) => Achievement | null;
-  updateStats: (stats: { postsCount?: number; likesReceived?: number; prizesRedeemed?: number }) => void;
+  unlockAchievement: (achievementId: string) => Promise<Achievement | null>;
+  updateStats: (stats: { postsCount?: number; likesReceived?: number; prizesRedeemed?: number }) => Promise<void>;
 }
 
 const PLANS: Plan[] = [
@@ -84,63 +86,111 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     prizesRedeemed: 0,
   });
 
-  // Carregar sessão salva ao iniciar
-  useEffect(() => {
-    const savedAuth = localStorage.getItem(STORAGE_KEY);
-    if (savedAuth) {
-      try {
-        const authData = JSON.parse(savedAuth);
-        // Verificar se a sessão ainda é válida (opcional: adicionar expiração)
-        if (authData.user && authData.token) {
-          // Garantir que pontos existam
-          if (!authData.user.points) {
-            authData.user.points = 0;
-          }
-          setUser(authData.user);
-          // Salvar de volta para garantir pontos
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
-        }
-      } catch (error) {
-        console.error('Erro ao carregar sessão:', error);
-        localStorage.removeItem(STORAGE_KEY);
+  // Carregar perfil do Supabase
+  const loadProfile = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      if (profile) {
+        const userData: User = {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          avatar: profile.avatar || undefined,
+          level: profile.level || 'Bronze',
+          points: profile.points || 0,
+          plan: profile.plan || 'bronze',
+        };
+        setUser(userData);
       }
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
     }
-    
-    // Carregar stats
-    const savedStats = localStorage.getItem(STATS_KEY);
-    if (savedStats) {
-      try {
-        setStats(JSON.parse(savedStats));
-      } catch (error) {
-        console.error('Erro ao carregar stats:', error);
-      }
-    }
-    
-    // Carregar conquistas
-    const savedAchievements = localStorage.getItem(ACHIEVEMENTS_KEY);
-    if (savedAchievements) {
-      try {
-        const unlocked = JSON.parse(savedAchievements);
-        const achievementsWithStatus = ACHIEVEMENTS.map(achievement => {
-          const unlockedData = unlocked.find((u: any) => u.id === achievement.id);
-          return {
-            ...achievement,
-            unlockedAt: unlockedData?.unlockedAt ? new Date(unlockedData.unlockedAt) : undefined,
-            progress: unlockedData?.progress || (achievement.target ? 0 : undefined),
-          };
+  };
+
+  // Carregar stats do Supabase
+  const loadStats = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_stats')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = não encontrado
+
+      if (data) {
+        setStats({
+          postsCount: data.posts_count || 0,
+          likesReceived: data.likes_received || 0,
+          prizesRedeemed: data.prizes_redeemed || 0,
         });
-        setAchievements(achievementsWithStatus);
-      } catch (error) {
-        console.error('Erro ao carregar conquistas:', error);
-        // Inicializar com todas as conquistas não desbloqueadas em caso de erro
-        setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
       }
-    } else {
-      // Inicializar com todas as conquistas não desbloqueadas
+    } catch (error) {
+      console.error('Erro ao carregar stats:', error);
+    }
+  };
+
+  // Carregar conquistas do Supabase
+  const loadAchievements = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('achievements')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      const achievementsWithStatus = ACHIEVEMENTS.map(achievement => {
+        const unlockedData = data?.find((a: any) => a.achievement_id === achievement.id);
+        return {
+          ...achievement,
+          unlockedAt: unlockedData?.unlocked_at ? new Date(unlockedData.unlocked_at) : undefined,
+          progress: unlockedData ? (achievement.target || 1) : (achievement.target ? 0 : undefined),
+        };
+      });
+      setAchievements(achievementsWithStatus);
+    } catch (error) {
+      console.error('Erro ao carregar conquistas:', error);
       setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
     }
-    
-    setIsLoading(false);
+  };
+
+  // Verificar sessão e carregar dados ao iniciar
+  useEffect(() => {
+    // Verificar sessão atual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        loadProfile(session.user.id);
+        loadStats(session.user.id);
+        loadAchievements(session.user.id);
+      }
+      setIsLoading(false);
+    });
+
+    // Ouvir mudanças de autenticação
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        await loadProfile(session.user.id);
+        await loadStats(session.user.id);
+        await loadAchievements(session.user.id);
+      } else {
+        setUser(null);
+        setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
+        setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const userPoints = user?.points || 0;
@@ -149,61 +199,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Simulação de API - em produção, fazer requisição real
-      // Por enquanto, aceita qualquer email/senha para demonstração
-      // Em produção, validar com backend
-      
-      // Simular delay de API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      // Buscar usuário mockado ou criar sessão
-      const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
-      const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
+      if (error) {
+        console.error('Erro ao fazer login:', error);
+        return false;
+      }
 
-      if (foundUser || email && password) {
-        // Se encontrou ou é primeiro login, criar/atualizar usuário
-        const userData: User = foundUser ? {
-          id: foundUser.id,
-          name: foundUser.name,
-          email: foundUser.email,
-          avatar: foundUser.avatar,
-          level: foundUser.level || 'Iniciante',
-          points: foundUser.points || 0,
-          plan: foundUser.plan || 'bronze',
-        } : {
-          id: Date.now().toString(),
-          name: email.split('@')[0],
-          email: email,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}&background=random`,
-          level: 'Iniciante',
-          points: 0,
-          plan: 'bronze',
-        };
-
-        const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        // Salvar no localStorage
-        const authData = {
-          user: userData,
-          token: token,
-          timestamp: Date.now(),
-        };
-        
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
-        
-        // Salvar usuário na lista de usuários (se não existir)
-        if (!foundUser) {
-          const updatedUsers = [...mockUsers, {
-            ...userData,
-            password: password, // Em produção, NUNCA salvar senha em texto plano!
-          }];
-          localStorage.setItem('nutraelite_users', JSON.stringify(updatedUsers));
-        }
-        
-        setUser(userData);
+      if (data.user) {
+        await loadProfile(data.user.id);
+        await loadStats(data.user.id);
+        await loadAchievements(data.user.id);
         return true;
       }
-      
+
       return false;
     } catch (error) {
       console.error('Erro ao fazer login:', error);
@@ -213,165 +225,113 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     try {
-      // Simulação de API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          },
+        },
+      });
 
-      // Verificar se email já existe
-      const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
-      const emailExists = mockUsers.some((u: any) => u.email === email);
-
-      if (emailExists) {
-        return false; // Email já cadastrado
+      if (error) {
+        console.error('Erro ao cadastrar:', error);
+        return false;
       }
 
-      // Criar novo usuário
-      const newUser: User = {
-        id: Date.now().toString(),
-        name: name,
-        email: email,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
-        level: 'Iniciante',
-        points: 0,
-        plan: 'bronze',
-      };
+      if (data.user) {
+        // Perfil será criado automaticamente pelo trigger no Supabase
+        // Aguardar um pouco para garantir que o trigger executou
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await loadProfile(data.user.id);
+        await loadStats(data.user.id);
+        await loadAchievements(data.user.id);
+        return true;
+      }
 
-      const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Salvar no localStorage
-      const authData = {
-        user: newUser,
-        token: token,
-        timestamp: Date.now(),
-      };
-      
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
-      
-      // Adicionar à lista de usuários
-      const updatedUsers = [...mockUsers, {
-        ...newUser,
-        password: password, // Em produção, NUNCA salvar senha em texto plano!
-      }];
-      localStorage.setItem('nutraelite_users', JSON.stringify(updatedUsers));
-      
-      setUser(newUser);
-      return true;
+      return false;
     } catch (error) {
       console.error('Erro ao cadastrar:', error);
       return false;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem(STORAGE_KEY);
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
+    setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
+    setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
   };
 
-  const addPoints = (points: number) => {
+  const addPoints = async (points: number) => {
     if (!user) return;
     
     const newPoints = (user.points || 0) + points;
     const newPlan = getPlanByPoints(newPoints);
     
-    const updatedUser: User = {
-      ...user,
-      points: newPoints,
-      plan: newPlan.id,
-      level: newPlan.name,
-    };
-    
-    setUser(updatedUser);
-    
-    // Salvar no localStorage
-    const savedAuth = localStorage.getItem(STORAGE_KEY);
-    if (savedAuth) {
-      try {
-        const authData = JSON.parse(savedAuth);
-        authData.user = updatedUser;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
-      } catch (error) {
-        console.error('Erro ao salvar pontos:', error);
-      }
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          points: newPoints,
+          plan: newPlan.id,
+          level: newPlan.name,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      const updatedUser: User = {
+        ...user,
+        points: newPoints,
+        plan: newPlan.id,
+        level: newPlan.name,
+      };
+      
+      setUser(updatedUser);
+    } catch (error) {
+      console.error('Erro ao adicionar pontos:', error);
     }
   };
 
   const updateProfile = async (data: { name?: string; avatar?: string }) => {
     if (!user) {
-      console.error('updateProfile: Usuário não autenticado');
       throw new Error('Usuário não autenticado');
     }
     
     try {
-      console.log('updateProfile: Dados recebidos:', data);
-      console.log('updateProfile: Usuário atual:', user);
-      
-      // Criar objeto atualizado
-      const updatedUser: User = {
-        ...user,
+      const updateData: any = {
+        updated_at: new Date().toISOString(),
       };
-      
-      // Atualizar nome se fornecido
+
       if (data.name !== undefined) {
-        updatedUser.name = data.name;
+        updateData.name = data.name;
       }
-      
-      // Atualizar avatar se fornecido (pode ser string vazia para remover)
+
       if (data.avatar !== undefined) {
-        updatedUser.avatar = data.avatar || undefined;
+        updateData.avatar = data.avatar || null;
       }
-      
-      console.log('updateProfile: Usuário atualizado:', updatedUser);
-      
-      // Atualizar estado
-      setUser(updatedUser);
-      
-      // Salvar no localStorage
-      const savedAuth = localStorage.getItem(STORAGE_KEY);
-      if (!savedAuth) {
-        throw new Error('Sessão não encontrada no localStorage');
-      }
-      
-      const authData = JSON.parse(savedAuth);
-      authData.user = updatedUser;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
-      console.log('updateProfile: Dados salvos no localStorage');
-      
-      // Atualizar também na lista de usuários (se existir)
-      try {
-        const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
-        const userIndex = mockUsers.findIndex((u: any) => u.id === user.id);
-        if (userIndex !== -1) {
-          // Preservar senha e outros campos não atualizados
-          mockUsers[userIndex] = { 
-            ...mockUsers[userIndex], 
-            name: updatedUser.name,
-            avatar: updatedUser.avatar,
-            email: updatedUser.email,
-            level: updatedUser.level,
-            points: updatedUser.points,
-            plan: updatedUser.plan,
-          };
-          localStorage.setItem('nutraelite_users', JSON.stringify(mockUsers));
-          console.log('updateProfile: Lista de usuários atualizada');
-        } else {
-          console.warn('updateProfile: Usuário não encontrado na lista de usuários');
-        }
-      } catch (listError) {
-        console.warn('updateProfile: Erro ao atualizar lista de usuários (não crítico):', listError);
-        // Não é crítico, continuar
-      }
-      
-      // Retornar explicitamente
-      return;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      // Recarregar perfil atualizado
+      await loadProfile(user.id);
     } catch (error) {
-      console.error('updateProfile: Erro completo:', error);
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Erro desconhecido ao atualizar perfil');
+      console.error('Erro ao atualizar perfil:', error);
+      throw error;
     }
   };
 
-  const unlockAchievement = (achievementId: string): Achievement | null => {
+  const unlockAchievement = async (achievementId: string): Promise<Achievement | null> => {
+    if (!user) return null;
+
     const achievement = ACHIEVEMENTS.find(a => a.id === achievementId);
     if (!achievement) return null;
 
@@ -379,40 +339,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const existing = achievements.find(a => a.id === achievementId);
     if (existing?.unlockedAt) return null;
 
-    // Desbloquear
-    const unlockedAchievement: Achievement = {
-      ...achievement,
-      unlockedAt: new Date(),
-      progress: achievement.target || 1,
-    };
+    try {
+      // Salvar no Supabase
+      const { error } = await supabase
+        .from('achievements')
+        .insert({
+          user_id: user.id,
+          achievement_id: achievementId,
+        });
 
-    const updatedAchievements = achievements.map(a =>
-      a.id === achievementId ? unlockedAchievement : a
-    );
-    setAchievements(updatedAchievements);
+      if (error) {
+        // Se já existe, não é erro
+        if (error.code !== '23505') throw error;
+      }
 
-    // Salvar no localStorage
-    const unlocked = updatedAchievements
-      .filter(a => a.unlockedAt)
-      .map(a => ({
-        id: a.id,
-        unlockedAt: a.unlockedAt?.toISOString(),
-        progress: a.progress,
+      // Desbloquear
+      const unlockedAchievement: Achievement = {
+        ...achievement,
+        unlockedAt: new Date(),
+        progress: achievement.target || 1,
+      };
+
+      const updatedAchievements = achievements.map(a =>
+        a.id === achievementId ? unlockedAchievement : a
+      );
+      setAchievements(updatedAchievements);
+
+      // Disparar evento customizado para notificação
+      window.dispatchEvent(new CustomEvent('achievement-unlocked', {
+        detail: unlockedAchievement
       }));
-    localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(unlocked));
 
-    // Disparar evento customizado para notificação
-    window.dispatchEvent(new CustomEvent('achievement-unlocked', {
-      detail: unlockedAchievement
-    }));
-
-    return unlockedAchievement;
+      return unlockedAchievement;
+    } catch (error) {
+      console.error('Erro ao desbloquear conquista:', error);
+      return null;
+    }
   };
 
-  const updateStats = (newStats: { postsCount?: number; likesReceived?: number; prizesRedeemed?: number }) => {
+  const updateStats = async (newStats: { postsCount?: number; likesReceived?: number; prizesRedeemed?: number }) => {
+    if (!user) return;
+
     setStats(prev => {
       const updated = { ...prev, ...newStats };
-      localStorage.setItem(STATS_KEY, JSON.stringify(updated));
+      
+      // Salvar no Supabase
+      supabase
+        .from('user_stats')
+        .upsert({
+          user_id: user.id,
+          posts_count: updated.postsCount,
+          likes_received: updated.likesReceived,
+          prizes_redeemed: updated.prizesRedeemed,
+          updated_at: new Date().toISOString(),
+        })
+        .then(({ error }) => {
+          if (error) console.error('Erro ao salvar stats:', error);
+        });
       
       // Verificar conquistas baseadas em stats atualizados
       // Verificar conquistas de postagens
@@ -442,8 +425,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const checkAchievement = (achievementId: string): Achievement | null => {
-    return unlockAchievement(achievementId);
+  const checkAchievement = async (achievementId: string) => {
+    await unlockAchievement(achievementId);
   };
 
   // Verificar conquistas de pontos e rank quando pontos mudarem

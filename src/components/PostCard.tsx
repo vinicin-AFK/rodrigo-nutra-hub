@@ -22,7 +22,7 @@ export function PostCard({ post, onLike, onComment }: PostCardProps) {
     return null;
   }
 
-  const handleLike = () => {
+  const handleLike = async () => {
     const wasLiked = isLiked;
     
     if (!wasLiked) {
@@ -34,7 +34,7 @@ export function PostCard({ post, onLike, onComment }: PostCardProps) {
       }, 800);
       
       // Adicionar 1 ponto por curtida
-      addPoints(1);
+      await addPoints(1);
     }
     
     setIsLiked(!isLiked);
@@ -42,7 +42,7 @@ export function PostCard({ post, onLike, onComment }: PostCardProps) {
     
     // Notificar componente pai
     if (onLike) {
-      onLike(post.id, !wasLiked);
+      await onLike(post.id, !wasLiked);
     }
   };
 
