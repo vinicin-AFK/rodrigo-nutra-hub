@@ -26,51 +26,13 @@ import { cn } from '@/lib/utils';
 
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
-const POSTS_STORAGE_KEY = 'nutraelite_posts';
-
-// Carregar postagens salvas
-const loadSavedPosts = (): Post[] => {
-  try {
-    const saved = localStorage.getItem(POSTS_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const loaded = parsed.map((post: any) => ({
-          ...post,
-          createdAt: new Date(post.createdAt),
-          author: {
-            ...post.author,
-          },
-          commentsList: post.commentsList?.map((c: any) => ({
-            ...c,
-            createdAt: new Date(c.createdAt),
-          })) || [],
-        }));
-        console.log('✅ Postagens carregadas do localStorage:', loaded.length);
-        return loaded;
-      } else {
-        console.log('⚠️ localStorage vazio ou inválido, usando postagens mockadas');
-      }
-    } else {
-      console.log('⚠️ Nenhuma postagem salva encontrada, usando postagens mockadas');
-    }
-  } catch (error) {
-    console.error('❌ Erro ao carregar postagens:', error);
-  }
-  // Se não houver postagens salvas, retornar postagens mockadas
-  console.log('📝 Usando postagens mockadas:', posts.length);
-  return posts;
-};
-
 const Index = () => {
   const { user, addPoints, userPoints, updateStats, stats } = useAuth();
+  const { posts: allPosts, isLoading: postsLoading, createPost, likePost, addComment } = usePosts();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  // Inicializar com postagens salvas ou mockadas
-  const [allPosts, setAllPosts] = useState<Post[]>(() => loadSavedPosts());
   const [selectedPostForComments, setSelectedPostForComments] = useState<Post | null>(null);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Usar dados do usuário autenticado ou fallback
   const currentUser = user ? {
@@ -90,7 +52,7 @@ const Index = () => {
       await addPoints(2);
       
       // Atualizar stats e verificar conquistas
-      await updateStats({ postsCount: allPosts.length + 1 });
+      await updateStats({ postsCount: allPosts.length });
       
       toast({
         title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
