@@ -4,6 +4,102 @@ import { Message } from '@/types';
 import { cn } from '@/lib/utils';
 import { currentUser, users } from '@/data/mockData';
 
+// Componente para player de áudio
+function AudioPlayer({ 
+  message, 
+  isPlaying, 
+  onToggle,
+  formatTime 
+}: { 
+  message: Message; 
+  isPlaying: boolean; 
+  onToggle: () => void;
+  formatTime: (seconds: number) => string;
+}) {
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (message.audioUrl) {
+      const audio = new Audio(message.audioUrl);
+      audioRef.current = audio;
+
+      audio.ontimeupdate = () => {
+        setCurrentTime(Math.floor(audio.currentTime));
+      };
+
+      audio.onended = () => {
+        setCurrentTime(0);
+      };
+
+      if (isPlaying) {
+        audio.play();
+      } else {
+        audio.pause();
+        if (audio.currentTime > 0) {
+          audio.currentTime = 0;
+        }
+      }
+
+      return () => {
+        audio.pause();
+        audio.src = '';
+      };
+    }
+  }, [isPlaying, message.audioUrl]);
+
+  // Generate waveform based on duration
+  const waveformBars = 20;
+  const barHeights = Array.from({ length: waveformBars }, (_, i) => {
+    if (isPlaying) {
+      // Animated waveform when playing
+      return Math.random() * 60 + 20;
+    }
+    // Static waveform when not playing
+    return Math.sin((i / waveformBars) * Math.PI * 4) * 20 + 30;
+  });
+
+  return (
+    <div className="flex items-center gap-3 min-w-[200px]">
+      <button
+        onClick={onToggle}
+        className="flex-shrink-0 w-8 h-8 rounded-full bg-[#00a884] dark:bg-[#00a884] flex items-center justify-center hover:opacity-80 transition-opacity"
+      >
+        {isPlaying ? (
+          <Pause className="w-4 h-4 text-white" />
+        ) : (
+          <Play className="w-4 h-4 text-white ml-0.5" />
+        )}
+      </button>
+      <div className="flex-1">
+        <div className="flex items-center gap-1 h-4">
+          {barHeights.map((height, i) => (
+            <div
+              key={i}
+              className={cn(
+                "w-0.5 rounded-full transition-all",
+                isPlaying
+                  ? "bg-[#00a884] animate-pulse"
+                  : "bg-[#00a884]/40"
+              )}
+              style={{
+                height: `${height}%`,
+                minHeight: '4px',
+                maxHeight: '16px',
+              }}
+            />
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-1 text-[11px] text-[#667781] dark:text-[#8696a0]">
+          <span>{formatTime(currentTime)}</span>
+          <span>/</span>
+          <span>{formatTime(message.audioDuration || 0)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CommunityChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -36,6 +132,7 @@ export function CommunityChat() {
       timestamp: new Date(Date.now() - 900000),
       type: 'audio',
       audioDuration: 5,
+      audioUrl: undefined, // Áudio de exemplo sem URL real
       author: {
         name: users[1].name,
         avatar: users[1].avatar,
@@ -52,6 +149,9 @@ export function CommunityChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -113,29 +213,59 @@ export function CommunityChat() {
     setSelectedImage(null);
   };
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setRecordingTime(0);
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        if (recordingTime > 0) {
+          const audioMessage: Message = {
+            id: Date.now().toString(),
+            content: '',
+            isUser: true,
+            timestamp: new Date(),
+            type: 'audio',
+            audioDuration: recordingTime,
+            audioUrl: audioUrl,
+            author: {
+              name: currentUser.name,
+              avatar: currentUser.avatar,
+            },
+          };
+          setMessages((prev) => [...prev, audioMessage]);
+        }
+
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+    } catch (error) {
+      console.error('Erro ao iniciar gravação:', error);
+      alert('Não foi possível acessar o microfone. Verifique as permissões.');
+    }
   };
 
   const handleStopRecording = () => {
-    setIsRecording(false);
-    if (recordingTime > 0) {
-      const audioMessage: Message = {
-        id: Date.now().toString(),
-        content: '',
-        isUser: true,
-        timestamp: new Date(),
-        type: 'audio',
-        audioDuration: recordingTime,
-        author: {
-          name: currentUser.name,
-          avatar: currentUser.avatar,
-        },
-      };
-      setMessages((prev) => [...prev, audioMessage]);
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setRecordingTime(0);
     }
-    setRecordingTime(0);
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,13 +279,63 @@ export function CommunityChat() {
     }
   };
 
-  const toggleAudio = (messageId: string) => {
-    if (playingAudio === messageId) {
+  const toggleAudio = (message: Message) => {
+    if (!message.audioUrl) return;
+
+    // Stop all other audios
+    audioRefs.current.forEach((audio, id) => {
+      if (id !== message.id) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    });
+
+    if (playingAudio === message.id) {
+      // Pause current audio
+      const audio = audioRefs.current.get(message.id);
+      if (audio) {
+        audio.pause();
+      }
       setPlayingAudio(null);
     } else {
-      setPlayingAudio(messageId);
+      // Play audio
+      let audio = audioRefs.current.get(message.id);
+      if (!audio) {
+        audio = new Audio(message.audioUrl);
+        audioRefs.current.set(message.id, audio);
+        
+        audio.onended = () => {
+          setPlayingAudio(null);
+        };
+
+        audio.onloadedmetadata = () => {
+          // Update duration if available
+          if (message.audioDuration === undefined || message.audioDuration === 0) {
+            const duration = Math.floor(audio.duration);
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === message.id ? { ...msg, audioDuration: duration } : msg
+              )
+            );
+          }
+        };
+      }
+
+      audio.play();
+      setPlayingAudio(message.id);
     }
   };
+
+  // Cleanup audio refs on unmount
+  useEffect(() => {
+    return () => {
+      audioRefs.current.forEach((audio) => {
+        audio.pause();
+        audio.src = '';
+      });
+      audioRefs.current.clear();
+    };
+  }, []);
 
   const commonEmojis = ['😀', '😂', '😍', '🔥', '💪', '🎉', '👍', '❤️', '😊', '👏'];
 
@@ -225,43 +405,35 @@ export function CommunityChat() {
                     : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-tl-none"
                 )}>
                   {message.type === 'audio' ? (
-                    <div className="flex items-center gap-3 min-w-[200px]">
-                      <button
-                        onClick={() => toggleAudio(message.id)}
-                        className="flex-shrink-0 w-8 h-8 rounded-full bg-[#00a884] dark:bg-[#00a884] flex items-center justify-center hover:opacity-80 transition-opacity"
-                      >
-                        {playingAudio === message.id ? (
-                          <Pause className="w-4 h-4 text-white" />
-                        ) : (
-                          <Play className="w-4 h-4 text-white ml-0.5" />
-                        )}
-                      </button>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1 h-4">
-                          {[...Array(20)].map((_, i) => (
-                            <div
-                              key={i}
-                              className={cn(
-                                "w-0.5 rounded-full transition-all",
-                                playingAudio === message.id
-                                  ? "bg-[#00a884] h-full animate-pulse"
-                                  : "bg-[#00a884]/40 h-2"
-                              )}
-                              style={{
-                                height: playingAudio === message.id
-                                  ? `${Math.random() * 100}%`
-                                  : '8px',
-                              }}
-                            />
-                          ))}
+                    {message.audioUrl ? (
+                      <AudioPlayer
+                        message={message}
+                        isPlaying={playingAudio === message.id}
+                        onToggle={() => toggleAudio(message)}
+                        formatTime={formatRecordingTime}
+                      />
+                    ) : (
+                      <div className="flex items-center gap-3 min-w-[200px]">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#00a884]/40 flex items-center justify-center">
+                          <Play className="w-4 h-4 text-[#00a884] ml-0.5" />
                         </div>
-                        <div className="flex items-center gap-2 mt-1 text-[11px] text-[#667781] dark:text-[#8696a0]">
-                          <span>{formatRecordingTime(0)}</span>
-                          <span>/</span>
-                          <span>{formatRecordingTime(message.audioDuration || 0)}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1 h-4">
+                            {[...Array(20)].map((_, i) => (
+                              <div
+                                key={i}
+                                className="w-0.5 rounded-full bg-[#00a884]/40 h-2"
+                              />
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-[11px] text-[#667781] dark:text-[#8696a0]">
+                            <span>0:00</span>
+                            <span>/</span>
+                            <span>{formatRecordingTime(message.audioDuration || 0)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   ) : message.type === 'image' && message.image ? (
                     <div className="max-w-[250px]">
                       <img
