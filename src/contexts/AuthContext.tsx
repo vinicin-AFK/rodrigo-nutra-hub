@@ -242,20 +242,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProfile = async (data: { name?: string; avatar?: string }) => {
-    if (!user) return;
+    if (!user) {
+      throw new Error('Usuário não autenticado');
+    }
     
-    const updatedUser: User = {
-      ...user,
-      ...(data.name && { name: data.name }),
-      ...(data.avatar && { avatar: data.avatar }),
-    };
-    
-    setUser(updatedUser);
-    
-    // Salvar no localStorage
-    const savedAuth = localStorage.getItem(STORAGE_KEY);
-    if (savedAuth) {
-      try {
+    try {
+      const updatedUser: User = {
+        ...user,
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.avatar !== undefined && { avatar: data.avatar }),
+      };
+      
+      setUser(updatedUser);
+      
+      // Salvar no localStorage
+      const savedAuth = localStorage.getItem(STORAGE_KEY);
+      if (savedAuth) {
         const authData = JSON.parse(savedAuth);
         authData.user = updatedUser;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
@@ -264,13 +266,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
         const userIndex = mockUsers.findIndex((u: any) => u.id === user.id);
         if (userIndex !== -1) {
-          mockUsers[userIndex] = { ...mockUsers[userIndex], ...updatedUser };
+          // Preservar senha e outros campos não atualizados
+          mockUsers[userIndex] = { 
+            ...mockUsers[userIndex], 
+            name: updatedUser.name,
+            avatar: updatedUser.avatar,
+            email: updatedUser.email,
+            level: updatedUser.level,
+            points: updatedUser.points,
+            plan: updatedUser.plan,
+          };
           localStorage.setItem('nutraelite_users', JSON.stringify(mockUsers));
         }
-      } catch (error) {
-        console.error('Erro ao atualizar perfil:', error);
-        throw error;
+      } else {
+        throw new Error('Sessão não encontrada');
       }
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      throw error;
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,14 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Atualizar estado quando o modal abrir ou usuário mudar
+  useEffect(() => {
+    if (isOpen && user) {
+      setName(user.name || '');
+      setAvatar(user.avatar || '');
+    }
+  }, [isOpen, user]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -41,18 +49,38 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: 'Erro',
+        description: 'Usuário não encontrado. Faça login novamente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await updateProfile({ name: name.trim(), avatar });
+      // Preparar dados para atualização
+      const updateData: { name?: string; avatar?: string } = {
+        name: name.trim(),
+      };
+      
+      // Incluir avatar apenas se foi alterado (não vazio)
+      if (avatar) {
+        updateData.avatar = avatar;
+      }
+      
+      await updateProfile(updateData);
       toast({
         title: 'Perfil atualizado!',
         description: 'Suas informações foram salvas com sucesso.',
       });
       onClose();
     } catch (error) {
+      console.error('Erro ao salvar perfil:', error);
       toast({
         title: 'Erro',
-        description: 'Não foi possível atualizar o perfil. Tente novamente.',
+        description: error instanceof Error ? error.message : 'Não foi possível atualizar o perfil. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
