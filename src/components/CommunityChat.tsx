@@ -207,58 +207,6 @@ export function CommunityChat() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Carregar mensagens ao montar o componente (apenas uma vez)
-  const [isMessagesLoaded, setIsMessagesLoaded] = useState(false);
-  
-  useEffect(() => {
-    if (!isMessagesLoaded) {
-      const saved = localStorage.getItem(COMMUNITY_MESSAGES_KEY);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          const loadedMessages = parsed.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp),
-          }));
-          if (loadedMessages.length > 0) {
-            setMessages(loadedMessages);
-          }
-        } catch (error) {
-          console.error('Erro ao carregar mensagens:', error);
-        }
-      }
-      setIsMessagesLoaded(true);
-    }
-  }, [isMessagesLoaded]);
-
-  // Salvar mensagens no localStorage sempre que mudarem
-  useEffect(() => {
-    if (isMessagesLoaded && messages.length > 0) {
-      try {
-        // Converter para formato serializável
-        const serializable = messages.map(msg => {
-          const base = {
-            ...msg,
-            timestamp: msg.timestamp.toISOString(),
-          };
-          // Remover audioUrl de mensagens antigas (blob URLs não são persistentes)
-          // Em produção, isso seria uma URL do servidor
-          if (msg.type === 'audio' && msg.audioUrl && msg.audioUrl.startsWith('blob:')) {
-            // Manter apenas a duração, a URL do blob será perdida
-            // Em produção, salvaríamos a URL do servidor aqui
-            return {
-              ...base,
-              audioUrl: undefined, // Blob URLs não persistem, então removemos
-            };
-          }
-          return base;
-        });
-        localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
-      } catch (error) {
-        console.error('Erro ao salvar mensagens:', error);
-      }
-    }
-  }, [messages, isMessagesLoaded]);
 
   const handleSend = async () => {
     if (!input.trim() && !selectedImage) return;
