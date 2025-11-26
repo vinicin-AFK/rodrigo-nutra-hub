@@ -163,7 +163,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={{ minHeight: '100vh', backgroundColor: 'hsl(220, 20%, 8%)' }}>
       {/* Header */}
       <header className="sticky top-0 z-40 glass-card border-b border-border/50 px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center justify-center">
@@ -175,7 +175,7 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-lg mx-auto px-4 py-6 pb-24">
+      <main className="max-w-lg mx-auto px-4 py-6 pb-24" style={{ color: 'hsl(40, 20%, 95%)' }}>
         {renderContent()}
       </main>
 
