@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, MessageCircle } from 'lucide-react';
 import { BottomNav } from '@/components/BottomNav';
 import { PostCard } from '@/components/PostCard';
 import { RankingCard } from '@/components/RankingCard';
@@ -215,17 +215,34 @@ const Index = () => {
             <span className="text-foreground">Elite</span>
           </h1>
           
-          {/* Avatar no canto superior direito */}
-          <button
-            onClick={() => setIsProfileOpen(true)}
-            className="flex-shrink-0"
-          >
-            <img
-              src={currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`}
-              alt={currentUser.name}
-              className="w-10 h-10 rounded-full object-cover ring-2 ring-primary hover:ring-primary/70 transition-all"
-            />
-          </button>
+          {/* Botões no canto superior direito */}
+          <div className="flex items-center gap-3">
+            {/* Botão de Suporte */}
+            <button
+              onClick={() => setActiveTab('support')}
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center",
+                "bg-secondary hover:bg-secondary/80 transition-colors",
+                "text-foreground hover:text-primary",
+                activeTab === 'support' && "bg-primary text-white"
+              )}
+              title="Suporte"
+            >
+              <MessageCircle className="w-5 h-5" />
+            </button>
+            
+            {/* Avatar */}
+            <button
+              onClick={() => setIsProfileOpen(true)}
+              className="flex-shrink-0"
+            >
+              <img
+                src={currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`}
+                alt={currentUser.name}
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-primary hover:ring-primary/70 transition-all"
+              />
+            </button>
+          </div>
         </div>
       </header>
 

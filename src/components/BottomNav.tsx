@@ -1,4 +1,4 @@
-import { Home, Users, Trophy, Gift, MessageCircle } from 'lucide-react';
+import { Home, Users, Trophy, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
@@ -13,7 +13,6 @@ const navItems: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: 'community', icon: Users, label: 'Comunidade' },
   { id: 'ranking', icon: Trophy, label: 'Ranking' },
   { id: 'prizes', icon: Gift, label: 'Prêmios' },
-  { id: 'support', icon: MessageCircle, label: 'Suporte' },
 ];
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
