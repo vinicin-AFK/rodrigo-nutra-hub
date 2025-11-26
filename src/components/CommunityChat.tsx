@@ -550,7 +550,7 @@ export function CommunityChat() {
   const commonEmojis = ['😀', '😂', '😍', '🔥', '💪', '🎉', '👍', '❤️', '😊', '👏'];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] bg-[#e5ddd5] dark:bg-[#0b141a] relative">
+    <div className="flex flex-col h-[calc(100vh-180px)] bg-[#e5ddd5] dark:bg-[#0b141a] relative pb-safe">
       {/* Background pattern */}
       <div 
         className="absolute inset-0 opacity-5"
@@ -811,8 +811,8 @@ export function CommunityChat() {
       )}
 
       {/* Input Bar */}
-      <div className="p-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-10">
-        <div className="flex items-end gap-2">
+      <div className="p-2 pb-20 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-10 safe-area-bottom">
+        <div className="flex items-end gap-2 w-full">
           {/* Icons */}
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -860,7 +860,7 @@ export function CommunityChat() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 placeholder="Digite uma mensagem"
-                className="flex-1 bg-white dark:bg-[#2a3942] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-[#111b21] dark:text-[#e9edef] placeholder:text-[#667781] dark:placeholder:text-[#8696a0]"
+                className="flex-1 min-w-0 bg-white dark:bg-[#2a3942] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-[#111b21] dark:text-[#e9edef] placeholder:text-[#667781] dark:placeholder:text-[#8696a0]"
               />
 
               {/* Send Button */}
@@ -869,6 +869,7 @@ export function CommunityChat() {
                 disabled={!input.trim() && !selectedImage}
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0",
+                  "min-w-[40px]",
                   input.trim() || selectedImage
                     ? "bg-[#00a884] hover:bg-[#00a884]/90"
                     : "bg-gray-300 dark:bg-[#2a3942] cursor-not-allowed"
