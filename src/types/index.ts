@@ -43,9 +43,10 @@ export interface Message {
   content: string;
   isUser: boolean;
   timestamp: Date;
-  type?: 'text' | 'audio' | 'emoji';
+  type?: 'text' | 'audio' | 'emoji' | 'image';
   audioDuration?: number;
   audioUrl?: string;
+  image?: string;
   author?: {
     name: string;
     avatar: string;

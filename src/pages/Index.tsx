@@ -5,6 +5,7 @@ import { PostCard } from '@/components/PostCard';
 import { RankingCard } from '@/components/RankingCard';
 import { PrizeCard } from '@/components/PrizeCard';
 import { SupportChat } from '@/components/SupportChat';
+import { CommunityChat } from '@/components/CommunityChat';
 import { AICopyGenerator } from '@/components/AICopyGenerator';
 import { AICreativeGenerator } from '@/components/AICreativeGenerator';
 import { UserHeader } from '@/components/UserHeader';
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { posts, users, prizes, currentUser } from '@/data/mockData';
 import { Post } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
@@ -83,21 +85,7 @@ const Index = () => {
         );
 
       case 'community':
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-foreground">Comunidade</h2>
-              <Button onClick={() => setIsCreatePostOpen(true)} variant="fire" size="sm">
-                <Plus className="w-4 h-4" />
-                Publicar
-              </Button>
-            </div>
-            
-            {allPosts.filter(post => post && post.author).map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
-        );
+        return <CommunityChat />;
 
       case 'ranking':
         return (
@@ -175,7 +163,10 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-lg mx-auto px-4 py-6 pb-24" style={{ color: 'hsl(40, 20%, 95%)' }}>
+      <main className={cn(
+        "max-w-lg mx-auto pb-24",
+        activeTab === 'community' ? "px-0" : "px-4 py-6"
+      )} style={{ color: 'hsl(40, 20%, 95%)' }}>
         {renderContent()}
       </main>
 
