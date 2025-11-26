@@ -75,7 +75,7 @@ const Index = () => {
 
             {/* Feed de postagens estilo Instagram */}
             <div className="space-y-4">
-              {allPosts.map((post) => (
+              {allPosts.filter(post => post && post.author).map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
             </div>
@@ -93,7 +93,7 @@ const Index = () => {
               </Button>
             </div>
             
-            {allPosts.map((post) => (
+            {allPosts.filter(post => post && post.author).map((post) => (
               <PostCard key={post.id} post={post} />
             ))}
           </div>

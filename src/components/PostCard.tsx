@@ -13,6 +13,11 @@ export function PostCard({ post }: PostCardProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [particles, setParticles] = useState<number[]>([]);
 
+  // Verificação de segurança
+  if (!post || !post.author) {
+    return null;
+  }
+
   const handleLike = () => {
     if (!isLiked) {
       setIsAnimating(true);
@@ -34,18 +39,29 @@ export function PostCard({ post }: PostCardProps) {
     return `${Math.floor(hours / 24)}d`;
   };
 
+  // Valores padrão para evitar erros
+  const author = post.author || {
+    id: 'unknown',
+    name: 'Usuário',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+    level: 'Bronze',
+    points: 0,
+    rank: 0,
+    totalSales: 0,
+  };
+
   return (
     <article className="glass-card rounded-2xl overflow-hidden animate-fade-in mb-4">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <img
-          src={post.author.avatar}
-          alt={post.author.name}
+          src={author.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face'}
+          alt={author.name || 'Usuário'}
           className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/30"
         />
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-foreground text-sm">{post.author.name}</h3>
+            <h3 className="font-semibold text-foreground text-sm">{author.name || 'Usuário'}</h3>
             {post.type === 'result' && (
               <span className="gold-badge text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
                 <Award className="w-3 h-3" />
@@ -54,7 +70,7 @@ export function PostCard({ post }: PostCardProps) {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            {post.author.level} • {formatTime(post.createdAt)}
+            {author.level || 'Bronze'} • {formatTime(post.createdAt)}
           </p>
         </div>
       </div>
@@ -118,7 +134,7 @@ export function PostCard({ post }: PostCardProps) {
       {/* Content */}
       <div className="px-4 pb-3">
         <p className="text-foreground/90 mb-2 leading-relaxed text-sm">
-          <span className="font-semibold">{post.author.name}</span> {post.content}
+          <span className="font-semibold">{author.name || 'Usuário'}</span> {post.content || ''}
         </p>
 
         {/* Result Badge */}
