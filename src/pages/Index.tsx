@@ -257,8 +257,10 @@ const Index = () => {
       {/* Bottom Navigation */}
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* AI Floating Action Button */}
-      <AIFabButton onSelectAI={(type) => setActiveTab(type)} />
+      {/* AI Floating Action Button - apenas na aba Início */}
+      {activeTab === 'home' && (
+        <AIFabButton onSelectAI={(type) => setActiveTab(type)} />
+      )}
 
       {/* Create Post Modal */}
       <CreatePostModal
