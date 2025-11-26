@@ -122,7 +122,7 @@ export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProp
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-lg glass-card rounded-t-3xl sm:rounded-3xl p-6 animate-slide-up">
+      <div className="relative w-full max-w-lg glass-card rounded-t-3xl sm:rounded-3xl p-6 animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-foreground">Nova Publicação</h3>
