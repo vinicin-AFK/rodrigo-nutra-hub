@@ -59,8 +59,9 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [allPosts, setAllPosts] = useState<Post[]>(loadSavedPosts());
+  const [allPosts, setAllPosts] = useState<Post[]>([]);
   const [selectedPostForComments, setSelectedPostForComments] = useState<Post | null>(null);
+  const [isPostsLoaded, setIsPostsLoaded] = useState(false);
 
   // Usar dados do usuário autenticado ou fallback
   const currentUser = user ? {
@@ -71,13 +72,14 @@ const Index = () => {
     level: user.level || fallbackUser.level,
   } : fallbackUser;
 
-  // Carregar postagens ao montar o componente
+  // Carregar postagens ao montar o componente (apenas uma vez)
   useEffect(() => {
-    const saved = loadSavedPosts();
-    if (saved.length > 0) {
+    if (!isPostsLoaded) {
+      const saved = loadSavedPosts();
       setAllPosts(saved);
+      setIsPostsLoaded(true);
     }
-  }, []);
+  }, [isPostsLoaded]);
 
   // Salvar postagens no localStorage sempre que mudarem
   useEffect(() => {

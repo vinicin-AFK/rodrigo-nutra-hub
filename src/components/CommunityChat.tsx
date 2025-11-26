@@ -242,9 +242,33 @@ export function CommunityChat() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Carregar mensagens ao montar o componente (apenas uma vez)
+  const [isMessagesLoaded, setIsMessagesLoaded] = useState(false);
+  
+  useEffect(() => {
+    if (!isMessagesLoaded) {
+      const saved = localStorage.getItem(COMMUNITY_MESSAGES_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          const loadedMessages = parsed.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          }));
+          if (loadedMessages.length > 0) {
+            setMessages(loadedMessages);
+          }
+        } catch (error) {
+          console.error('Erro ao carregar mensagens:', error);
+        }
+      }
+      setIsMessagesLoaded(true);
+    }
+  }, [isMessagesLoaded]);
+
   // Salvar mensagens no localStorage sempre que mudarem
   useEffect(() => {
-    if (messages.length > 0) {
+    if (isMessagesLoaded && messages.length > 0) {
       try {
         // Converter para formato serializável
         const serializable = messages.map(msg => {
@@ -269,26 +293,7 @@ export function CommunityChat() {
         console.error('Erro ao salvar mensagens:', error);
       }
     }
-  }, [messages]);
-
-  // Carregar mensagens ao montar o componente
-  useEffect(() => {
-    const saved = localStorage.getItem(COMMUNITY_MESSAGES_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        const loadedMessages = parsed.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        }));
-        if (loadedMessages.length > 0) {
-          setMessages(loadedMessages);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar mensagens:', error);
-      }
-    }
-  }, []);
+  }, [messages, isMessagesLoaded]);
 
   const handleSend = () => {
     if (!input.trim() && !selectedImage) return;
@@ -308,12 +313,16 @@ export function CommunityChat() {
 
     setMessages((prev) => {
       const updated = [...prev, newMessage];
-      // Salvar imediatamente
-      const serializable = updated.map(msg => ({
-        ...msg,
-        timestamp: msg.timestamp.toISOString(),
-      }));
-      localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
+      // Salvar imediatamente para compartilhamento
+      try {
+        const serializable = updated.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString(),
+        }));
+        localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
+      } catch (error) {
+        console.error('Erro ao salvar mensagem:', error);
+      }
       return updated;
     });
     setInput('');
@@ -428,13 +437,18 @@ export function CommunityChat() {
       
       setMessages((prev) => {
         const updated = [...prev, audioMessage];
-        // Salvar imediatamente
-        const serializable = updated.map(msg => ({
-          ...msg,
-          timestamp: msg.timestamp.toISOString(),
-          // Para áudio, manter a URL do blob (em produção, seria uma URL do servidor)
-        }));
-        localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
+        // Salvar imediatamente para compartilhamento
+        try {
+          const serializable = updated.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp.toISOString(),
+            // Para áudio, manter a URL do blob (em produção, seria uma URL do servidor)
+            // Nota: Blob URLs não persistem entre sessões, mas a mensagem será salva
+          }));
+          localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
+        } catch (error) {
+          console.error('Erro ao salvar mensagem de áudio:', error);
+        }
         return updated;
       });
       
