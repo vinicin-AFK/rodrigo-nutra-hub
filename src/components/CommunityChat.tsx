@@ -148,6 +148,7 @@ export function CommunityChat() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [recordedAudio, setRecordedAudio] = useState<{ url: string; duration: number; blob: Blob } | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -321,53 +322,71 @@ export function CommunityChat() {
     }
   };
 
-  const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
-
   // Inicializar áudio quando recordedAudio mudar
   useEffect(() => {
     if (recordedAudio) {
-      if (!previewAudioRef.current) {
-        previewAudioRef.current = new Audio(recordedAudio.url);
-      } else {
-        previewAudioRef.current.src = recordedAudio.url;
+      // Limpar áudio anterior se existir
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current.src = '';
+        previewAudioRef.current = null;
       }
-      
-      const audio = previewAudioRef.current;
+
+      // Criar novo elemento de áudio
+      const audio = new Audio(recordedAudio.url);
+      previewAudioRef.current = audio;
       
       const updateTime = () => {
-        setPreviewCurrentTime(Math.floor(audio.currentTime));
+        if (audio && !audio.paused) {
+          setPreviewCurrentTime(Math.floor(audio.currentTime));
+        }
       };
 
       const handleEnded = () => {
         setIsPlayingPreview(false);
         setPreviewCurrentTime(0);
-        audio.currentTime = 0;
+        if (audio) {
+          audio.currentTime = 0;
+        }
       };
 
       const handleLoadedMetadata = () => {
         // Atualizar duração real do áudio se disponível
-        if (audio.duration && audio.duration !== Infinity) {
+        if (audio.duration && audio.duration !== Infinity && !isNaN(audio.duration)) {
           const realDuration = Math.floor(audio.duration);
-          if (realDuration !== recordedAudio.duration) {
+          if (realDuration > 0 && realDuration !== recordedAudio.duration) {
             setRecordedAudio(prev => prev ? { ...prev, duration: realDuration } : null);
           }
         }
       };
 
+      const handleError = (e: Event) => {
+        console.error('Erro ao carregar áudio:', e);
+        setIsPlayingPreview(false);
+      };
+
       audio.addEventListener('timeupdate', updateTime);
       audio.addEventListener('ended', handleEnded);
       audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.addEventListener('error', handleError);
+
+      // Carregar metadados
+      audio.load();
 
       return () => {
         audio.removeEventListener('timeupdate', updateTime);
         audio.removeEventListener('ended', handleEnded);
         audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('error', handleError);
+        audio.pause();
+        audio.src = '';
       };
     } else {
       // Limpar áudio quando não há preview
       if (previewAudioRef.current) {
         previewAudioRef.current.pause();
         previewAudioRef.current.src = '';
+        previewAudioRef.current = null;
       }
       setPreviewCurrentTime(0);
       setIsPlayingPreview(false);
@@ -375,11 +394,7 @@ export function CommunityChat() {
   }, [recordedAudio]);
 
   const handlePlayPreview = () => {
-    if (!recordedAudio) return;
-
-    if (!previewAudioRef.current) {
-      previewAudioRef.current = new Audio(recordedAudio.url);
-    }
+    if (!recordedAudio || !previewAudioRef.current) return;
 
     const audio = previewAudioRef.current;
 
@@ -389,11 +404,15 @@ export function CommunityChat() {
       setIsPlayingPreview(false);
     } else {
       // Reproduzir
-      audio.play().catch((error) => {
-        console.error('Erro ao reproduzir áudio:', error);
-        setIsPlayingPreview(false);
-      });
-      setIsPlayingPreview(true);
+      audio.play()
+        .then(() => {
+          setIsPlayingPreview(true);
+        })
+        .catch((error) => {
+          console.error('Erro ao reproduzir áudio:', error);
+          setIsPlayingPreview(false);
+          alert('Não foi possível reproduzir o áudio. Tente novamente.');
+        });
     }
   };
 
@@ -617,12 +636,9 @@ export function CommunityChat() {
         </div>
       )}
 
-      {/* Audio Preview - Estilo WhatsApp */}
+      {/* Audio Preview - Estilo WhatsApp - Acima da barra de input */}
       {recordedAudio && !isRecording && (
-        <div className={cn(
-          "absolute left-4 right-4 z-20 transition-all",
-          showEmojiPicker || selectedImage ? "bottom-32" : "bottom-20"
-        )}>
+        <div className="px-2 pb-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-20">
           <div className="bg-[#d9fdd3] dark:bg-[#005c4b] rounded-lg p-3 shadow-lg">
             <div className="flex items-center gap-3">
               {/* Play/Pause button */}
@@ -688,14 +704,6 @@ export function CommunityChat() {
               </div>
             </div>
           </div>
-          {/* Hidden audio element for preview */}
-          {recordedAudio && (
-            <audio
-              ref={previewAudioRef}
-              src={recordedAudio.url}
-              preload="metadata"
-            />
-          )}
         </div>
       )}
 
@@ -767,22 +775,6 @@ export function CommunityChat() {
               <Mic className="w-5 h-5 mr-2" />
               Solte para parar
             </button>
-          ) : recordedAudio ? (
-            // Quando há preview de áudio, mostrar apenas botões de ação
-            <>
-              <button
-                onClick={handleCancelAudio}
-                className="w-10 h-10 rounded-lg bg-white dark:bg-[#2a3942] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#323d45] transition-colors flex-shrink-0"
-              >
-                <X className="w-5 h-5 text-[#54656f] dark:text-[#8696a0]" />
-              </button>
-              <button
-                onClick={handleSendAudio}
-                className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#00a884]/90 flex items-center justify-center transition-colors flex-shrink-0"
-              >
-                <Send className="w-5 h-5 text-white" />
-              </button>
-            </>
           ) : (
             <>
               <button
