@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Flame, MessageCircle, Share2, Award } from 'lucide-react';
+import { Flame, MessageCircle, Award, Heart } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PostCardProps {
   post: Post;
+  onLike?: (postId: string, isLiked: boolean) => void;
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, onLike }: PostCardProps) {
+  const { addPoints } = useAuth();
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [likes, setLikes] = useState(post.likes);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -19,16 +22,27 @@ export function PostCard({ post }: PostCardProps) {
   }
 
   const handleLike = () => {
-    if (!isLiked) {
+    const wasLiked = isLiked;
+    
+    if (!wasLiked) {
       setIsAnimating(true);
       setParticles([1, 2, 3, 4, 5]);
       setTimeout(() => {
         setIsAnimating(false);
         setParticles([]);
       }, 800);
+      
+      // Adicionar 1 ponto por curtida
+      addPoints(1);
     }
+    
     setIsLiked(!isLiked);
-    setLikes(prev => isLiked ? prev - 1 : prev + 1);
+    setLikes(prev => wasLiked ? prev - 1 : prev + 1);
+    
+    // Notificar componente pai
+    if (onLike) {
+      onLike(post.id, !wasLiked);
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -86,7 +100,7 @@ export function PostCard({ post }: PostCardProps) {
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions - Estilo Instagram */}
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-center gap-4 mb-2">
           <button
@@ -107,21 +121,15 @@ export function PostCard({ post }: PostCardProps) {
               </span>
             ))}
             
-            <Flame
-              className={cn(
-                "w-6 h-6 transition-all duration-300",
-                isLiked ? "text-primary fill-primary" : "text-muted-foreground",
-                isAnimating && "animate-fire"
-              )}
-            />
+            {isLiked ? (
+              <Heart className="w-6 h-6 text-red-500 fill-red-500 transition-all duration-300" />
+            ) : (
+              <Heart className="w-6 h-6 text-muted-foreground hover:text-red-500 transition-all duration-300" />
+            )}
           </button>
 
           <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <MessageCircle className="w-6 h-6" />
-          </button>
-
-          <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors ml-auto">
-            <Share2 className="w-6 h-6" />
           </button>
         </div>
 

@@ -10,6 +10,7 @@ import { AICopyGenerator } from '@/components/AICopyGenerator';
 import { AICreativeGenerator } from '@/components/AICreativeGenerator';
 import { UserHeader } from '@/components/UserHeader';
 import { CreatePostModal } from '@/components/CreatePostModal';
+import { ProfileModal } from '@/components/ProfileModal';
 import { PlaquesShowcase } from '@/components/PlaquesShowcase';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,9 +22,10 @@ import { cn } from '@/lib/utils';
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, addPoints } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [allPosts, setAllPosts] = useState<Post[]>(posts);
 
   // Usar dados do usuário autenticado ou fallback
@@ -48,10 +50,21 @@ const Index = () => {
       type: resultValue ? 'result' : 'post',
     };
     setAllPosts([newPost, ...allPosts]);
+    
+    // Adicionar 2 pontos por postagem
+    addPoints(2);
+    
     toast({
       title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
-      description: resultValue ? `+${Math.floor(resultValue / 100)} pontos ganhos!` : "Seu post foi compartilhado com a comunidade.",
+      description: resultValue 
+        ? `+${Math.floor(resultValue / 100)} pontos ganhos!` 
+        : "Seu post foi compartilhado com a comunidade. +2 pontos!",
     });
+  };
+
+  const handleLike = (postId: string, isLiked: boolean) => {
+    // Pontos já são adicionados no PostCard quando curte
+    // Esta função pode ser usada para outras ações futuras
   };
 
   const handleRedeemPrize = (prize: typeof prizes[0]) => {
@@ -89,7 +102,7 @@ const Index = () => {
             {/* Feed de postagens estilo Instagram */}
             <div className="space-y-4">
               {allPosts.filter(post => post && post.author).map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} onLike={handleLike} />
               ))}
             </div>
           </div>
@@ -165,11 +178,23 @@ const Index = () => {
     <div className="min-h-screen bg-background" style={{ minHeight: '100vh', backgroundColor: 'hsl(220, 20%, 8%)' }}>
       {/* Header */}
       <header className="sticky top-0 z-40 glass-card border-b border-border/50 px-4 py-3">
-        <div className="max-w-lg mx-auto flex items-center justify-center">
+        <div className="max-w-lg mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold">
             <span className="text-gradient-fire">Nutra</span>
             <span className="text-foreground">Elite</span>
           </h1>
+          
+          {/* Avatar no canto superior direito */}
+          <button
+            onClick={() => setIsProfileOpen(true)}
+            className="flex-shrink-0"
+          >
+            <img
+              src={currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`}
+              alt={currentUser.name}
+              className="w-10 h-10 rounded-full object-cover ring-2 ring-primary hover:ring-primary/70 transition-all"
+            />
+          </button>
         </div>
       </header>
 
@@ -189,6 +214,12 @@ const Index = () => {
         isOpen={isCreatePostOpen}
         onClose={() => setIsCreatePostOpen(false)}
         onPost={handleNewPost}
+      />
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
       />
     </div>
   );
