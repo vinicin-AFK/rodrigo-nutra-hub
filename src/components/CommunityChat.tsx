@@ -19,34 +19,66 @@ function AudioPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Criar áudio uma vez quando a URL mudar
   useEffect(() => {
     if (message.audioUrl) {
+      // Limpar áudio anterior
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+
+      // Criar novo áudio
       const audio = new Audio(message.audioUrl);
       audioRef.current = audio;
 
-      audio.ontimeupdate = () => {
-        setCurrentTime(Math.floor(audio.currentTime));
-      };
-
-      audio.onended = () => {
-        setCurrentTime(0);
-      };
-
-      if (isPlaying) {
-        audio.play();
-      } else {
-        audio.pause();
-        if (audio.currentTime > 0) {
-          audio.currentTime = 0;
+      const updateTime = () => {
+        if (audio && !audio.paused) {
+          setCurrentTime(Math.floor(audio.currentTime));
         }
-      }
+      };
+
+      const handleEnded = () => {
+        setCurrentTime(0);
+        onToggle(); // Notificar que parou de tocar
+      };
+
+      const handleError = (e: Event) => {
+        console.error('Erro ao carregar áudio:', e);
+        onToggle(); // Parar estado de playing
+      };
+
+      audio.addEventListener('timeupdate', updateTime);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('error', handleError);
+
+      // Carregar metadados
+      audio.load();
 
       return () => {
+        audio.removeEventListener('timeupdate', updateTime);
+        audio.removeEventListener('ended', handleEnded);
+        audio.removeEventListener('error', handleError);
         audio.pause();
         audio.src = '';
       };
     }
-  }, [isPlaying, message.audioUrl]);
+  }, [message.audioUrl, onToggle]);
+
+  // Controlar play/pause
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.play().catch((error) => {
+          console.error('Erro ao reproduzir áudio:', error);
+          onToggle(); // Parar estado de playing em caso de erro
+        });
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, onToggle]);
 
   // Generate waveform based on duration
   const waveformBars = 20;
@@ -154,7 +186,6 @@ export function CommunityChat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const scrollToBottom = () => {
@@ -415,8 +446,33 @@ export function CommunityChat() {
     }
   }, [recordedAudio]);
 
-  const handlePlayPreview = () => {
-    if (!recordedAudio || !previewAudioRef.current) return;
+  const handlePlayPreview = async () => {
+    if (!recordedAudio) return;
+
+    // Garantir que o áudio existe
+    if (!previewAudioRef.current) {
+      const audio = new Audio(recordedAudio.url);
+      previewAudioRef.current = audio;
+      
+      // Configurar eventos
+      const updateTime = () => {
+        if (audio && !audio.paused) {
+          setPreviewCurrentTime(Math.floor(audio.currentTime));
+        }
+      };
+
+      const handleEnded = () => {
+        setIsPlayingPreview(false);
+        setPreviewCurrentTime(0);
+        audio.currentTime = 0;
+      };
+
+      audio.addEventListener('timeupdate', updateTime);
+      audio.addEventListener('ended', handleEnded);
+      
+      // Carregar antes de tocar
+      audio.load();
+    }
 
     const audio = previewAudioRef.current;
 
@@ -426,15 +482,22 @@ export function CommunityChat() {
       setIsPlayingPreview(false);
     } else {
       // Reproduzir
-      audio.play()
-        .then(() => {
+      try {
+        await audio.play();
+        setIsPlayingPreview(true);
+      } catch (error) {
+        console.error('Erro ao reproduzir áudio:', error);
+        setIsPlayingPreview(false);
+        // Tentar carregar novamente
+        audio.load();
+        try {
+          await audio.play();
           setIsPlayingPreview(true);
-        })
-        .catch((error) => {
-          console.error('Erro ao reproduzir áudio:', error);
-          setIsPlayingPreview(false);
-          alert('Não foi possível reproduzir o áudio. Tente novamente.');
-        });
+        } catch (retryError) {
+          console.error('Erro ao reproduzir áudio após retry:', retryError);
+          alert('Não foi possível reproduzir o áudio. Verifique se o formato é suportado.');
+        }
+      }
     }
   };
 
@@ -452,60 +515,14 @@ export function CommunityChat() {
   const toggleAudio = (message: Message) => {
     if (!message.audioUrl) return;
 
-    // Stop all other audios
-    audioRefs.current.forEach((audio, id) => {
-      if (id !== message.id) {
-        audio.pause();
-        audio.currentTime = 0;
-      }
-    });
-
+    // Se já está tocando esta mensagem, pausar
     if (playingAudio === message.id) {
-      // Pause current audio
-      const audio = audioRefs.current.get(message.id);
-      if (audio) {
-        audio.pause();
-      }
       setPlayingAudio(null);
     } else {
-      // Play audio
-      let audio = audioRefs.current.get(message.id);
-      if (!audio) {
-        audio = new Audio(message.audioUrl);
-        audioRefs.current.set(message.id, audio);
-        
-        audio.onended = () => {
-          setPlayingAudio(null);
-        };
-
-        audio.onloadedmetadata = () => {
-          // Update duration if available
-          if (message.audioDuration === undefined || message.audioDuration === 0) {
-            const duration = Math.floor(audio.duration);
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === message.id ? { ...msg, audioDuration: duration } : msg
-              )
-            );
-          }
-        };
-      }
-
-      audio.play();
+      // Parar qualquer outro áudio que esteja tocando
       setPlayingAudio(message.id);
     }
   };
-
-  // Cleanup audio refs on unmount
-  useEffect(() => {
-    return () => {
-      audioRefs.current.forEach((audio) => {
-        audio.pause();
-        audio.src = '';
-      });
-      audioRefs.current.clear();
-    };
-  }, []);
 
   const commonEmojis = ['😀', '😂', '😍', '🔥', '💪', '🎉', '👍', '❤️', '😊', '👏'];
 
