@@ -236,23 +236,27 @@ export function CommunityChat() {
       };
 
       mediaRecorder.onstop = () => {
-        // Preservar o tempo de gravação atual
-        const finalDuration = recordingTime;
-        
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        
-        if (finalDuration > 0) {
-          // Mostrar preview do áudio imediatamente
-          setRecordedAudio({
-            url: audioUrl,
-            duration: finalDuration,
-            blob: audioBlob,
-          });
-        } else {
-          // Se gravou menos de 1 segundo, descartar
-          URL.revokeObjectURL(audioUrl);
-        }
+        // Capturar o tempo de gravação no momento exato
+        setRecordingTime((currentTime) => {
+          const finalDuration = currentTime;
+          
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          
+          if (finalDuration > 0) {
+            // Mostrar preview do áudio imediatamente
+            setRecordedAudio({
+              url: audioUrl,
+              duration: finalDuration,
+              blob: audioBlob,
+            });
+          } else {
+            // Se gravou menos de 1 segundo, descartar
+            URL.revokeObjectURL(audioUrl);
+          }
+
+          return currentTime; // Manter o tempo para o preview
+        });
 
         // Stop all tracks
         if (streamRef.current) {
