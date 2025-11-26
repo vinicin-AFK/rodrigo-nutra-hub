@@ -126,16 +126,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return {
             ...achievement,
             unlockedAt: unlockedData?.unlockedAt ? new Date(unlockedData.unlockedAt) : undefined,
-            progress: unlockedData?.progress || 0,
+            progress: unlockedData?.progress || (achievement.target ? 0 : undefined),
           };
         });
         setAchievements(achievementsWithStatus);
       } catch (error) {
         console.error('Erro ao carregar conquistas:', error);
+        // Inicializar com todas as conquistas não desbloqueadas em caso de erro
+        setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
       }
     } else {
       // Inicializar com todas as conquistas não desbloqueadas
-      setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: 0 })));
+      setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
     }
     
     setIsLoading(false);
