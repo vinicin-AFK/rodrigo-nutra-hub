@@ -677,8 +677,24 @@ export function CommunityChat() {
               className="flex-1 h-10 bg-red-500 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors"
             >
               <Mic className="w-5 h-5 mr-2" />
-              Solte para enviar
+              Solte para parar
             </button>
+          ) : recordedAudio ? (
+            // Quando há preview de áudio, mostrar apenas botões de ação
+            <>
+              <button
+                onClick={handleCancelAudio}
+                className="w-10 h-10 rounded-lg bg-white dark:bg-[#2a3942] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#323d45] transition-colors flex-shrink-0"
+              >
+                <X className="w-5 h-5 text-[#54656f] dark:text-[#8696a0]" />
+              </button>
+              <button
+                onClick={handleSendAudio}
+                className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#00a884]/90 flex items-center justify-center transition-colors flex-shrink-0"
+              >
+                <Send className="w-5 h-5 text-white" />
+              </button>
+            </>
           ) : (
             <>
               <button
