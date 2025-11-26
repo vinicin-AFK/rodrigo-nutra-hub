@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
 const Index = () => {
-  const { user, addPoints } = useAuth();
+  const { user, addPoints, userPoints } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -68,6 +68,18 @@ const Index = () => {
   };
 
   const handleRedeemPrize = (prize: typeof prizes[0]) => {
+    if (userPoints < prize.pointsCost) {
+      toast({
+        title: "Pontos insuficientes",
+        description: `Você precisa de ${prize.pointsCost} pontos para resgatar este prêmio.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Deduzir pontos (adicionar pontos negativos)
+    addPoints(-prize.pointsCost);
+    
     toast({
       title: "🎁 Prêmio resgatado!",
       description: `${prize.name} - Em breve você receberá mais informações por e-mail.`,
@@ -112,15 +124,33 @@ const Index = () => {
         return <CommunityChat />;
 
       case 'ranking':
+        // Criar lista de usuários incluindo o usuário atual e ordenar por pontos
+        const allUsersForRanking = [
+          ...users.map(u => ({
+            ...u,
+            points: (u as any).points || 0,
+          })),
+          ...(user ? [{
+            ...currentUser,
+            points: userPoints,
+            id: user.id,
+          }] : []),
+        ];
+        
+        // Remover duplicatas e ordenar por pontos (decrescente)
+        const uniqueUsers = Array.from(
+          new Map(allUsersForRanking.map(u => [u.id, u])).values()
+        ).sort((a, b) => (b.points || 0) - (a.points || 0));
+        
         return (
           <div className="space-y-4">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-foreground mb-2">🏆 Ranking</h2>
-              <p className="text-muted-foreground">Top vendedores da comunidade</p>
+              <p className="text-muted-foreground">Top membros por pontos</p>
             </div>
             
-            {users.map((user, index) => (
-              <RankingCard key={user.id} user={user} position={index + 1} />
+            {uniqueUsers.map((userItem, index) => (
+              <RankingCard key={userItem.id} user={userItem} position={index + 1} />
             ))}
 
             <PlaquesShowcase currentSales={currentUser.totalSales} />
@@ -134,7 +164,7 @@ const Index = () => {
               <h2 className="text-2xl font-bold text-foreground mb-2">🎁 Prêmios</h2>
               <p className="text-muted-foreground mb-2">Troque seus pontos por recompensas incríveis</p>
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20">
-                <span className="text-primary font-bold">{currentUser.points.toLocaleString()}</span>
+                <span className="text-primary font-bold">{userPoints.toLocaleString()}</span>
                 <span className="text-muted-foreground">pontos disponíveis</span>
               </div>
             </div>
@@ -144,7 +174,7 @@ const Index = () => {
                 <PrizeCard
                   key={prize.id}
                   prize={prize}
-                  userPoints={currentUser.points}
+                  userPoints={userPoints}
                   onRedeem={handleRedeemPrize}
                 />
               ))}
