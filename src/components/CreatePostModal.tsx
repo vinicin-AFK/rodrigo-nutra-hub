@@ -1,28 +1,117 @@
-import { useState } from 'react';
-import { Camera, Send, X, ImagePlus } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Camera, Send, X, ImagePlus, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface CreatePostModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPost: (content: string, resultValue?: number) => void;
+  onPost: (content: string, resultValue?: number, image?: string) => void;
 }
 
 export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [content, setContent] = useState('');
   const [isResult, setIsResult] = useState(false);
   const [resultValue, setResultValue] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  // Resetar quando o modal fechar
+  useEffect(() => {
+    if (!isOpen) {
+      setContent('');
+      setResultValue('');
+      setIsResult(false);
+      setSelectedImage(null);
+    }
+  }, [isOpen]);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar tamanho (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'Imagem muito grande',
+          description: 'A imagem deve ter no máximo 5MB.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Validar tipo
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Tipo de arquivo inválido',
+          description: 'Por favor, selecione uma imagem.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSelectedImage(event.target?.result as string);
+      };
+      reader.onerror = () => {
+        toast({
+          title: 'Erro ao carregar imagem',
+          description: 'Não foi possível carregar a imagem. Tente novamente.',
+          variant: 'destructive',
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = () => {
-    if (!content.trim()) return;
-    onPost(content, isResult ? Number(resultValue) : undefined);
+    if (!content.trim() && !selectedImage) {
+      toast({
+        title: 'Conteúdo necessário',
+        description: 'Adicione um texto ou uma imagem para publicar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (isResult && !resultValue.trim()) {
+      toast({
+        title: 'Valor necessário',
+        description: 'Informe o valor do resultado.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onPost(
+      content.trim(),
+      isResult ? Number(resultValue) : undefined,
+      selectedImage || undefined
+    );
+    
+    // Limpar campos
     setContent('');
     setResultValue('');
     setIsResult(false);
+    setSelectedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -42,13 +131,47 @@ export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProp
           </button>
         </div>
 
+        {/* User Info */}
+        {user && (
+          <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
+            <img
+              src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`}
+              alt={user.name}
+              className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/30"
+            />
+            <div>
+              <p className="font-semibold text-sm text-foreground">{user.name}</p>
+              <p className="text-xs text-muted-foreground">{user.level || 'Iniciante'}</p>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Compartilhe seus resultados, dúvidas ou dicas com a comunidade..."
-          className="w-full h-32 bg-secondary rounded-xl p-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full h-32 bg-secondary rounded-xl p-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground"
         />
+
+        {/* Image Preview */}
+        {selectedImage && (
+          <div className="mt-4 relative animate-fade-in">
+            <div className="relative rounded-xl overflow-hidden border-2 border-primary/30">
+              <img
+                src={selectedImage}
+                alt="Preview"
+                className="w-full max-h-64 object-cover"
+              />
+              <button
+                onClick={handleRemoveImage}
+                className="absolute top-2 right-2 w-8 h-8 bg-black/70 hover:bg-black/90 rounded-full flex items-center justify-center transition-colors"
+              >
+                <XCircle className="w-5 h-5 text-white" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Result Toggle */}
         <div className="flex items-center gap-3 mt-4">
@@ -83,18 +206,32 @@ export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProp
         {/* Actions */}
         <div className="flex items-center justify-between mt-6">
           <div className="flex gap-2">
-            <button className="p-3 bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors">
-              <Camera className="w-5 h-5" />
-            </button>
-            <button className="p-3 bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-colors">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "p-3 rounded-xl transition-colors",
+                selectedImage
+                  ? "bg-primary/20 text-primary"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
+              )}
+              title="Adicionar imagem"
+            >
               <ImagePlus className="w-5 h-5" />
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
           </div>
 
           <Button
             onClick={handleSubmit}
-            disabled={!content.trim()}
+            disabled={!content.trim() && !selectedImage}
             variant="fire"
+            className="gap-2"
           >
             <Send className="w-4 h-4" />
             Publicar

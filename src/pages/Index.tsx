@@ -38,7 +38,7 @@ const Index = () => {
     level: user.level || fallbackUser.level,
   } : fallbackUser;
 
-  const handleNewPost = (content: string, resultValue?: number) => {
+  const handleNewPost = (content: string, resultValue?: number, image?: string) => {
     const newPost: Post = {
       id: Date.now().toString(),
       author: currentUser,
@@ -49,6 +49,7 @@ const Index = () => {
       createdAt: new Date(),
       resultValue,
       type: resultValue ? 'result' : 'post',
+      image: image,
     };
     setAllPosts([newPost, ...allPosts]);
     
