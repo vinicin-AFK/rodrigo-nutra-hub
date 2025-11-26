@@ -406,35 +406,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStats(prev => {
       const updated = { ...prev, ...newStats };
       localStorage.setItem(STATS_KEY, JSON.stringify(updated));
-      
-      // Verificar conquistas baseadas em stats atualizados
-      setTimeout(() => {
+      return updated;
+    });
+    
+    // Verificar conquistas baseadas em stats atualizados (usar setTimeout para garantir que o estado foi atualizado)
+    setTimeout(() => {
+      setStats(currentStats => {
         // Verificar conquistas de postagens
         if (newStats.postsCount !== undefined) {
-          if (updated.postsCount >= 1) checkAchievement('first_post');
-          if (updated.postsCount >= 10) checkAchievement('10_posts');
-          if (updated.postsCount >= 50) checkAchievement('50_posts');
-          if (updated.postsCount >= 100) checkAchievement('100_posts');
+          if (currentStats.postsCount >= 1) checkAchievement('first_post');
+          if (currentStats.postsCount >= 10) checkAchievement('10_posts');
+          if (currentStats.postsCount >= 50) checkAchievement('50_posts');
+          if (currentStats.postsCount >= 100) checkAchievement('100_posts');
         }
 
         // Verificar conquistas de curtidas
         if (newStats.likesReceived !== undefined) {
-          if (updated.likesReceived >= 1) checkAchievement('first_like');
-          if (updated.likesReceived >= 10) checkAchievement('10_likes');
-          if (updated.likesReceived >= 50) checkAchievement('50_likes');
-          if (updated.likesReceived >= 100) checkAchievement('100_likes');
-          if (updated.likesReceived >= 500) checkAchievement('500_likes');
+          if (currentStats.likesReceived >= 1) checkAchievement('first_like');
+          if (currentStats.likesReceived >= 10) checkAchievement('10_likes');
+          if (currentStats.likesReceived >= 50) checkAchievement('50_likes');
+          if (currentStats.likesReceived >= 100) checkAchievement('100_likes');
+          if (currentStats.likesReceived >= 500) checkAchievement('500_likes');
         }
 
         // Verificar conquistas de prêmios
         if (newStats.prizesRedeemed !== undefined) {
-          if (updated.prizesRedeemed >= 1) checkAchievement('first_prize');
-          if (updated.prizesRedeemed >= 5) checkAchievement('5_prizes');
+          if (currentStats.prizesRedeemed >= 1) checkAchievement('first_prize');
+          if (currentStats.prizesRedeemed >= 5) checkAchievement('5_prizes');
         }
-      }, 0);
-      
-      return updated;
-    });
+        
+        return currentStats;
+      });
+    }, 100);
   };
 
   const checkAchievement = (achievementId: string): Achievement | null => {
@@ -446,9 +449,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     // Conquistas de pontos
-    if (userPoints >= 100) checkAchievement('100_points', true);
-    if (userPoints >= 500) checkAchievement('500_points', true);
-    if (userPoints >= 1000) checkAchievement('1000_points', true);
+    if (userPoints >= 100) checkAchievement('100_points');
+    if (userPoints >= 500) checkAchievement('500_points');
+    if (userPoints >= 1000) checkAchievement('1000_points');
 
     // Conquistas de rank
     if (userPlan) {
@@ -461,7 +464,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       const achievementId = rankAchievements[userPlan.id];
       if (achievementId) {
-        checkAchievement(achievementId, true);
+        checkAchievement(achievementId);
       }
     }
   }, [userPoints, userPlan, user]);

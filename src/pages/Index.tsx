@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
 const Index = () => {
-  const { user, addPoints, userPoints, updateStats, unlockAchievement } = useAuth();
+  const { user, addPoints, userPoints, updateStats, stats } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -103,20 +103,9 @@ const Index = () => {
     // Deduzir pontos (adicionar pontos negativos)
     addPoints(-prize.pointsCost);
     
-    // Atualizar stats e verificar conquistas
-    const currentPrizes = (user as any)?.prizesRedeemed || 0;
+    // Atualizar stats (vai verificar conquistas automaticamente)
+    const currentPrizes = stats?.prizesRedeemed || 0;
     updateStats({ prizesRedeemed: currentPrizes + 1 });
-    
-    // Verificar conquista de primeiro prêmio
-    if (currentPrizes === 0) {
-      const achievement = unlockAchievement('first_prize');
-      if (achievement) {
-        toast({
-          title: `🏆 Conquista Desbloqueada!`,
-          description: `${achievement.icon} ${achievement.name}`,
-        });
-      }
-    }
     
     toast({
       title: "🎁 Prêmio resgatado!",
