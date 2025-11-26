@@ -34,7 +34,7 @@ const loadSavedPosts = (): Post[] => {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((post: any) => ({
+        const loaded = parsed.map((post: any) => ({
           ...post,
           createdAt: new Date(post.createdAt),
           author: {
@@ -45,12 +45,19 @@ const loadSavedPosts = (): Post[] => {
             createdAt: new Date(c.createdAt),
           })) || [],
         }));
+        console.log('✅ Postagens carregadas do localStorage:', loaded.length);
+        return loaded;
+      } else {
+        console.log('⚠️ localStorage vazio ou inválido, usando postagens mockadas');
       }
+    } else {
+      console.log('⚠️ Nenhuma postagem salva encontrada, usando postagens mockadas');
     }
   } catch (error) {
-    console.error('Erro ao carregar postagens:', error);
+    console.error('❌ Erro ao carregar postagens:', error);
   }
   // Se não houver postagens salvas, retornar postagens mockadas
+  console.log('📝 Usando postagens mockadas:', posts.length);
   return posts;
 };
 
@@ -84,7 +91,7 @@ const Index = () => {
 
   // Salvar postagens no localStorage sempre que mudarem (exceto no carregamento inicial)
   useEffect(() => {
-    if (!isInitialLoad && allPosts.length >= 0) {
+    if (!isInitialLoad) {
       try {
         const serializable = allPosts.map(post => ({
           ...post,
@@ -95,10 +102,12 @@ const Index = () => {
           })) || [],
         }));
         localStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(serializable));
-        console.log('Postagens salvas:', serializable.length);
+        console.log('✅ Postagens salvas no localStorage:', serializable.length);
       } catch (error) {
-        console.error('Erro ao salvar postagens:', error);
+        console.error('❌ Erro ao salvar postagens:', error);
       }
+    } else {
+      console.log('⏳ Carregamento inicial, não salvando ainda...');
     }
   }, [allPosts, isInitialLoad]);
 
