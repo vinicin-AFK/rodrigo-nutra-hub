@@ -1,0 +1,29 @@
+==========================================
+NOVA CHAVE SSH GERADA PARA vinicin-AFK
+==========================================
+
+Copie EXATAMENTE esta linha (uma única linha):
+
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL4AgylxheYJfm6C8qXtFP7qI7+FEqgTbOu3BtoPMMhw vinicin-AFK@github
+
+==========================================
+INSTRUÇÕES PARA ADICIONAR NO GITHUB:
+==========================================
+
+1. Faça login na conta: vinicin-AFK
+2. Vá em: Settings → SSH and GPG keys
+3. Clique em: "New SSH key"
+4. Preencha:
+   - Title: MacBook - Deploy (ou qualquer nome)
+   - Key: Cole a linha acima (começa com ssh-ed25519)
+5. Clique em: "Add SSH key"
+
+==========================================
+IMPORTANTE:
+==========================================
+
+- Copie a linha INTEIRA (começa com ssh-ed25519 e termina com @github)
+- Uma única linha, sem quebras
+- Sem espaços extras no início ou fim
+- Esta é uma chave NOVA, não está associada a nenhuma conta ainda
+
