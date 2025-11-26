@@ -11,6 +11,7 @@ import { AICreativeGenerator } from '@/components/AICreativeGenerator';
 import { UserHeader } from '@/components/UserHeader';
 import { CreatePostModal } from '@/components/CreatePostModal';
 import { ProfileModal } from '@/components/ProfileModal';
+import { AIFabButton } from '@/components/AIFabButton';
 import { PlaquesShowcase } from '@/components/PlaquesShowcase';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -238,6 +239,9 @@ const Index = () => {
 
       {/* Bottom Navigation */}
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {/* AI Floating Action Button */}
+      <AIFabButton onSelectAI={(type) => setActiveTab(type)} />
 
       {/* Create Post Modal */}
       <CreatePostModal
