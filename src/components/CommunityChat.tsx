@@ -268,6 +268,9 @@ export function CommunityChat() {
 
   const handleSendAudio = () => {
     if (recordedAudio) {
+      // Criar nova URL para a mensagem (não revogar a original ainda)
+      const audioUrl = URL.createObjectURL(recordedAudio.blob);
+      
       const audioMessage: Message = {
         id: Date.now().toString(),
         content: '',
@@ -275,54 +278,121 @@ export function CommunityChat() {
         timestamp: new Date(),
         type: 'audio',
         audioDuration: recordedAudio.duration,
-        audioUrl: recordedAudio.url,
+        audioUrl: audioUrl,
         author: {
           name: currentUser.name,
           avatar: currentUser.avatar,
         },
       };
+      
       setMessages((prev) => [...prev, audioMessage]);
-      setRecordedAudio(null);
-      setRecordingTime(0);
-      setIsPlayingPreview(false);
+      
+      // Limpar preview
       if (previewAudioRef.current) {
         previewAudioRef.current.pause();
+        previewAudioRef.current.src = '';
         previewAudioRef.current = null;
       }
+      
+      // Revogar URL do preview
+      URL.revokeObjectURL(recordedAudio.url);
+      
+      setRecordedAudio(null);
+      setRecordingTime(0);
+      setPreviewCurrentTime(0);
+      setIsPlayingPreview(false);
     }
   };
 
   const handleCancelAudio = () => {
     if (recordedAudio) {
+      // Pausar áudio se estiver tocando
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current.src = '';
+        previewAudioRef.current = null;
+      }
+      // Limpar URL do blob
       URL.revokeObjectURL(recordedAudio.url);
       setRecordedAudio(null);
       setRecordingTime(0);
+      setPreviewCurrentTime(0);
       setIsPlayingPreview(false);
-      if (previewAudioRef.current) {
-        previewAudioRef.current.pause();
-        previewAudioRef.current = null;
-      }
     }
   };
+
+  const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
+
+  // Inicializar áudio quando recordedAudio mudar
+  useEffect(() => {
+    if (recordedAudio) {
+      if (!previewAudioRef.current) {
+        previewAudioRef.current = new Audio(recordedAudio.url);
+      } else {
+        previewAudioRef.current.src = recordedAudio.url;
+      }
+      
+      const audio = previewAudioRef.current;
+      
+      const updateTime = () => {
+        setPreviewCurrentTime(Math.floor(audio.currentTime));
+      };
+
+      const handleEnded = () => {
+        setIsPlayingPreview(false);
+        setPreviewCurrentTime(0);
+        audio.currentTime = 0;
+      };
+
+      const handleLoadedMetadata = () => {
+        // Atualizar duração real do áudio se disponível
+        if (audio.duration && audio.duration !== Infinity) {
+          const realDuration = Math.floor(audio.duration);
+          if (realDuration !== recordedAudio.duration) {
+            setRecordedAudio(prev => prev ? { ...prev, duration: realDuration } : null);
+          }
+        }
+      };
+
+      audio.addEventListener('timeupdate', updateTime);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+      return () => {
+        audio.removeEventListener('timeupdate', updateTime);
+        audio.removeEventListener('ended', handleEnded);
+        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      };
+    } else {
+      // Limpar áudio quando não há preview
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current.src = '';
+      }
+      setPreviewCurrentTime(0);
+      setIsPlayingPreview(false);
+    }
+  }, [recordedAudio]);
 
   const handlePlayPreview = () => {
     if (!recordedAudio) return;
 
+    if (!previewAudioRef.current) {
+      previewAudioRef.current = new Audio(recordedAudio.url);
+    }
+
+    const audio = previewAudioRef.current;
+
     if (isPlayingPreview) {
       // Pausar
-      if (previewAudioRef.current) {
-        previewAudioRef.current.pause();
-      }
+      audio.pause();
       setIsPlayingPreview(false);
     } else {
       // Reproduzir
-      if (!previewAudioRef.current) {
-        previewAudioRef.current = new Audio(recordedAudio.url);
-        previewAudioRef.current.onended = () => {
-          setIsPlayingPreview(false);
-        };
-      }
-      previewAudioRef.current.play();
+      audio.play().catch((error) => {
+        console.error('Erro ao reproduzir áudio:', error);
+        setIsPlayingPreview(false);
+      });
       setIsPlayingPreview(true);
     }
   };
@@ -547,18 +617,18 @@ export function CommunityChat() {
         </div>
       )}
 
-      {/* Audio Preview */}
+      {/* Audio Preview - Estilo WhatsApp */}
       {recordedAudio && !isRecording && (
         <div className={cn(
           "absolute left-4 right-4 z-20 transition-all",
           showEmojiPicker || selectedImage ? "bottom-32" : "bottom-20"
         )}>
-          <div className="bg-white dark:bg-[#202c33] rounded-lg p-3 shadow-lg border border-[#00a884]/20">
+          <div className="bg-[#d9fdd3] dark:bg-[#005c4b] rounded-lg p-3 shadow-lg">
             <div className="flex items-center gap-3">
               {/* Play/Pause button */}
               <button
                 onClick={handlePlayPreview}
-                className="flex-shrink-0 w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center hover:bg-[#00a884]/90 transition-colors"
+                className="flex-shrink-0 w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center hover:bg-[#00a884]/90 transition-colors shadow-sm"
               >
                 {isPlayingPreview ? (
                   <Pause className="w-5 h-5 text-white" />
@@ -568,44 +638,49 @@ export function CommunityChat() {
               </button>
 
               {/* Waveform and duration */}
-              <div className="flex-1">
-                <div className="flex items-center gap-1 h-4 mb-1">
-                  {[...Array(20)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-0.5 rounded-full transition-all",
-                        isPlayingPreview
-                          ? "bg-[#00a884] animate-pulse"
-                          : "bg-[#00a884]/40"
-                      )}
-                      style={{
-                        height: isPlayingPreview
-                          ? `${Math.random() * 60 + 20}%`
-                          : `${Math.sin((i / 20) * Math.PI * 4) * 20 + 30}%`,
-                        minHeight: '4px',
-                        maxHeight: '16px',
-                      }}
-                    />
-                  ))}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-0.5 h-5 mb-1">
+                  {[...Array(30)].map((_, i) => {
+                    const baseHeight = Math.sin((i / 30) * Math.PI * 6) * 8 + 12;
+                    const animatedHeight = isPlayingPreview 
+                      ? baseHeight + Math.sin((Date.now() / 200) + i) * 6
+                      : baseHeight;
+                    
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "w-0.5 rounded-full transition-all duration-150",
+                          isPlayingPreview
+                            ? "bg-white animate-pulse"
+                            : "bg-white/60"
+                        )}
+                        style={{
+                          height: `${Math.max(4, Math.min(20, animatedHeight))}px`,
+                        }}
+                      />
+                    );
+                  })}
                 </div>
-                <div className="text-xs text-[#667781] dark:text-[#8696a0]">
-                  {formatRecordingTime(recordedAudio.duration)}
+                <div className="flex items-center justify-between text-xs text-white/90">
+                  <span>{formatRecordingTime(previewCurrentTime)}</span>
+                  <span>/</span>
+                  <span>{formatRecordingTime(recordedAudio.duration)}</span>
                 </div>
               </div>
 
               {/* Action buttons */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={handleCancelAudio}
-                  className="w-8 h-8 rounded-full bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center transition-colors"
+                  className="w-9 h-9 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors shadow-sm"
                   title="Cancelar"
                 >
-                  <X className="w-4 h-4 text-red-500" />
+                  <X className="w-4 h-4 text-white" />
                 </button>
                 <button
                   onClick={handleSendAudio}
-                  className="w-8 h-8 rounded-full bg-[#00a884] hover:bg-[#00a884]/90 flex items-center justify-center transition-colors"
+                  className="w-9 h-9 rounded-full bg-[#00a884] hover:bg-[#00a884]/90 flex items-center justify-center transition-colors shadow-sm"
                   title="Enviar"
                 >
                   <Send className="w-4 h-4 text-white" />
@@ -613,6 +688,14 @@ export function CommunityChat() {
               </div>
             </div>
           </div>
+          {/* Hidden audio element for preview */}
+          {recordedAudio && (
+            <audio
+              ref={previewAudioRef}
+              src={recordedAudio.url}
+              preload="metadata"
+            />
+          )}
         </div>
       )}
 
