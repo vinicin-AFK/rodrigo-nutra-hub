@@ -399,6 +399,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }));
     localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(unlocked));
 
+    // Disparar evento customizado para notificação
+    window.dispatchEvent(new CustomEvent('achievement-unlocked', {
+      detail: unlockedAchievement
+    }));
+
     return unlockedAchievement;
   };
 

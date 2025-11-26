@@ -12,6 +12,7 @@ import { UserHeader } from '@/components/UserHeader';
 import { CreatePostModal } from '@/components/CreatePostModal';
 import { ProfileModal } from '@/components/ProfileModal';
 import { AIFabButton } from '@/components/AIFabButton';
+import { AchievementNotification } from '@/components/AchievementNotification';
 import { PlaquesShowcase } from '@/components/PlaquesShowcase';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -233,6 +234,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background" style={{ minHeight: '100vh', backgroundColor: 'hsl(220, 20%, 8%)' }}>
+      {/* Achievement Notification */}
+      <AchievementNotification />
+
       {/* Header */}
       <header className="sticky top-0 z-40 glass-card border-b border-border/50 px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
