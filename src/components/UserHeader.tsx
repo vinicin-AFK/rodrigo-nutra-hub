@@ -1,7 +1,15 @@
-import { Flame, Trophy, Crown, TrendingUp, LogOut } from 'lucide-react';
+import { Flame, Trophy, Crown, TrendingUp, LogOut, User, Settings } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { currentUser as fallbackUser } from '@/data/mockData';
 
 export function UserHeader() {
@@ -23,17 +31,43 @@ export function UserHeader() {
   return (
     <div className="glass-card rounded-2xl p-4 animate-fade-in">
       <div className="flex items-center gap-4">
-        {/* Avatar */}
-        <div className="relative">
-          <img
-            src={displayUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUser.name)}&background=random`}
-            alt={displayUser.name}
-            className="w-16 h-16 rounded-full object-cover ring-2 ring-primary"
-          />
-          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-            <Crown className="w-3 h-3 text-primary-foreground" />
-          </div>
-        </div>
+        {/* Avatar com Dropdown Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="relative cursor-pointer hover:opacity-80 transition-opacity">
+              <img
+                src={displayUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUser.name)}&background=random`}
+                alt={displayUser.name}
+                className="w-16 h-16 rounded-full object-cover ring-2 ring-primary"
+              />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                <Crown className="w-3 h-3 text-primary-foreground" />
+              </div>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{displayUser.name}</p>
+                <p className="text-xs leading-none text-muted-foreground">{displayUser.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              <span>Meu Perfil</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Configurações</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sair</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Info */}
         <div className="flex-1">
@@ -44,17 +78,6 @@ export function UserHeader() {
             <span className="text-muted-foreground">Rank #{userRank}</span>
           </div>
         </div>
-
-        {/* Logout Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleLogout}
-          className="flex-shrink-0"
-          title="Sair"
-        >
-          <LogOut className="w-5 h-5" />
-        </Button>
       </div>
 
       {/* Stats */}
