@@ -94,11 +94,13 @@ export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProp
       return;
     }
 
-    onPost(
-      content.trim(),
-      isResult ? Number(resultValue) : undefined,
-      selectedImage || undefined
-    );
+    // Salvar valores antes de limpar
+    const postContent = content.trim();
+    const postResultValue = isResult ? Number(resultValue) : undefined;
+    const postImage = selectedImage || undefined;
+
+    // Fechar o modal IMEDIATAMENTE para evitar bugs
+    onClose();
     
     // Limpar campos
     setContent('');
@@ -108,7 +110,11 @@ export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProp
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    onClose();
+
+    // Chamar onPost após fechar (usar setTimeout para garantir que o modal fechou)
+    setTimeout(() => {
+      onPost(postContent, postResultValue, postImage);
+    }, 100);
   };
 
   if (!isOpen) return null;
