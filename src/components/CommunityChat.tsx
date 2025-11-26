@@ -132,8 +132,26 @@ function AudioPlayer({
   );
 }
 
-export function CommunityChat() {
-  const [messages, setMessages] = useState<Message[]>([
+const COMMUNITY_MESSAGES_KEY = 'nutraelite_community_messages';
+
+// Mensagens iniciais padrão
+const getInitialMessages = (): Message[] => {
+  const saved = localStorage.getItem(COMMUNITY_MESSAGES_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      // Converter timestamps de string para Date
+      return parsed.map((msg: any) => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp),
+      }));
+    } catch (error) {
+      console.error('Erro ao carregar mensagens:', error);
+    }
+  }
+  
+  // Mensagens iniciais apenas se não houver mensagens salvas
+  return [
     {
       id: '1',
       content: '👋 Bem-vindos à comunidade NutraElite!',
@@ -157,20 +175,11 @@ export function CommunityChat() {
         avatar: users[0].avatar,
       },
     },
-    {
-      id: '3',
-      content: '',
-      isUser: false,
-      timestamp: new Date(Date.now() - 900000),
-      type: 'audio',
-      audioDuration: 5,
-      audioUrl: undefined, // Áudio de exemplo sem URL real
-      author: {
-        name: users[1].name,
-        avatar: users[1].avatar,
-      },
-    },
-  ]);
+  ];
+};
+
+export function CommunityChat() {
+  const [messages, setMessages] = useState<Message[]>(getInitialMessages);
 
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -233,6 +242,18 @@ export function CommunityChat() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Salvar mensagens no localStorage sempre que mudarem
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Converter para formato serializável
+      const serializable = messages.map(msg => ({
+        ...msg,
+        timestamp: msg.timestamp.toISOString(),
+      }));
+      localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
+    }
+  }, [messages]);
+
   const handleSend = () => {
     if (!input.trim() && !selectedImage) return;
 
@@ -249,7 +270,16 @@ export function CommunityChat() {
       },
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    setMessages((prev) => {
+      const updated = [...prev, newMessage];
+      // Salvar imediatamente
+      const serializable = updated.map(msg => ({
+        ...msg,
+        timestamp: msg.timestamp.toISOString(),
+      }));
+      localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
+      return updated;
+    });
     setInput('');
     setSelectedImage(null);
   };
@@ -360,7 +390,17 @@ export function CommunityChat() {
         },
       };
       
-      setMessages((prev) => [...prev, audioMessage]);
+      setMessages((prev) => {
+        const updated = [...prev, audioMessage];
+        // Salvar imediatamente
+        const serializable = updated.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString(),
+          // Para áudio, manter a URL do blob (em produção, seria uma URL do servidor)
+        }));
+        localStorage.setItem(COMMUNITY_MESSAGES_KEY, JSON.stringify(serializable));
+        return updated;
+      });
       
       // Limpar preview
       if (previewAudioRef.current) {
