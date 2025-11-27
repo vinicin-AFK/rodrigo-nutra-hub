@@ -459,14 +459,6 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     ? currentConversation.userName 
     : (user?.name || currentUser.name);
 
-  // Se não há conversa aberta e não é suporte, criar uma conversa automaticamente
-  useEffect(() => {
-    if (!isSupport && !currentConversation && user?.id) {
-      // Abrir conversa do usuário atual
-      openConversation(user.id);
-    }
-  }, [isSupport, currentConversation, user?.id]);
-
   return (
     <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background">
       {/* Header - se for suporte, mostrar botão para voltar */}
