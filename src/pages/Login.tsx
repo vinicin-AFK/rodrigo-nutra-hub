@@ -58,10 +58,13 @@ export default function Login() {
       }
     } catch (error: any) {
       console.error('❌ Erro no login:', error);
+      const errorMessage = error?.message || 'Ocorreu um erro ao fazer login. Tente novamente.';
+      
       toast({
-        title: 'Erro',
-        description: error?.message || 'Ocorreu um erro ao fazer login. Tente novamente.',
+        title: error?.message?.includes('confirme seu email') ? 'Email não confirmado' : 'Erro no login',
+        description: errorMessage,
         variant: 'destructive',
+        duration: error?.message?.includes('confirme seu email') ? 8000 : 5000,
       });
     } finally {
       setIsLoading(false);

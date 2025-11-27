@@ -396,32 +396,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('❌ Erro ao fazer login:', error.message || error);
-        return false;
+        // Verificar se é erro de email não confirmado
+        if (error.message?.includes('email_not_confirmed') || error.message?.includes('Email not confirmed')) {
+          throw new Error('Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.');
+        }
+        // Verificar se é erro de credenciais
+        if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
+          throw new Error('Email ou senha incorretos. Tente novamente.');
+        }
+        throw new Error(error.message || 'Erro ao fazer login. Tente novamente.');
       }
 
       if (data?.user) {
         console.log('✅ Login no Supabase bem-sucedido, carregando dados...', data.user.id);
         
-        // Carregar dados com timeout individual de 5s cada
+        // Tentar carregar perfil - se não existir, criar automaticamente
+        let profileLoaded = false;
         try {
-          await Promise.all([
-            Promise.race([
-              loadProfile(data.user.id),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout loadProfile')), 5000))
-            ]).catch(err => {
-              console.warn('⚠️ Erro ao carregar perfil (não crítico):', err);
-              // Criar perfil básico se não conseguir carregar
-              const basicUser: User = {
+          await Promise.race([
+            loadProfile(data.user.id),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout loadProfile')), 5000))
+          ]);
+          profileLoaded = true;
+          console.log('✅ Perfil carregado');
+        } catch (err: any) {
+          console.warn('⚠️ Perfil não encontrado, criando automaticamente...', err);
+          
+          // Criar perfil automaticamente
+          try {
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
                 id: data.user.id,
                 name: data.user.user_metadata?.name || email.split('@')[0],
                 email: data.user.email || email,
+                avatar: data.user.user_metadata?.avatar || null,
                 level: 'Bronze',
                 points: 0,
                 plan: 'bronze',
-              };
-              setUser(basicUser);
-              persistAuthData(basicUser);
-            }),
+              });
+
+            if (insertError && !insertError.message?.includes('duplicate')) {
+              console.error('Erro ao criar perfil:', insertError);
+            } else {
+              console.log('✅ Perfil criado automaticamente');
+              // Tentar carregar novamente
+              await loadProfile(data.user.id);
+              profileLoaded = true;
+            }
+          } catch (createErr) {
+            console.error('Erro ao criar perfil:', createErr);
+          }
+          
+          // Se ainda não conseguiu, usar dados básicos
+          if (!profileLoaded) {
+            const basicUser: User = {
+              id: data.user.id,
+              name: data.user.user_metadata?.name || email.split('@')[0],
+              email: data.user.email || email,
+              level: 'Bronze',
+              points: 0,
+              plan: 'bronze',
+            };
+            setUser(basicUser);
+            persistAuthData(basicUser);
+            console.log('✅ Usando dados básicos do usuário');
+          }
+        }
+        
+        // Carregar stats e achievements (não críticos)
+        try {
+          await Promise.all([
             Promise.race([
               loadStats(data.user.id),
               new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout loadStats')), 5000))
@@ -431,12 +476,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout loadAchievements')), 5000))
             ]).catch(err => console.warn('⚠️ Erro ao carregar conquistas (não crítico):', err)),
           ]);
-          console.log('✅ Dados do usuário carregados');
         } catch (err) {
-          console.error('❌ Erro ao carregar dados do usuário:', err);
-          // Mesmo com erro, permitir login com dados básicos
+          console.warn('⚠️ Erro ao carregar stats/conquistas (não crítico):', err);
         }
         
+        console.log('✅ Login completo');
         return true;
       }
 
