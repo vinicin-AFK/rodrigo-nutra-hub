@@ -37,9 +37,17 @@ O sistema de suporte permite que uma pessoa real (atendente) faça login e respo
    - Quando o suporte responder, a mensagem aparecerá no chat
    - Mensagens do suporte têm badge "support"
 
+## 🔐 Credenciais de Suporte
+
+**Login Fixo de Suporte:**
+- **Email:** `suporte@gmail.com`
+- **Senha:** `suporte123`
+
+Este login sempre terá acesso de suporte, independente de estar no Supabase ou modo offline.
+
 ## 📧 Emails Configurados como Suporte
 
-Os seguintes emails são automaticamente reconhecidos como suporte:
+Além do login fixo acima, os seguintes emails também são automaticamente reconhecidos como suporte:
 
 - `suporte@nutraelite.com`
 - `support@nutraelite.com`
