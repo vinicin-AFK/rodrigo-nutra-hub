@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Message } from '@/types';
+import { safeSetItem, safeGetItem, ensureStorageSpace } from '@/lib/storage';
 
 export function useCommunityMessages() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -9,7 +10,7 @@ export function useCommunityMessages() {
   const loadMessages = async () => {
     // SEMPRE carregar do localStorage primeiro
     try {
-      const savedMessages = localStorage.getItem('nutraelite_community_messages');
+      const savedMessages = safeGetItem('nutraelite_community_messages');
       if (savedMessages) {
         const parsed = JSON.parse(savedMessages);
         const loadedMessages: Message[] = parsed.map((msg: any) => ({
@@ -61,10 +62,11 @@ export function useCommunityMessages() {
 
           setMessages(transformed);
           // Salvar no localStorage também
-          localStorage.setItem('nutraelite_community_messages', JSON.stringify(transformed.map(m => ({
+          const serialized = JSON.stringify(transformed.map(m => ({
             ...m,
             timestamp: m.timestamp.toISOString(),
-          }))));
+          })));
+          safeSetItem('nutraelite_community_messages', serialized);
         }
       } catch (error) {
         console.warn('Erro ao carregar do Supabase (não crítico):', error);
@@ -172,15 +174,28 @@ export function useCommunityMessages() {
       },
     };
 
+    // Garantir espaço no storage
+    ensureStorageSpace();
+    
     // Salvar no localStorage
-    const savedMessages = localStorage.getItem('nutraelite_community_messages');
+    const savedMessages = safeGetItem('nutraelite_community_messages');
     const existingMessages = savedMessages ? JSON.parse(savedMessages) : [];
     const updatedMessages = [...existingMessages, {
       ...newMessage,
       timestamp: newMessage.timestamp.toISOString(),
     }];
     
-    localStorage.setItem('nutraelite_community_messages', JSON.stringify(updatedMessages));
+    const serialized = JSON.stringify(updatedMessages);
+    const saved = safeSetItem('nutraelite_community_messages', serialized);
+    
+    if (!saved) {
+      // Se ainda não conseguir salvar, tentar salvar apenas a nova mensagem
+      const minimalMessages = [{
+        ...newMessage,
+        timestamp: newMessage.timestamp.toISOString(),
+      }];
+      safeSetItem('nutraelite_community_messages', JSON.stringify(minimalMessages));
+    }
 
     // Atualizar estado
     setMessages(prevMessages => [...prevMessages, newMessage]);

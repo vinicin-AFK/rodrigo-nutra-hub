@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Post, Comment } from '@/types';
+import { safeSetItem, safeGetItem, ensureStorageSpace } from '@/lib/storage';
 
 export function usePosts() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -9,7 +10,7 @@ export function usePosts() {
   const loadPosts = async () => {
     // SEMPRE carregar do localStorage primeiro
     try {
-      const savedPosts = localStorage.getItem('nutraelite_posts');
+      const savedPosts = safeGetItem('nutraelite_posts');
       if (savedPosts) {
         const parsed = JSON.parse(savedPosts);
         const loadedPosts: Post[] = parsed.map((post: any) => ({
@@ -91,14 +92,15 @@ export function usePosts() {
 
           setPosts(transformedPosts);
           // Salvar no localStorage também
-          localStorage.setItem('nutraelite_posts', JSON.stringify(transformedPosts.map(p => ({
+          const serialized = JSON.stringify(transformedPosts.map(p => ({
             ...p,
             createdAt: p.createdAt.toISOString(),
             commentsList: p.commentsList?.map(c => ({
               ...c,
               createdAt: c.createdAt.toISOString(),
             })) || [],
-          }))));
+          })));
+          safeSetItem('nutraelite_posts', serialized);
         }
       } catch (error) {
         console.warn('Erro ao carregar do Supabase (não crítico):', error);
@@ -225,15 +227,28 @@ export function usePosts() {
       commentsList: [],
     };
 
+    // Garantir espaço no storage
+    ensureStorageSpace();
+    
     // Salvar no localStorage
-    const savedPosts = localStorage.getItem('nutraelite_posts');
+    const savedPosts = safeGetItem('nutraelite_posts');
     const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
     const updatedPosts = [{
       ...newPost,
       createdAt: newPost.createdAt.toISOString(),
     }, ...existingPosts];
     
-    localStorage.setItem('nutraelite_posts', JSON.stringify(updatedPosts));
+    const serialized = JSON.stringify(updatedPosts);
+    const saved = safeSetItem('nutraelite_posts', serialized);
+    
+    if (!saved) {
+      // Se ainda não conseguir salvar, tentar salvar apenas a nova postagem
+      const minimalPost = [{
+        ...newPost,
+        createdAt: newPost.createdAt.toISOString(),
+      }];
+      safeSetItem('nutraelite_posts', JSON.stringify(minimalPost));
+    }
 
     // Atualizar estado
     setPosts(prevPosts => [newPost, ...prevPosts]);
@@ -277,21 +292,25 @@ export function usePosts() {
     }));
 
     // Salvar no localStorage
-    const savedPosts = localStorage.getItem('nutraelite_posts');
+    const savedPosts = safeGetItem('nutraelite_posts');
     if (savedPosts) {
-      const parsed = JSON.parse(savedPosts);
-      const updated = parsed.map((post: any) => {
-        if (post.id === postId) {
-          const wasLiked = post.isLiked;
-          return {
-            ...post,
-            isLiked: !wasLiked,
-            likes: wasLiked ? (post.likes || 0) - 1 : (post.likes || 0) + 1,
-          };
-        }
-        return post;
-      });
-      localStorage.setItem('nutraelite_posts', JSON.stringify(updated));
+      try {
+        const parsed = JSON.parse(savedPosts);
+        const updated = parsed.map((post: any) => {
+          if (post.id === postId) {
+            const wasLiked = post.isLiked;
+            return {
+              ...post,
+              isLiked: !wasLiked,
+              likes: wasLiked ? (post.likes || 0) - 1 : (post.likes || 0) + 1,
+            };
+          }
+          return post;
+        });
+        safeSetItem('nutraelite_posts', JSON.stringify(updated));
+      } catch (error) {
+        console.warn('Erro ao salvar like (não crítico):', error);
+      }
     }
 
     // Tentar Supabase em background
@@ -369,23 +388,27 @@ export function usePosts() {
     }));
 
     // Salvar no localStorage
-    const savedPosts = localStorage.getItem('nutraelite_posts');
+    const savedPosts = safeGetItem('nutraelite_posts');
     if (savedPosts) {
-      const parsed = JSON.parse(savedPosts);
-      const updated = parsed.map((post: any) => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            comments: (post.comments || 0) + 1,
-            commentsList: [...(post.commentsList || []), {
-              ...newComment,
-              createdAt: newComment.createdAt.toISOString(),
-            }],
-          };
-        }
-        return post;
-      });
-      localStorage.setItem('nutraelite_posts', JSON.stringify(updated));
+      try {
+        const parsed = JSON.parse(savedPosts);
+        const updated = parsed.map((post: any) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              comments: (post.comments || 0) + 1,
+              commentsList: [...(post.commentsList || []), {
+                ...newComment,
+                createdAt: newComment.createdAt.toISOString(),
+              }],
+            };
+          }
+          return post;
+        });
+        safeSetItem('nutraelite_posts', JSON.stringify(updated));
+      } catch (error) {
+        console.warn('Erro ao salvar comentário (não crítico):', error);
+      }
     }
 
     // Tentar Supabase em background
