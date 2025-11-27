@@ -7,99 +7,102 @@ export function usePosts() {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadPosts = async () => {
-    if (!isSupabaseConfigured) {
-      // Modo offline - carregar do localStorage
-      try {
-        const savedPosts = localStorage.getItem('nutraelite_posts');
-        if (savedPosts) {
-          const parsed = JSON.parse(savedPosts);
-          const loadedPosts: Post[] = parsed.map((post: any) => ({
-            ...post,
-            createdAt: new Date(post.createdAt),
-            author: post.author || {
-              id: 'unknown',
-              name: 'Usuário',
-              avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-              level: 'Bronze',
-              points: 0,
-              rank: 999,
-              totalSales: 0,
-            },
-            commentsList: post.commentsList?.map((c: any) => ({
-              ...c,
-              createdAt: new Date(c.createdAt),
-            })) || [],
-          }));
-          setPosts(loadedPosts);
-        } else {
-          setPosts([]);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar postagens do localStorage:', error);
-        setPosts([]);
-      }
-      setIsLoading(false);
-      return;
-    }
-
+    // SEMPRE carregar do localStorage primeiro
     try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          author:profiles(*),
-          comments:comments(*, author:profiles(*)),
-          likes:post_likes(*)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Obter usuário atual para verificar curtidas
-      const { data: { user } } = await supabase.auth.getUser();
-      const currentUserId = user?.id;
-
-      // Transformar dados do Supabase para formato do app
-      const transformedPosts: Post[] = (data || []).map((post: any) => ({
-        id: post.id,
-        author: {
-          id: post.author.id,
-          name: post.author.name,
-          avatar: post.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author.name)}&background=random`,
-          level: post.author.level || 'Bronze',
-          points: post.author.points || 0,
-          rank: post.author.rank || 999,
-          totalSales: post.author.total_sales || 0,
-        },
-        content: post.content,
-        image: post.image || undefined,
-        likes: post.likes || 0,
-        comments: post.comments_count || 0,
-        isLiked: post.likes?.some((like: any) => like.user_id === currentUserId) || false,
-        createdAt: new Date(post.created_at),
-        resultValue: post.result_value || undefined,
-        type: post.type || 'post',
-        commentsList: (post.comments || []).map((c: any) => ({
-          id: c.id,
-          author: {
-            id: c.author.id,
-            name: c.author.name,
-            avatar: c.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.name)}&background=random`,
-            level: c.author.level || 'Bronze',
-            points: c.author.points || 0,
-            rank: c.author.rank || 999,
-            totalSales: c.author.total_sales || 0,
+      const savedPosts = localStorage.getItem('nutraelite_posts');
+      if (savedPosts) {
+        const parsed = JSON.parse(savedPosts);
+        const loadedPosts: Post[] = parsed.map((post: any) => ({
+          ...post,
+          createdAt: new Date(post.createdAt),
+          author: post.author || {
+            id: 'unknown',
+            name: 'Usuário',
+            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+            level: 'Bronze',
+            points: 0,
+            rank: 999,
+            totalSales: 0,
           },
-          content: c.content,
-          createdAt: new Date(c.created_at),
-        })) || [],
-      }));
-
-      setPosts(transformedPosts);
+          commentsList: post.commentsList?.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt),
+          })) || [],
+        }));
+        setPosts(loadedPosts);
+      }
     } catch (error) {
       console.error('Erro ao carregar postagens:', error);
     } finally {
       setIsLoading(false);
+    }
+
+    // Tentar carregar do Supabase em background (opcional)
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            author:profiles(*),
+            comments:comments(*, author:profiles(*)),
+            likes:post_likes(*)
+          `)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          const { data: { user } } = await supabase.auth.getUser();
+          const currentUserId = user?.id;
+
+          const transformedPosts: Post[] = data.map((post: any) => ({
+            id: post.id,
+            author: {
+              id: post.author.id,
+              name: post.author.name,
+              avatar: post.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author.name)}&background=random`,
+              level: post.author.level || 'Bronze',
+              points: post.author.points || 0,
+              rank: post.author.rank || 999,
+              totalSales: post.author.total_sales || 0,
+            },
+            content: post.content,
+            image: post.image || undefined,
+            likes: post.likes?.length || 0,
+            comments: post.comments?.length || 0,
+            isLiked: post.likes?.some((like: any) => like.user_id === currentUserId) || false,
+            createdAt: new Date(post.created_at),
+            resultValue: post.result_value || undefined,
+            type: post.type || 'post',
+            commentsList: (post.comments || []).map((c: any) => ({
+              id: c.id,
+              author: {
+                id: c.author.id,
+                name: c.author.name,
+                avatar: c.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author.name)}&background=random`,
+                level: c.author.level || 'Bronze',
+                points: c.author.points || 0,
+                rank: c.author.rank || 999,
+                totalSales: c.author.total_sales || 0,
+              },
+              content: c.content,
+              createdAt: new Date(c.created_at),
+            })) || [],
+          }));
+
+          setPosts(transformedPosts);
+          // Salvar no localStorage também
+          localStorage.setItem('nutraelite_posts', JSON.stringify(transformedPosts.map(p => ({
+            ...p,
+            createdAt: p.createdAt.toISOString(),
+            commentsList: p.commentsList?.map(c => ({
+              ...c,
+              createdAt: c.createdAt.toISOString(),
+            })) || [],
+          }))));
+        }
+      } catch (error) {
+        console.warn('Erro ao carregar do Supabase (não crítico):', error);
+      }
     }
   };
 
@@ -108,7 +111,6 @@ export function usePosts() {
 
     if (!isSupabaseConfigured) return;
 
-    // Ouvir novas postagens em tempo real
     const subscription = supabase
       .channel('posts_changes')
       .on('postgres_changes',
@@ -136,100 +138,73 @@ export function usePosts() {
     };
   }, []);
 
-  const createPost = async (content: string, resultValue?: number, image?: string) => {
-    console.log('📝 Criando postagem...', { content, resultValue, image: !!image, isSupabaseConfigured });
-    
-    // SEMPRE começar tentando modo offline primeiro (mais confiável)
-    // Buscar dados do usuário do localStorage
+  const createPost = async (content: string, resultValue?: number, image?: string): Promise<Post> => {
+    // Buscar dados do usuário - SEMPRE do localStorage
     const savedAuth = localStorage.getItem('nutraelite_auth');
     if (!savedAuth) {
-      console.error('❌ Nenhuma autenticação encontrada no localStorage');
       throw new Error('Usuário não autenticado. Faça login primeiro.');
     }
     
-    let authData;
-    try {
-      authData = JSON.parse(savedAuth);
-    } catch (parseError) {
-      console.error('❌ Erro ao fazer parse do localStorage:', parseError);
-      throw new Error('Erro ao ler dados de autenticação. Faça login novamente.');
-    }
-    
-    const authorData = authData.user;
+    const authData = JSON.parse(savedAuth);
+    const authorData = authData?.user;
     
     if (!authorData) {
-      console.error('❌ Dados do usuário não encontrados');
       throw new Error('Usuário não autenticado. Faça login primeiro.');
     }
 
-    console.log('✅ Dados do autor encontrados:', authorData.name);
-
-    // Criar postagem localmente (sempre funciona)
+    // Criar postagem
     const newPost: Post = {
-      id: Date.now().toString(),
+      id: `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       author: {
-        id: authorData.id,
-        name: authorData.name,
-        avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name)}&background=random`,
+        id: authorData.id || 'unknown',
+        name: authorData.name || 'Usuário',
+        avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'Usuario')}&background=random`,
         level: authorData.level || 'Bronze',
         points: authorData.points || 0,
         rank: authorData.rank || 999,
         totalSales: authorData.totalSales || 0,
       },
-      content,
-      image,
+      content: content || '',
+      image: image || undefined,
       likes: 0,
       comments: 0,
       isLiked: false,
       createdAt: new Date(),
-      resultValue,
+      resultValue: resultValue || undefined,
       type: resultValue ? 'result' : 'post',
       commentsList: [],
     };
 
-    // Salvar no localStorage (sempre funciona)
-    try {
-      const savedPosts = localStorage.getItem('nutraelite_posts');
-      const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
-      const updatedPosts = [{
-        ...newPost,
-        createdAt: newPost.createdAt.toISOString(),
-      }, ...existingPosts];
-      
-      localStorage.setItem('nutraelite_posts', JSON.stringify(updatedPosts));
-      console.log('✅ Postagem salva no localStorage');
-    } catch (storageError) {
-      console.error('❌ Erro ao salvar no localStorage:', storageError);
-      throw new Error('Erro ao salvar postagem. Tente novamente.');
-    }
+    // Salvar no localStorage
+    const savedPosts = localStorage.getItem('nutraelite_posts');
+    const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
+    const updatedPosts = [{
+      ...newPost,
+      createdAt: newPost.createdAt.toISOString(),
+    }, ...existingPosts];
+    
+    localStorage.setItem('nutraelite_posts', JSON.stringify(updatedPosts));
 
-    // Atualizar estado local imediatamente
+    // Atualizar estado
     setPosts(prevPosts => [newPost, ...prevPosts]);
-    console.log('✅ Postagem criada com sucesso (modo offline)');
 
-    // Tentar sincronizar com Supabase em background (não bloqueia)
+    // Tentar Supabase em background (não bloqueia)
     if (isSupabaseConfigured) {
-      console.log('☁️ Tentando sincronizar com Supabase em background...');
       (async () => {
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
-            await supabase
-              .from('posts')
-              .insert({
-                author_id: user.id,
-                content,
-                image,
-                result_value: resultValue,
-                type: resultValue ? 'result' : 'post',
-              });
-            console.log('✅ Postagem sincronizada com Supabase');
-            // Recarregar do Supabase após sincronizar
+            await supabase.from('posts').insert({
+              author_id: user.id,
+              content,
+              image,
+              result_value: resultValue,
+              type: resultValue ? 'result' : 'post',
+            });
             await loadPosts();
           }
-        } catch (syncError) {
-          console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', syncError);
-          // Não é crítico, a postagem já está salva localmente
+        } catch (error) {
+          // Ignorar erro - já está salvo localmente
         }
       })();
     }
@@ -238,73 +213,149 @@ export function usePosts() {
   };
 
   const likePost = async (postId: string) => {
-    if (!isSupabaseConfigured) {
-      throw new Error('Supabase não configurado. Configure as variáveis de ambiente.');
+    // Atualizar localmente primeiro
+    setPosts(prevPosts => prevPosts.map(post => {
+      if (post.id === postId) {
+        const wasLiked = post.isLiked;
+        return {
+          ...post,
+          isLiked: !wasLiked,
+          likes: wasLiked ? post.likes - 1 : post.likes + 1,
+        };
+      }
+      return post;
+    }));
+
+    // Salvar no localStorage
+    const savedPosts = localStorage.getItem('nutraelite_posts');
+    if (savedPosts) {
+      const parsed = JSON.parse(savedPosts);
+      const updated = parsed.map((post: any) => {
+        if (post.id === postId) {
+          const wasLiked = post.isLiked;
+          return {
+            ...post,
+            isLiked: !wasLiked,
+            likes: wasLiked ? (post.likes || 0) - 1 : (post.likes || 0) + 1,
+          };
+        }
+        return post;
+      });
+      localStorage.setItem('nutraelite_posts', JSON.stringify(updated));
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Usuário não autenticado');
+    // Tentar Supabase em background
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: existingLike } = await supabase
+            .from('post_likes')
+            .select('id')
+            .eq('post_id', postId)
+            .eq('user_id', user.id)
+            .single();
 
-    // Verificar se já curtiu
-    const { data: existingLike } = await supabase
-      .from('post_likes')
-      .select('id')
-      .eq('post_id', postId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (existingLike) {
-      // Descurtir
-      const { error } = await supabase
-        .from('post_likes')
-        .delete()
-        .eq('post_id', postId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-    } else {
-      // Curtir
-      const { error } = await supabase
-        .from('post_likes')
-        .insert({
-          post_id: postId,
-          user_id: user.id,
-        });
-
-      if (error) throw error;
+          if (existingLike) {
+            await supabase
+              .from('post_likes')
+              .delete()
+              .eq('post_id', postId)
+              .eq('user_id', user.id);
+          } else {
+            await supabase
+              .from('post_likes')
+              .insert({
+                post_id: postId,
+                user_id: user.id,
+              });
+          }
+          await loadPosts();
+        }
+      } catch (error) {
+        // Ignorar - já atualizado localmente
+      }
     }
-
-    // Recarregar postagens para atualizar contadores
-    await loadPosts();
   };
 
   const addComment = async (postId: string, content: string) => {
-    if (!isSupabaseConfigured) {
-      throw new Error('Supabase não configurado. Configure as variáveis de ambiente.');
+    const savedAuth = localStorage.getItem('nutraelite_auth');
+    if (!savedAuth) {
+      throw new Error('Usuário não autenticado');
+    }
+    
+    const authData = JSON.parse(savedAuth);
+    const authorData = authData?.user;
+    
+    if (!authorData) {
+      throw new Error('Usuário não autenticado');
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Usuário não autenticado');
+    const newComment: Comment = {
+      id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      author: {
+        id: authorData.id || 'unknown',
+        name: authorData.name || 'Usuário',
+        avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'Usuario')}&background=random`,
+        level: authorData.level || 'Bronze',
+        points: authorData.points || 0,
+        rank: authorData.rank || 999,
+        totalSales: authorData.totalSales || 0,
+      },
+      content,
+      createdAt: new Date(),
+    };
 
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({
-        post_id: postId,
-        author_id: user.id,
-        content,
-      })
-      .select(`
-        *,
-        author:profiles(*)
-      `)
-      .single();
+    // Atualizar localmente
+    setPosts(prevPosts => prevPosts.map(post => {
+      if (post.id === postId) {
+        return {
+          ...post,
+          comments: (post.comments || 0) + 1,
+          commentsList: [...(post.commentsList || []), newComment],
+        };
+      }
+      return post;
+    }));
 
-    if (error) throw error;
+    // Salvar no localStorage
+    const savedPosts = localStorage.getItem('nutraelite_posts');
+    if (savedPosts) {
+      const parsed = JSON.parse(savedPosts);
+      const updated = parsed.map((post: any) => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            comments: (post.comments || 0) + 1,
+            commentsList: [...(post.commentsList || []), {
+              ...newComment,
+              createdAt: newComment.createdAt.toISOString(),
+            }],
+          };
+        }
+        return post;
+      });
+      localStorage.setItem('nutraelite_posts', JSON.stringify(updated));
+    }
 
-    // Recarregar postagens para atualizar comentários
-    await loadPosts();
+    // Tentar Supabase em background
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('comments').insert({
+            post_id: postId,
+            author_id: user.id,
+            content,
+          });
+          await loadPosts();
+        }
+      } catch (error) {
+        // Ignorar - já salvo localmente
+      }
+    }
 
-    return data;
+    return newComment;
   };
 
   return {
@@ -316,4 +367,3 @@ export function usePosts() {
     refresh: loadPosts,
   };
 }
-

@@ -7,68 +7,68 @@ export function useCommunityMessages() {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadMessages = async () => {
-    if (!isSupabaseConfigured) {
-      // Modo offline - carregar do localStorage
-      try {
-        const savedMessages = localStorage.getItem('nutraelite_community_messages');
-        if (savedMessages) {
-          const parsed = JSON.parse(savedMessages);
-          const loadedMessages: Message[] = parsed.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp),
-            author: msg.author || {
-              name: 'Usuário',
-              avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-            },
-          }));
-          setMessages(loadedMessages);
-        } else {
-          setMessages([]);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar mensagens do localStorage:', error);
-        setMessages([]);
-      }
-      setIsLoading(false);
-      return;
-    }
-
+    // SEMPRE carregar do localStorage primeiro
     try {
-      const { data, error } = await supabase
-        .from('community_messages')
-        .select(`
-          *,
-          author:profiles(*)
-        `)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      // Obter usuário atual
-      const { data: { user } } = await supabase.auth.getUser();
-      const currentUserId = user?.id;
-
-      const transformed: Message[] = (data || []).map((msg: any) => ({
-        id: msg.id,
-        content: msg.content || '',
-        isUser: msg.author_id === currentUserId,
-        timestamp: new Date(msg.created_at),
-        type: msg.type || 'text',
-        image: msg.image || undefined,
-        audioDuration: msg.audio_duration || undefined,
-        audioUrl: msg.audio_url || undefined,
-        author: {
-          name: msg.author.name,
-          avatar: msg.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author.name)}&background=random`,
-          role: msg.author.role || undefined,
-        },
-      }));
-
-      setMessages(transformed);
+      const savedMessages = localStorage.getItem('nutraelite_community_messages');
+      if (savedMessages) {
+        const parsed = JSON.parse(savedMessages);
+        const loadedMessages: Message[] = parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+          author: msg.author || {
+            name: 'Usuário',
+            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+          },
+        }));
+        setMessages(loadedMessages);
+      }
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
     } finally {
       setIsLoading(false);
+    }
+
+    // Tentar carregar do Supabase em background (opcional)
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('community_messages')
+          .select(`
+            *,
+            author:profiles(*)
+          `)
+          .order('created_at', { ascending: true });
+
+        if (!error && data) {
+          const { data: { user } } = await supabase.auth.getUser();
+          const currentUserId = user?.id;
+
+          const transformed: Message[] = data.map((msg: any) => ({
+            id: msg.id,
+            content: msg.content || '',
+            isUser: msg.author_id === currentUserId,
+            timestamp: new Date(msg.created_at),
+            type: msg.type || 'text',
+            image: msg.image || undefined,
+            audioDuration: msg.audio_duration || undefined,
+            audioUrl: msg.audio_url || undefined,
+            author: {
+              name: msg.author.name,
+              avatar: msg.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author.name)}&background=random`,
+              role: msg.author.role || undefined,
+            },
+          }));
+
+          setMessages(transformed);
+          // Salvar no localStorage também
+          localStorage.setItem('nutraelite_community_messages', JSON.stringify(transformed.map(m => ({
+            ...m,
+            timestamp: m.timestamp.toISOString(),
+          }))));
+        }
+      } catch (error) {
+        console.warn('Erro ao carregar do Supabase (não crítico):', error);
+      }
     }
   };
 
@@ -77,7 +77,6 @@ export function useCommunityMessages() {
 
     if (!isSupabaseConfigured) return;
 
-    // Ouvir novas mensagens em tempo real
     const subscription = supabase
       .channel('community_messages_changes')
       .on('postgres_changes',
@@ -93,93 +92,67 @@ export function useCommunityMessages() {
     };
   }, []);
 
-  const sendMessage = async (content: string, type: string = 'text', image?: string, audioUrl?: string, audioDuration?: number) => {
-    console.log('💬 Enviando mensagem...', { content, type, image: !!image, audioUrl: !!audioUrl });
-    
-    // SEMPRE começar com modo offline (mais confiável)
-    // Buscar dados do usuário do localStorage
+  const sendMessage = async (content: string, type: string = 'text', image?: string, audioUrl?: string, audioDuration?: number): Promise<Message> => {
+    // Buscar dados do usuário - SEMPRE do localStorage
     const savedAuth = localStorage.getItem('nutraelite_auth');
     if (!savedAuth) {
-      console.error('❌ Nenhuma autenticação encontrada');
       throw new Error('Usuário não autenticado. Faça login primeiro.');
     }
     
-    let authData;
-    try {
-      authData = JSON.parse(savedAuth);
-    } catch (parseError) {
-      console.error('❌ Erro ao fazer parse do localStorage:', parseError);
-      throw new Error('Erro ao ler dados de autenticação. Faça login novamente.');
-    }
+    const authData = JSON.parse(savedAuth);
+    const authorData = authData?.user;
     
-    const authorData = authData.user;
     if (!authorData) {
-      console.error('❌ Dados do usuário não encontrados');
       throw new Error('Usuário não autenticado. Faça login primeiro.');
     }
 
-    console.log('✅ Dados do autor encontrados:', authorData.name);
-
-    // Criar mensagem localmente (sempre funciona)
+    // Criar mensagem
     const newMessage: Message = {
-      id: Date.now().toString(),
-      content,
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      content: content || '',
       isUser: true,
       timestamp: new Date(),
       type: type as 'text' | 'audio' | 'emoji' | 'image',
-      image,
-      audioDuration,
-      audioUrl,
+      image: image || undefined,
+      audioDuration: audioDuration || undefined,
+      audioUrl: audioUrl || undefined,
       author: {
-        name: authorData.name,
-        avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name)}&background=random`,
+        name: authorData.name || 'Usuário',
+        avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'Usuario')}&background=random`,
       },
     };
 
-    // Salvar no localStorage (sempre funciona)
-    try {
-      const savedMessages = localStorage.getItem('nutraelite_community_messages');
-      const existingMessages = savedMessages ? JSON.parse(savedMessages) : [];
-      const updatedMessages = [...existingMessages, {
-        ...newMessage,
-        timestamp: newMessage.timestamp.toISOString(),
-      }];
-      
-      localStorage.setItem('nutraelite_community_messages', JSON.stringify(updatedMessages));
-      console.log('✅ Mensagem salva no localStorage');
-    } catch (storageError) {
-      console.error('❌ Erro ao salvar no localStorage:', storageError);
-      throw new Error('Erro ao salvar mensagem. Tente novamente.');
-    }
+    // Salvar no localStorage
+    const savedMessages = localStorage.getItem('nutraelite_community_messages');
+    const existingMessages = savedMessages ? JSON.parse(savedMessages) : [];
+    const updatedMessages = [...existingMessages, {
+      ...newMessage,
+      timestamp: newMessage.timestamp.toISOString(),
+    }];
+    
+    localStorage.setItem('nutraelite_community_messages', JSON.stringify(updatedMessages));
 
-    // Atualizar estado local imediatamente
+    // Atualizar estado
     setMessages(prevMessages => [...prevMessages, newMessage]);
-    console.log('✅ Mensagem enviada com sucesso (modo offline)');
 
-    // Tentar sincronizar com Supabase em background (não bloqueia)
+    // Tentar Supabase em background (não bloqueia)
     if (isSupabaseConfigured) {
-      console.log('☁️ Tentando sincronizar com Supabase em background...');
       (async () => {
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
-            await supabase
-              .from('community_messages')
-              .insert({
-                author_id: user.id,
-                content,
-                type,
-                image,
-                audio_url: audioUrl,
-                audio_duration: audioDuration,
-              });
-            console.log('✅ Mensagem sincronizada com Supabase');
-            // Recarregar do Supabase após sincronizar
+            await supabase.from('community_messages').insert({
+              author_id: user.id,
+              content,
+              type,
+              image,
+              audio_url: audioUrl,
+              audio_duration: audioDuration,
+            });
             await loadMessages();
           }
-        } catch (syncError) {
-          console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', syncError);
-          // Não é crítico, a mensagem já está salva localmente
+        } catch (error) {
+          // Ignorar erro - já está salvo localmente
         }
       })();
     }
@@ -194,4 +167,3 @@ export function useCommunityMessages() {
     refresh: loadMessages,
   };
 }
-
