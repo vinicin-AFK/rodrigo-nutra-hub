@@ -185,16 +185,24 @@ export function useCommunityMessages() {
       timestamp: newMessage.timestamp.toISOString(),
     }];
     
-    const serialized = JSON.stringify(updatedMessages);
-    const saved = safeSetItem('nutraelite_community_messages', serialized);
+    // Tentar salvar - se falhar, limpar e tentar novamente
+    let serialized = JSON.stringify(updatedMessages);
+    let saved = safeSetItem('nutraelite_community_messages', serialized);
     
     if (!saved) {
-      // Se ainda não conseguir salvar, tentar salvar apenas a nova mensagem
-      const minimalMessages = [{
-        ...newMessage,
-        timestamp: newMessage.timestamp.toISOString(),
-      }];
-      safeSetItem('nutraelite_community_messages', JSON.stringify(minimalMessages));
+      // Se falhar, tentar salvar apenas as 30 mais recentes
+      const recentMessages = updatedMessages.slice(-30);
+      serialized = JSON.stringify(recentMessages);
+      saved = safeSetItem('nutraelite_community_messages', serialized);
+      
+      if (!saved) {
+        // Se ainda falhar, salvar apenas a nova mensagem
+        const minimalMessages = [{
+          ...newMessage,
+          timestamp: newMessage.timestamp.toISOString(),
+        }];
+        safeSetItem('nutraelite_community_messages', JSON.stringify(minimalMessages));
+      }
     }
 
     // Atualizar estado

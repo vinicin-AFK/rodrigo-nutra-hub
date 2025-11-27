@@ -238,16 +238,24 @@ export function usePosts() {
       createdAt: newPost.createdAt.toISOString(),
     }, ...existingPosts];
     
-    const serialized = JSON.stringify(updatedPosts);
-    const saved = safeSetItem('nutraelite_posts', serialized);
+    // Tentar salvar - se falhar, limpar e tentar novamente
+    let serialized = JSON.stringify(updatedPosts);
+    let saved = safeSetItem('nutraelite_posts', serialized);
     
     if (!saved) {
-      // Se ainda não conseguir salvar, tentar salvar apenas a nova postagem
-      const minimalPost = [{
-        ...newPost,
-        createdAt: newPost.createdAt.toISOString(),
-      }];
-      safeSetItem('nutraelite_posts', JSON.stringify(minimalPost));
+      // Se falhar, tentar salvar apenas as 10 mais recentes
+      const recentPosts = updatedPosts.slice(0, 10);
+      serialized = JSON.stringify(recentPosts);
+      saved = safeSetItem('nutraelite_posts', serialized);
+      
+      if (!saved) {
+        // Se ainda falhar, salvar apenas a nova postagem
+        const minimalPost = [{
+          ...newPost,
+          createdAt: newPost.createdAt.toISOString(),
+        }];
+        safeSetItem('nutraelite_posts', JSON.stringify(minimalPost));
+      }
     }
 
     // Atualizar estado
