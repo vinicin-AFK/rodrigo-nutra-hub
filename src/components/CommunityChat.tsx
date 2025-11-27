@@ -718,16 +718,16 @@ export function CommunityChat() {
                     
                     {/* Message Group */}
                     <div className={cn(
-                      "flex gap-2 mb-1 animate-fade-in",
+                      "flex gap-2 mb-2 animate-fade-in",
                       group.isCurrentUser ? "flex-row-reverse" : "flex-row"
                     )}>
                       {/* Avatar - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                       {!group.isCurrentUser && (
-                        <div className="flex-shrink-0 w-8 h-8">
+                        <div className="flex-shrink-0 w-10 h-10">
                           {groupIndex === 0 || grouped[groupIndex - 1]?.isCurrentUser !== group.isCurrentUser || 
                            grouped[groupIndex - 1]?.author?.id !== group.author?.id ||
                            grouped[groupIndex - 1]?.author?.name !== group.author?.name ? (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-sm font-bold overflow-hidden border-2 border-white dark:border-[#202c33] shadow-sm">
                               {group.author?.avatar ? (
                                 <img
                                   src={group.author.avatar}
@@ -739,7 +739,7 @@ export function CommunityChat() {
                               )}
                             </div>
                           ) : (
-                            <div className="w-8" /> // Espaço reservado para alinhamento
+                            <div className="w-10" /> // Espaço reservado para alinhamento
                           )}
                         </div>
                       )}
@@ -789,7 +789,7 @@ export function CommunityChat() {
                               <div
                                 key={message.id}
                                 className={cn(
-                                  "rounded-lg px-3 py-1.5 shadow-sm max-w-full relative group/message",
+                                  "rounded-lg px-3 py-2 shadow-sm max-w-[75%] relative group/message",
                                   group.isCurrentUser
                                     ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-white"
                                     : group.author?.role === 'support'
