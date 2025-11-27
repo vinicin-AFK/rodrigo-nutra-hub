@@ -238,6 +238,9 @@ export function useCommunityMessages() {
     
     console.log('👤 Dados do autor:', { name: authorData.name, id: authorData.id });
 
+    // Verificar se é suporte
+    const isSupportUser = authorData.role === 'support' || authorData.role === 'admin';
+    
     // Criar mensagem
     const newMessage: Message = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -251,6 +254,7 @@ export function useCommunityMessages() {
       author: {
         name: authorData.name || 'Usuário',
         avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'Usuario')}&background=random`,
+        role: isSupportUser ? 'support' : undefined,
       },
     };
 
@@ -340,10 +344,48 @@ export function useCommunityMessages() {
     return newMessage;
   };
 
+  const deleteMessage = async (messageId: string) => {
+    console.log('🗑️ Deletando mensagem:', messageId);
+    
+    // Remover do localStorage
+    try {
+      const savedMessages = safeGetItem('nutraelite_community_messages');
+      if (savedMessages) {
+        const parsed = JSON.parse(savedMessages);
+        const filtered = parsed.filter((msg: any) => msg.id !== messageId);
+        safeSetItem('nutraelite_community_messages', JSON.stringify(filtered));
+        setMessages(filtered.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+          author: msg.author || {
+            name: 'Usuário',
+            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+          },
+        })));
+        console.log('✅ Mensagem deletada do localStorage');
+      }
+    } catch (error) {
+      console.error('Erro ao deletar mensagem:', error);
+    }
+    
+    // Deletar do Supabase em background
+    if (isSupabaseConfigured) {
+      (async () => {
+        try {
+          await supabase.from('community_messages').delete().eq('id', messageId);
+          console.log('✅ Mensagem deletada do Supabase');
+        } catch (error) {
+          console.warn('⚠️ Erro ao deletar mensagem do Supabase:', error);
+        }
+      })();
+    }
+  };
+
   return {
     messages,
     isLoading,
     sendMessage,
+    deleteMessage,
     refresh: loadMessages,
   };
 }

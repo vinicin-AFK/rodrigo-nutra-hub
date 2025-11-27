@@ -29,7 +29,7 @@ type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' |
 
 const Index = () => {
   const { user, addPoints, userPoints, updateStats, stats, logout } = useAuth();
-  const { posts: allPosts, isLoading: postsLoading, createPost, likePost, addComment } = usePosts();
+  const { posts: allPosts, isLoading: postsLoading, createPost, likePost, addComment, deletePost, deleteComment } = usePosts();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
@@ -176,6 +176,7 @@ const Index = () => {
                   post={post} 
                   onLike={handleLike}
                   onComment={handleOpenComments}
+                  onDelete={deletePost}
                 />
               ))}
             </div>
@@ -371,6 +372,7 @@ const Index = () => {
           onClose={() => setSelectedPostForComments(null)}
           post={selectedPostForComments}
           onAddComment={handleAddComment}
+          onDeleteComment={deleteComment}
         />
       )}
     </div>

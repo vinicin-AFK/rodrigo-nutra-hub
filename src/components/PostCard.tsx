@@ -1,21 +1,26 @@
 import { useState } from 'react';
-import { Flame, MessageCircle, Award, Heart } from 'lucide-react';
+import { Flame, MessageCircle, Award, Heart, Trash2, Shield } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface PostCardProps {
   post: Post;
   onLike?: (postId: string, isLiked: boolean) => void;
   onComment?: (postId: string) => void;
+  onDelete?: (postId: string) => void;
 }
 
-export function PostCard({ post, onLike, onComment }: PostCardProps) {
+export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
   const { addPoints, user, achievements } = useAuth();
+  const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [likes, setLikes] = useState(post.likes);
   const [isAnimating, setIsAnimating] = useState(false);
   const [particles, setParticles] = useState<number[]>([]);
+  const isSupport = user?.role === 'support' || user?.role === 'admin';
+  const isSupportPost = post.author?.role === 'support' || post.author?.role === 'admin';
 
   // Verificação de segurança
   if (!post || !post.author) {
@@ -95,7 +100,12 @@ export function PostCard({ post, onLike, onComment }: PostCardProps) {
     : [];
 
   return (
-    <article className="glass-card rounded-2xl overflow-hidden animate-fade-in mb-4">
+    <article className={cn(
+      "glass-card rounded-2xl overflow-hidden animate-fade-in mb-4",
+      isSupportPost 
+        ? "ring-2 ring-[#ff6b35]/50 border-2 border-[#ff6b35]/30" 
+        : ""
+    )}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <img
@@ -105,7 +115,20 @@ export function PostCard({ post, onLike, onComment }: PostCardProps) {
         />
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-foreground text-sm">{author.name || 'Usuário'}</h3>
+            <h3 className={cn(
+              "font-semibold text-sm",
+              isSupportPost ? "text-[#ff6b35] dark:text-[#ff8c5a] font-bold" : "text-foreground"
+            )}>
+              {author.name || 'Usuário'}
+            </h3>
+            
+            {/* Badge de Suporte */}
+            {isSupportPost && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ff6b35]/30 text-[#ff6b35] border border-[#ff6b35]/50 font-bold flex items-center gap-1">
+                <Shield className="w-3 h-3" />
+                SUPORTE
+              </span>
+            )}
             
             {/* Conquistas do usuário */}
             {isCurrentUser && userAchievements.length > 0 && (
@@ -127,6 +150,27 @@ export function PostCard({ post, onLike, onComment }: PostCardProps) {
                 <Award className="w-3 h-3" />
                 Resultado
               </span>
+            )}
+            
+            {/* Botão de deletar - apenas para suporte */}
+            {isSupport && (
+              <button
+                onClick={() => {
+                  if (confirm('Tem certeza que deseja deletar esta publicação?')) {
+                    if (onDelete) {
+                      onDelete(post.id);
+                      toast({
+                        title: "Publicação deletada",
+                        description: "A publicação foi removida do feed.",
+                      });
+                    }
+                  }
+                }}
+                className="ml-auto p-1.5 hover:bg-red-500/20 rounded-full transition-colors"
+                title="Deletar publicação"
+              >
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </button>
             )}
           </div>
           <p className="text-xs text-muted-foreground">

@@ -312,6 +312,9 @@ export function usePosts() {
       };
     }
 
+    // Verificar se é suporte
+    const isSupportUser = authorData.role === 'support' || authorData.role === 'admin';
+    
     // Criar postagem
     const newPost: Post = {
       id: `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -323,6 +326,7 @@ export function usePosts() {
         points: authorData.points || 0,
         rank: authorData.rank || 999,
         totalSales: authorData.totalSales || 0,
+        role: isSupportUser ? 'support' : undefined,
       },
       content: content || '',
       image: image || undefined,
@@ -546,6 +550,9 @@ export function usePosts() {
       throw new Error('Usuário não autenticado');
     }
 
+    // Verificar se é suporte
+    const isSupportUser = authorData.role === 'support' || authorData.role === 'admin';
+    
     const newComment: Comment = {
       id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       author: {
@@ -556,6 +563,7 @@ export function usePosts() {
         points: authorData.points || 0,
         rank: authorData.rank || 999,
         totalSales: authorData.totalSales || 0,
+        role: isSupportUser ? 'support' : undefined,
       },
       content,
       createdAt: new Date(),
@@ -599,12 +607,120 @@ export function usePosts() {
     return newComment;
   };
 
+  const deletePost = async (postId: string) => {
+    console.log('🗑️ Deletando publicação:', postId);
+    
+    // Remover do localStorage
+    try {
+      const savedPosts = safeGetItem('nutraelite_posts');
+      if (savedPosts) {
+        const parsed = JSON.parse(savedPosts);
+        const filtered = parsed.filter((post: any) => post.id !== postId);
+        safeSetItem('nutraelite_posts', JSON.stringify(filtered));
+        setPosts(filtered.map((post: any) => ({
+          ...post,
+          createdAt: new Date(post.createdAt),
+          author: post.author || {
+            id: 'unknown',
+            name: 'Usuário',
+            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+            level: 'Bronze',
+            points: 0,
+            rank: 999,
+            totalSales: 0,
+          },
+          commentsList: post.commentsList?.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt),
+          })) || [],
+        })));
+        console.log('✅ Publicação deletada do localStorage');
+      }
+    } catch (error) {
+      console.error('Erro ao deletar publicação:', error);
+    }
+    
+    // Deletar do Supabase em background
+    if (isSupabaseConfigured) {
+      (async () => {
+        try {
+          // Deletar likes primeiro
+          await supabase.from('post_likes').delete().eq('post_id', postId);
+          // Deletar comentários
+          await supabase.from('post_comments').delete().eq('post_id', postId);
+          // Deletar post
+          await supabase.from('posts').delete().eq('id', postId);
+          console.log('✅ Publicação deletada do Supabase');
+        } catch (error) {
+          console.warn('⚠️ Erro ao deletar publicação do Supabase:', error);
+        }
+      })();
+    }
+  };
+
+  const deleteComment = async (postId: string, commentId: string) => {
+    console.log('🗑️ Deletando comentário:', commentId);
+    
+    // Remover do localStorage
+    try {
+      const savedPosts = safeGetItem('nutraelite_posts');
+      if (savedPosts) {
+        const parsed = JSON.parse(savedPosts);
+        const updated = parsed.map((post: any) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              commentsList: (post.commentsList || []).filter((c: any) => c.id !== commentId),
+              comments: Math.max(0, (post.comments || 0) - 1),
+            };
+          }
+          return post;
+        });
+        safeSetItem('nutraelite_posts', JSON.stringify(updated));
+        setPosts(updated.map((post: any) => ({
+          ...post,
+          createdAt: new Date(post.createdAt),
+          author: post.author || {
+            id: 'unknown',
+            name: 'Usuário',
+            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+            level: 'Bronze',
+            points: 0,
+            rank: 999,
+            totalSales: 0,
+          },
+          commentsList: post.commentsList?.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt),
+          })) || [],
+        })));
+        console.log('✅ Comentário deletado do localStorage');
+      }
+    } catch (error) {
+      console.error('Erro ao deletar comentário:', error);
+    }
+    
+    // Deletar do Supabase em background
+    if (isSupabaseConfigured) {
+      (async () => {
+        try {
+          await supabase.from('post_comments').delete().eq('id', commentId);
+          console.log('✅ Comentário deletado do Supabase');
+        } catch (error) {
+          console.warn('⚠️ Erro ao deletar comentário do Supabase:', error);
+        }
+      })();
+    }
+  };
+
   return {
     posts,
     isLoading,
     createPost,
     likePost,
     addComment,
+    deletePost,
+    deleteComment,
     refresh: loadPosts,
   };
 }

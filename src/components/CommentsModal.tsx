@@ -13,10 +13,12 @@ interface CommentsModalProps {
   onAddComment: (postId: string, content: string) => void;
 }
 
-export function CommentsModal({ isOpen, onClose, post, onAddComment }: CommentsModalProps) {
+export function CommentsModal({ isOpen, onClose, post, onAddComment, onDeleteComment }: CommentsModalProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [comment, setComment] = useState('');
   const commentsEndRef = useRef<HTMLDivElement>(null);
+  const isSupport = user?.role === 'support' || user?.role === 'admin';
 
   const currentUser = user ? {
     ...fallbackUser,
@@ -81,26 +83,63 @@ export function CommentsModal({ isOpen, onClose, post, onAddComment }: CommentsM
         {/* Comments List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {post.commentsList && post.commentsList.length > 0 ? (
-            post.commentsList.map((comment) => (
-              <div key={comment.id} className="flex gap-3 animate-fade-in">
-                <img
-                  src={comment.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.author.name)}&background=random`}
-                  alt={comment.author.name}
-                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                />
-                <div className="flex-1">
-                  <div className="bg-secondary rounded-2xl px-3 py-2">
-                    <p className="font-semibold text-sm text-foreground mb-1">
-                      {comment.author.name}
+            post.commentsList.map((comment) => {
+              const isSupportComment = comment.author?.role === 'support' || comment.author?.role === 'admin';
+              return (
+                <div key={comment.id} className="flex gap-3 animate-fade-in">
+                  <img
+                    src={comment.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.author.name)}&background=random`}
+                    alt={comment.author.name}
+                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                  />
+                  <div className="flex-1">
+                    <div className={cn(
+                      "rounded-2xl px-3 py-2",
+                      isSupportComment
+                        ? "bg-gradient-to-r from-[#ff6b35]/20 to-[#ff8c5a]/20 dark:from-[#ff6b35]/30 dark:to-[#ff8c5a]/30 border-2 border-[#ff6b35]/50"
+                        : "bg-secondary"
+                    )}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className={cn(
+                          "font-semibold text-sm",
+                          isSupportComment ? "text-[#ff6b35] dark:text-[#ff8c5a] font-bold" : "text-foreground"
+                        )}>
+                          {comment.author.name}
+                        </p>
+                        {isSupportComment && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#ff6b35]/30 text-[#ff6b35] border border-[#ff6b35]/50 font-bold flex items-center gap-1">
+                            <Shield className="w-3 h-3" />
+                            SUPORTE
+                          </span>
+                        )}
+                        {/* Botão de deletar - apenas para suporte */}
+                        {isSupport && onDeleteComment && (
+                          <button
+                            onClick={() => {
+                              if (confirm('Tem certeza que deseja deletar este comentário?')) {
+                                onDeleteComment(post.id, comment.id);
+                                toast({
+                                  title: "Comentário deletado",
+                                  description: "O comentário foi removido.",
+                                });
+                              }
+                            }}
+                            className="ml-auto p-1 hover:bg-red-500/20 rounded transition-colors"
+                            title="Deletar comentário"
+                          >
+                            <Trash2 className="w-3 h-3 text-red-500" />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-sm text-foreground/90">{comment.content}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {formatTime(comment.createdAt)}
                     </p>
-                    <p className="text-sm text-foreground/90">{comment.content}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatTime(comment.createdAt)}
-                  </p>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Nenhum comentário ainda. Seja o primeiro!</p>

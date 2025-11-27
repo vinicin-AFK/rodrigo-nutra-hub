@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Image as ImageIcon, Mic, Smile, Play, Pause, X } from 'lucide-react';
+import { Send, Image as ImageIcon, Mic, Smile, Play, Pause, X, Trash2, Shield } from 'lucide-react';
 import { Message } from '@/types';
 import { cn } from '@/lib/utils';
 import { useCommunityMessages } from '@/hooks/useCommunityMessages';
@@ -136,9 +136,10 @@ function AudioPlayer({
 }
 
 export function CommunityChat() {
-  const { messages, isLoading: messagesLoading, sendMessage } = useCommunityMessages();
+  const { messages, isLoading: messagesLoading, sendMessage, deleteMessage } = useCommunityMessages();
   const { user } = useAuth();
   const { toast } = useToast();
+  const isSupport = user?.role === 'support' || user?.role === 'admin';
   
   const currentUser = user ? {
     ...fallbackUser,
@@ -753,12 +754,23 @@ export function CommunityChat() {
                             {(groupIndex === 0 || grouped[groupIndex - 1]?.isCurrentUser !== group.isCurrentUser || 
                               grouped[groupIndex - 1]?.author?.name !== group.author?.name) && (
                               <div className="flex items-center gap-2">
-                                <span className="text-[12px] font-semibold text-[#667781] dark:text-[#8696a0]">
+                                <span className={cn(
+                                  "text-[12px] font-semibold",
+                                  group.author?.role === 'support' 
+                                    ? "text-[#ff6b35] dark:text-[#ff8c5a] font-bold" 
+                                    : "text-[#667781] dark:text-[#8696a0]"
+                                )}>
                                   {group.author?.name}
                                 </span>
                                 {group.author?.role && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
-                                    {group.author.role}
+                                  <span className={cn(
+                                    "text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1",
+                                    group.author.role === 'support'
+                                      ? "bg-[#ff6b35]/30 text-[#ff6b35] border border-[#ff6b35]/50 font-bold"
+                                      : "bg-primary/20 text-primary"
+                                  )}>
+                                    {group.author.role === 'support' && <Shield className="w-3 h-3" />}
+                                    {group.author.role === 'support' ? 'SUPORTE' : group.author.role}
                                   </span>
                                 )}
                               </div>
@@ -775,10 +787,12 @@ export function CommunityChat() {
                               <div
                                 key={message.id}
                                 className={cn(
-                                  "rounded-lg px-3 py-1.5 shadow-sm max-w-full",
+                                  "rounded-lg px-3 py-1.5 shadow-sm max-w-full relative",
                                   group.isCurrentUser
                                     ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-white"
-                                    : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef]",
+                                    : group.author?.role === 'support'
+                                      ? "bg-gradient-to-r from-[#ff6b35]/20 to-[#ff8c5a]/20 dark:from-[#ff6b35]/30 dark:to-[#ff8c5a]/30 border-2 border-[#ff6b35]/50 text-[#111b21] dark:text-[#e9edef]"
+                                      : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef]",
                                   // Bordas arredondadas apenas nas extremidades
                                   group.isCurrentUser
                                     ? isLastInGroup 
@@ -853,6 +867,24 @@ export function CommunityChat() {
                                     </span>
                                     {group.isCurrentUser && (
                                       <span className="text-[#53bdeb] text-xs">✓✓</span>
+                                    )}
+                                    {/* Botão de deletar - apenas para suporte */}
+                                    {isSupport && !group.isCurrentUser && (
+                                      <button
+                                        onClick={() => {
+                                          if (confirm('Tem certeza que deseja deletar esta mensagem?')) {
+                                            deleteMessage(message.id);
+                                            toast({
+                                              title: "Mensagem deletada",
+                                              description: "A mensagem foi removida da comunidade.",
+                                            });
+                                          }
+                                        }}
+                                        className="ml-2 p-1 hover:bg-red-500/20 rounded transition-colors"
+                                        title="Deletar mensagem"
+                                      >
+                                        <Trash2 className="w-3 h-3 text-red-500" />
+                                      </button>
                                     )}
                                   </div>
                                 )}
