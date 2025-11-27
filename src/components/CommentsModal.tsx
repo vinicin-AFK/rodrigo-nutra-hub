@@ -30,17 +30,17 @@ export function CommentsModal({ isOpen, onClose, post, onAddComment, onDeleteCom
     level: user.level || fallbackUser.level,
   } : fallbackUser;
 
-  useEffect(() => {
-    if (isOpen) {
-      scrollToBottom();
-    }
-  }, [isOpen, post.commentsList]);
-
   const scrollToBottom = () => {
     setTimeout(() => {
       commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      scrollToBottom();
+    }
+  }, [isOpen, post.commentsList]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
