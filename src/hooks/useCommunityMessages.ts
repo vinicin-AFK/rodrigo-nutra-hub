@@ -14,19 +14,41 @@ export function useCommunityMessages() {
     
     // SEMPRE carregar do localStorage primeiro (para ter dados imediatamente)
     try {
+      // Buscar ID do usuário atual para recalcular isUser
+      const savedAuth = safeGetItem('nutraelite_auth');
+      let currentUserId: string | null = null;
+      if (savedAuth) {
+        try {
+          const authData = JSON.parse(savedAuth);
+          currentUserId = authData?.user?.id || null;
+        } catch (e) {
+          console.warn('Erro ao parsear auth:', e);
+        }
+      }
+      
       const savedMessages = safeGetItem('nutraelite_community_messages');
       if (savedMessages) {
         const parsed = JSON.parse(savedMessages);
-        const loadedMessages: Message[] = parsed.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-          author: msg.author || {
-            name: 'Usuário',
-            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-          },
-        }));
+        const loadedMessages: Message[] = parsed.map((msg: any) => {
+          // Recalcular isUser baseado no ID do autor vs ID do usuário atual
+          const authorId = msg.author?.id || null;
+          const isUser = currentUserId && authorId ? authorId === currentUserId : msg.isUser;
+          
+          return {
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+            isUser, // Recalculado baseado no ID
+            author: {
+              ...(msg.author || {
+                name: 'Usuário',
+                avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+              }),
+              id: authorId || msg.author?.id, // Garantir que o ID está presente
+            },
+          };
+        });
         setMessages(loadedMessages);
-        console.log('✅ Mensagens carregadas do localStorage:', loadedMessages.length);
+        console.log('✅ Mensagens carregadas do localStorage:', loadedMessages.length, 'currentUserId:', currentUserId);
       } else {
         console.log('ℹ️ Nenhuma mensagem salva no localStorage');
         setMessages([]);
@@ -85,6 +107,7 @@ export function useCommunityMessages() {
               audioDuration: msg.audio_duration || undefined,
               audioUrl: msg.audio_url || undefined,
               author: {
+                id: msg.author?.id || msg.author_id, // Incluir ID do autor
                 name: msg.author?.name || 'Usuário',
                 avatar: msg.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author?.name || 'Usuario')}&background=random`,
                 role: msg.author?.role || undefined,
@@ -98,14 +121,24 @@ export function useCommunityMessages() {
             if (savedMessages) {
               try {
                 const parsed = JSON.parse(savedMessages);
-                const localMessages: Message[] = parsed.map((msg: any) => ({
-                  ...msg,
-                  timestamp: new Date(msg.timestamp),
-                  author: msg.author || {
-                    name: 'Usuário',
-                    avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-                  },
-                }));
+                const localMessages: Message[] = parsed.map((msg: any) => {
+                  // Recalcular isUser baseado no ID do autor vs ID do usuário atual
+                  const authorId = msg.author?.id || null;
+                  const isUser = currentUserId && authorId ? authorId === currentUserId : msg.isUser;
+                  
+                  return {
+                    ...msg,
+                    timestamp: new Date(msg.timestamp),
+                    isUser, // Recalculado
+                    author: {
+                      ...(msg.author || {
+                        name: 'Usuário',
+                        avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+                      }),
+                      id: authorId || msg.author?.id, // Garantir que o ID está presente
+                    },
+                  };
+                });
                 
                 // Adicionar mensagens locais que não estão no Supabase
                 const supabaseIds = new Set(transformed.map(m => m.id));
