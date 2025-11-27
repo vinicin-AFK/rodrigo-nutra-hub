@@ -381,6 +381,14 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     }
   };
 
+  // Se não há conversa aberta e não é suporte, criar uma conversa automaticamente
+  useEffect(() => {
+    if (!isSupport && !currentConversation && user?.id) {
+      // Abrir conversa do usuário atual
+      openConversation(user.id);
+    }
+  }, [isSupport, currentConversation, user?.id, openConversation]);
+
   // Se é suporte e está mostrando lista de conversas
   if (isSupport && showConversationList) {
     return (
