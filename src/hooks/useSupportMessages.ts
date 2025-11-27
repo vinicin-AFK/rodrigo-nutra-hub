@@ -260,12 +260,15 @@ export function useSupportMessages(userId?: string) {
 
   // Abrir conversa
   const openConversation = (conversationId: string | null) => {
+    console.log('🔓 openConversation chamado:', conversationId);
     if (!conversationId) {
+      console.log('❌ conversationId é null, limpando conversa');
       setCurrentConversation(null);
       return;
     }
     const conv = conversations.find(c => c.id === conversationId);
     if (conv) {
+      console.log('✅ Conversa encontrada, abrindo:', conv.id, conv.userName);
       setCurrentConversation({
         ...conv,
         unreadCount: 0,
@@ -274,6 +277,7 @@ export function useSupportMessages(userId?: string) {
           timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp,
         })),
       });
+      console.log('✅ currentConversation atualizado');
       
       // Marcar como lida
       const updated = conversations.map(c => 
