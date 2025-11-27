@@ -13,6 +13,35 @@ export const isSupabaseConfigured = !!(
   supabaseAnonKey !== 'placeholder-key'
 );
 
+// Flag para rastrear se a API key foi detectada como inválida
+let apiKeyInvalid = false;
+
+// Função para verificar se um erro é de API key inválida
+export function isInvalidApiKeyError(error: any): boolean {
+  if (!error) return false;
+  const message = error?.message || '';
+  const code = error?.code || '';
+  
+  return (
+    message.includes('Invalid API key') ||
+    message.includes('invalid_api_key') ||
+    message.includes('JWT') ||
+    code === 'PGRST301' ||
+    message.includes('API key not found')
+  );
+}
+
+// Função para marcar a API key como inválida
+export function markApiKeyAsInvalid() {
+  apiKeyInvalid = true;
+  console.warn('⚠️ API key do Supabase marcada como inválida. Usando modo offline.');
+}
+
+// Função para verificar se a API key está inválida
+export function isApiKeyInvalid(): boolean {
+  return apiKeyInvalid;
+}
+
 // Criar cliente mesmo sem variáveis (modo fallback)
 // Isso permite que a aplicação carregue mesmo sem Supabase configurado
 export const supabase = isSupabaseConfigured

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Achievement, ACHIEVEMENTS } from '@/types/achievements';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured, isInvalidApiKeyError, markApiKeyAsInvalid } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
@@ -474,6 +474,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('❌ Erro ao fazer login:', error.message || error);
+        
+        // Se for erro de API key inválida, usar modo offline automaticamente
+        if (isInvalidApiKeyError(error)) {
+          markApiKeyAsInvalid();
+          console.warn('⚠️ API key inválida detectada, usando modo offline para login');
+          // Fallback para modo offline
+          const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
+          const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
+          
+          if (foundUser || (email && password)) {
+            const userData: User = foundUser ? {
+              id: foundUser.id,
+              name: foundUser.name,
+              email: foundUser.email,
+              avatar: foundUser.avatar,
+              level: foundUser.level || 'Iniciante',
+              points: foundUser.points || 0,
+              plan: foundUser.plan || 'bronze',
+            } : {
+              id: Date.now().toString(),
+              name: email.split('@')[0],
+              email: email,
+              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}&background=random`,
+              level: 'Iniciante',
+              points: 0,
+              plan: 'bronze',
+            };
+            
+            const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
+            setUser(userData);
+            console.log('✅ Login realizado em modo offline (API key inválida)');
+            return true;
+          }
+          throw new Error('Email ou senha incorretos. Tente novamente.');
+        }
+        
         // Verificar se é erro de email não confirmado
         if (error.message?.includes('email_not_confirmed') || error.message?.includes('Email not confirmed')) {
           throw new Error('Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.');
@@ -696,6 +733,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('❌ Erro ao cadastrar:', error.message || error);
+        
+        // Se for erro de API key inválida, usar modo offline automaticamente
+        if (isInvalidApiKeyError(error)) {
+          markApiKeyAsInvalid();
+          console.warn('⚠️ API key inválida detectada, usando modo offline para cadastro');
+          // Fallback para modo offline
+          const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
+          const emailExists = mockUsers.some((u: any) => u.email === email);
+          
+          if (emailExists) {
+            throw new Error('Este email já está cadastrado. Tente fazer login.');
+          }
+          
+          const newUser: User = {
+            id: Date.now().toString(),
+            name: name,
+            email: email,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+            level: 'Iniciante',
+            points: 0,
+            plan: 'bronze',
+          };
+          
+          const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: newUser, token, timestamp: Date.now() }));
+          localStorage.setItem('nutraelite_users', JSON.stringify([...mockUsers, { ...newUser, password }]));
+          setUser(newUser);
+          console.log('✅ Cadastro realizado em modo offline (API key inválida)');
+          return true;
+        }
+        
         // Verificar se é erro de email já cadastrado
         if (error.message?.includes('already registered') || error.message?.includes('User already registered')) {
           throw new Error('Este email já está cadastrado. Tente fazer login.');

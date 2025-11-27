@@ -4,6 +4,56 @@
 
 **URL**: https://lovable.dev/projects/2c7f1fe4-401f-41e0-a889-ce0e4e05f5e5
 
+---
+
+## 🚀 Desenvolvimento Local (Recomendado)
+
+**Para economizar deploys gratuitos da Vercel, desenvolva localmente!**
+
+### Início Rápido
+
+```sh
+# 1. Instalar dependências (apenas na primeira vez)
+npm install
+
+# 2. Iniciar servidor de desenvolvimento
+npm run dev
+# ou
+npm start
+```
+
+O app estará disponível em: **http://localhost:8080**
+
+### ✨ Hot Reload Automático
+- Todas as alterações são refletidas instantaneamente
+- Não precisa recarregar a página manualmente
+- Erros aparecem no terminal e no navegador
+
+### 📝 Variáveis de Ambiente (Opcional - se usar Supabase)
+
+Crie um arquivo `.env.local` na raiz:
+```env
+VITE_SUPABASE_URL=sua_url_aqui
+VITE_SUPABASE_ANON_KEY=sua_chave_aqui
+```
+
+### 🚢 Deploy Manual (apenas quando necessário)
+
+**Opção 1: Via Dashboard Vercel**
+1. Acesse: https://vercel.com/dashboard
+2. Selecione o projeto → "Deployments" → "Redeploy"
+
+**Opção 2: Via Push (deploy automático)**
+```sh
+git add .
+git commit -m "sua mensagem"
+git push origin main
+```
+
+💡 **Dica**: Desenvolva e teste tudo localmente antes de fazer deploy!
+
+---
+
 ## How can I edit this code?
 
 There are several ways of editing your application.
