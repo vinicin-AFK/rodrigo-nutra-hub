@@ -49,6 +49,9 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     // Se é suporte e não há conversa aberta, mostrar lista
     if (isSupport && !currentConversation) {
       setShowConversationList(true);
+    } else if (isSupport && currentConversation) {
+      // Se tem conversa aberta, garantir que a lista não está sendo mostrada
+      setShowConversationList(false);
     } else {
       setShowConversationList(false);
     }
@@ -820,7 +823,8 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
       )}
 
       {/* Input Bar - sempre mostrar quando há conversa aberta (para suporte) ou quando não é suporte */}
-      {((isSupport && currentConversation) || !isSupport) && (
+      {/* Debug: garantir que aparece quando suporte tem conversa */}
+      {((isSupport && currentConversation && !showConversationList) || !isSupport) && (
       <div 
         className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10 pb-safe"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 65px)' }}
