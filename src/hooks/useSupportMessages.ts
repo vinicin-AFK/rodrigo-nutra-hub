@@ -277,8 +277,8 @@ export function useSupportMessages(userId?: string) {
       })),
     })));
     
-    const saved = safeSetItem(SUPPORT_MESSAGES_KEY, serialized);
-    if (saved) {
+    const saveResult = safeSetItem(SUPPORT_MESSAGES_KEY, serialized);
+    if (saveResult) {
       console.log('✅ Mensagem salva no localStorage');
     } else {
       console.warn('⚠️ Erro ao salvar mensagem no localStorage');
