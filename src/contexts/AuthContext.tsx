@@ -436,30 +436,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     console.log('🔐 AuthContext.login chamado', { email, isSupabaseConfigured });
     
+    // SEMPRE verificar login de suporte PRIMEIRO (antes de qualquer outra coisa)
+    if (isSupportLogin(email, password)) {
+      console.log('✅ Login de suporte detectado');
+      const userData: User = {
+        id: 'support_user',
+        name: 'Suporte NutraElite',
+        email: SUPPORT_CREDENTIALS.email,
+        avatar: 'https://ui-avatars.com/api/?name=Suporte&background=FF6B35&color=fff',
+        level: 'Suporte',
+        points: 0,
+        plan: 'support',
+        role: 'support',
+      };
+      
+      const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      persistAuthData(userData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
+      setUser(userData);
+      console.log('✅ Login de suporte realizado com sucesso', { role: userData.role });
+      return true;
+    }
+    
     if (!isSupabaseConfigured) {
       console.log('📦 Modo offline: usando localStorage');
       // Modo offline - usar localStorage
-      
-      // Verificar se é login de suporte primeiro
-      if (isSupportLogin(email, password)) {
-        const userData: User = {
-          id: 'support_user',
-          name: 'Suporte NutraElite',
-          email: SUPPORT_CREDENTIALS.email,
-          avatar: 'https://ui-avatars.com/api/?name=Suporte&background=FF6B35&color=fff',
-          level: 'Suporte',
-          points: 0,
-          plan: 'support',
-          role: 'support',
-        };
-        
-        const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        persistAuthData(userData);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
-        setUser(userData);
-        console.log('✅ Login de suporte realizado', { role: userData.role });
-        return true;
-      }
+      // (Login de suporte já foi verificado acima)
       
       const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
       const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
