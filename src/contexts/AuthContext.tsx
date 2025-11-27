@@ -656,6 +656,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data?.user) {
         console.log('✅ Login no Supabase bem-sucedido, carregando dados...', data.user.id);
         
+        // Verificar se é login de suporte
+        const isSupport = isSupportLogin(email, password);
+        
         // Tentar carregar perfil - se não existir, criar automaticamente
         let profileLoaded = false;
         let loadedProfile: User | null = null;
@@ -669,6 +672,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (profileResult) {
             profileLoaded = true;
             loadedProfile = profileResult;
+            // Se for suporte, garantir que o role está correto
+            if (isSupport && loadedProfile.role !== 'support') {
+              loadedProfile.role = 'support';
+            }
             console.log('✅ Perfil carregado com sucesso');
           } else {
             console.log('ℹ️ Perfil não encontrado, será criado');
@@ -682,7 +689,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!profileLoaded) {
           console.log('🔨 Criando perfil automaticamente...');
           try {
-            const userName = data.user.user_metadata?.name || email.split('@')[0];
+            const userName = isSupport 
+              ? 'Suporte NutraElite' 
+              : (data.user.user_metadata?.name || email.split('@')[0]);
             const userEmail = data.user.email || email;
             
             const { data: newProfile, error: insertError } = await supabase
@@ -691,10 +700,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 id: data.user.id,
                 name: userName,
                 email: userEmail,
-                avatar: data.user.user_metadata?.avatar || null,
-                level: 'Bronze',
+                avatar: isSupport 
+                  ? 'https://ui-avatars.com/api/?name=Suporte&background=FF6B35&color=fff'
+                  : (data.user.user_metadata?.avatar || null),
+                level: isSupport ? 'Suporte' : 'Bronze',
                 points: 0,
-                plan: 'bronze',
+                plan: isSupport ? 'support' : 'bronze',
+                role: isSupport ? 'support' : 'user',
               })
               .select()
               .single();
@@ -721,6 +733,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 level: newProfile.level || 'Bronze',
                 points: newProfile.points || 0,
                 plan: newProfile.plan || 'bronze',
+                role: isSupport ? 'support' : (newProfile.role || 'user'),
               };
               setUser(userData);
               persistAuthData(userData);
