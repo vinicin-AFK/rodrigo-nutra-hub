@@ -817,7 +817,10 @@ export function CommunityChat() {
       )}
 
       {/* Input Bar */}
-      <div className="p-2 pb-20 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-10 safe-area-bottom">
+      <div
+        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-10"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}
+      >
         <div className="flex items-end gap-2 w-full">
           {/* Icons */}
           <button
