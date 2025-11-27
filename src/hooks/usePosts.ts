@@ -213,47 +213,99 @@ export function usePosts() {
       }
 
       console.log('☁️ Modo Supabase - criando postagem no banco');
-      // Modo Supabase
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        console.error('❌ Erro ao obter usuário:', authError);
-        throw new Error('Erro de autenticação. Faça login novamente.');
+      // Modo Supabase - tentar usar, mas se falhar, usar modo offline
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !user) {
+          console.warn('⚠️ Erro de autenticação no Supabase, usando modo offline');
+          // Fallback para modo offline
+          throw new Error('FALLBACK_TO_OFFLINE');
+        }
+
+        console.log('✅ Usuário autenticado:', user.id);
+
+        const { data, error } = await supabase
+          .from('posts')
+          .insert({
+            author_id: user.id,
+            content,
+            image,
+            result_value: resultValue,
+            type: resultValue ? 'result' : 'post',
+          })
+          .select(`
+            *,
+            author:profiles(*)
+          `)
+          .single();
+
+        if (error) {
+          console.warn('⚠️ Erro ao inserir no Supabase, usando modo offline:', error);
+          throw new Error('FALLBACK_TO_OFFLINE');
+        }
+
+        console.log('✅ Postagem criada no Supabase');
+
+        // Recarregar postagens
+        await loadPosts();
+
+        return data;
+      } catch (supabaseError: any) {
+        // Se for erro de fallback, usar modo offline
+        if (supabaseError?.message === 'FALLBACK_TO_OFFLINE') {
+          console.log('📦 Fallback para modo offline devido a erro no Supabase');
+          // Recursivamente chamar em modo offline
+          // Mas primeiro precisamos garantir que temos os dados do usuário
+          const savedAuth = localStorage.getItem('nutraelite_auth');
+          if (!savedAuth) {
+            throw new Error('Usuário não autenticado. Faça login primeiro.');
+          }
+          
+          const authData = JSON.parse(savedAuth);
+          const authorData = authData.user;
+          
+          if (!authorData) {
+            throw new Error('Usuário não autenticado. Faça login primeiro.');
+          }
+
+          const newPost: Post = {
+            id: Date.now().toString(),
+            author: {
+              id: authorData.id,
+              name: authorData.name,
+              avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name)}&background=random`,
+              level: authorData.level || 'Bronze',
+              points: authorData.points || 0,
+              rank: authorData.rank || 999,
+              totalSales: authorData.totalSales || 0,
+            },
+            content,
+            image,
+            likes: 0,
+            comments: 0,
+            isLiked: false,
+            createdAt: new Date(),
+            resultValue,
+            type: resultValue ? 'result' : 'post',
+            commentsList: [],
+          };
+
+          const savedPosts = localStorage.getItem('nutraelite_posts');
+          const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
+          const updatedPosts = [{
+            ...newPost,
+            createdAt: newPost.createdAt.toISOString(),
+          }, ...existingPosts];
+          
+          localStorage.setItem('nutraelite_posts', JSON.stringify(updatedPosts));
+          setPosts(prevPosts => [newPost, ...prevPosts]);
+          
+          return newPost;
+        }
+        // Se for outro erro, relançar
+        throw supabaseError;
       }
-      
-      if (!user) {
-        console.error('❌ Usuário não autenticado no Supabase');
-        throw new Error('Usuário não autenticado. Faça login primeiro.');
-      }
-
-      console.log('✅ Usuário autenticado:', user.id);
-
-      const { data, error } = await supabase
-        .from('posts')
-        .insert({
-          author_id: user.id,
-          content,
-          image,
-          result_value: resultValue,
-          type: resultValue ? 'result' : 'post',
-        })
-        .select(`
-          *,
-          author:profiles(*)
-        `)
-        .single();
-
-      if (error) {
-        console.error('❌ Erro ao inserir postagem no Supabase:', error);
-        throw new Error(`Erro ao salvar postagem: ${error.message}`);
-      }
-
-      console.log('✅ Postagem criada no Supabase');
-
-      // Recarregar postagens
-      await loadPosts();
-
-      return data;
     } catch (error: any) {
       console.error('❌ Erro completo ao criar postagem:', error);
       throw error;

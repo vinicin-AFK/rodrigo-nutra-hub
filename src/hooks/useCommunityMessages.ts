@@ -162,48 +162,91 @@ export function useCommunityMessages() {
     }
 
     console.log('☁️ Modo Supabase - enviando mensagem no banco');
-    // Modo Supabase
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError) {
-      console.error('❌ Erro ao obter usuário:', authError);
-      throw new Error('Erro de autenticação. Faça login novamente.');
+    // Modo Supabase - tentar usar, mas se falhar, usar modo offline
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        console.warn('⚠️ Erro de autenticação no Supabase, usando modo offline');
+        throw new Error('FALLBACK_TO_OFFLINE');
+      }
+
+      console.log('✅ Usuário autenticado:', user.id);
+
+      const { data, error } = await supabase
+        .from('community_messages')
+        .insert({
+          author_id: user.id,
+          content,
+          type,
+          image,
+          audio_url: audioUrl,
+          audio_duration: audioDuration,
+        })
+        .select(`
+          *,
+          author:profiles(*)
+        `)
+        .single();
+
+      if (error) {
+        console.warn('⚠️ Erro ao inserir no Supabase, usando modo offline:', error);
+        throw new Error('FALLBACK_TO_OFFLINE');
+      }
+
+      console.log('✅ Mensagem enviada no Supabase');
+
+      // Recarregar mensagens
+      await loadMessages();
+
+      return data;
+    } catch (supabaseError: any) {
+      // Se for erro de fallback, usar modo offline
+      if (supabaseError?.message === 'FALLBACK_TO_OFFLINE') {
+        console.log('📦 Fallback para modo offline devido a erro no Supabase');
+        // Usar modo offline
+        const savedAuth = localStorage.getItem('nutraelite_auth');
+        if (!savedAuth) {
+          throw new Error('Usuário não autenticado. Faça login primeiro.');
+        }
+        
+        const authData = JSON.parse(savedAuth);
+        const authorData = authData.user;
+        
+        if (!authorData) {
+          throw new Error('Usuário não autenticado. Faça login primeiro.');
+        }
+
+        const newMessage: Message = {
+          id: Date.now().toString(),
+          content,
+          isUser: true,
+          timestamp: new Date(),
+          type: type as 'text' | 'audio' | 'emoji' | 'image',
+          image,
+          audioDuration,
+          audioUrl,
+          author: {
+            name: authorData.name,
+            avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name)}&background=random`,
+          },
+        };
+
+        const savedMessages = localStorage.getItem('nutraelite_community_messages');
+        const existingMessages = savedMessages ? JSON.parse(savedMessages) : [];
+        const updatedMessages = [...existingMessages, {
+          ...newMessage,
+          timestamp: newMessage.timestamp.toISOString(),
+        }];
+        
+        localStorage.setItem('nutraelite_community_messages', JSON.stringify(updatedMessages));
+        setMessages(prevMessages => [...prevMessages, newMessage]);
+        
+        return newMessage;
+      }
+      // Se for outro erro, relançar
+      throw supabaseError;
     }
-    
-    if (!user) {
-      console.error('❌ Usuário não autenticado no Supabase');
-      throw new Error('Usuário não autenticado. Faça login primeiro.');
-    }
-
-    console.log('✅ Usuário autenticado:', user.id);
-
-    const { data, error } = await supabase
-      .from('community_messages')
-      .insert({
-        author_id: user.id,
-        content,
-        type,
-        image,
-        audio_url: audioUrl,
-        audio_duration: audioDuration,
-      })
-      .select(`
-        *,
-        author:profiles(*)
-      `)
-      .single();
-
-    if (error) {
-      console.error('❌ Erro ao inserir mensagem no Supabase:', error);
-      throw new Error(`Erro ao enviar mensagem: ${error.message}`);
-    }
-
-    console.log('✅ Mensagem enviada no Supabase');
-
-    // Recarregar mensagens
-    await loadMessages();
-
-    return data;
   };
 
   return {
