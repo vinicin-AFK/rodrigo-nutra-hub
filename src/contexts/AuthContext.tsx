@@ -210,12 +210,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!authData.user.points) {
             authData.user.points = 0;
           }
+          // Carregar usuário IMEDIATAMENTE para manter sessão
           setUser(authData.user);
           console.log('✅ Usuário carregado do localStorage (inicial):', authData.user.email);
+          
+          // Se há timestamp, verificar se não expirou (opcional - manter sessão indefinidamente por padrão)
+          // Por enquanto, manter sessão sempre ativa se houver dados no localStorage
         }
       } catch (error) {
         console.error('Erro ao carregar sessão do localStorage:', error);
       }
+    } else {
+      console.log('ℹ️ Nenhum dado de autenticação encontrado no localStorage');
     }
     
     // Carregar stats do localStorage
@@ -312,20 +318,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log('ℹ️ Nenhuma sessão ativa no Supabase, mantendo dados do localStorage');
           // NÃO limpar dados do localStorage se não houver sessão no Supabase
           // Manter o usuário que já foi carregado do localStorage
-          if (!user) {
-            // Só limpar se realmente não houver dados salvos
-            persistAuthData(null);
-            setUser(null);
+          // Se não há user no estado mas há no localStorage, carregar novamente
+          const savedAuth = localStorage.getItem(STORAGE_KEY);
+          if (!user && savedAuth) {
+            try {
+              const authData = JSON.parse(savedAuth);
+              if (authData.user) {
+                setUser(authData.user);
+                console.log('✅ Usuário restaurado do localStorage após verificação Supabase');
+              }
+            } catch (error) {
+              console.error('Erro ao restaurar usuário:', error);
+            }
           }
         }
       } catch (error: any) {
         console.error('❌ Erro ao verificar sessão:', error?.message || error);
         // Se houver erro, manter dados do localStorage (não limpar)
-        // Só limpar se realmente não houver dados salvos
-        if (!user) {
-          persistAuthData(null);
-          setUser(null);
-        } else {
+        // Se não há user no estado mas há no localStorage, carregar novamente
+        const savedAuth = localStorage.getItem(STORAGE_KEY);
+        if (!user && savedAuth) {
+          try {
+            const authData = JSON.parse(savedAuth);
+            if (authData.user) {
+              setUser(authData.user);
+              console.log('✅ Usuário restaurado do localStorage após erro no Supabase');
+            }
+          } catch (localError) {
+            console.error('Erro ao restaurar usuário:', localError);
+          }
+        } else if (user) {
           console.log('ℹ️ Mantendo dados do localStorage devido a erro no Supabase');
         }
       } finally {
@@ -407,9 +429,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         
         const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Usar persistAuthData para garantir consistência
+        persistAuthData(userData);
+        // Também salvar com token para compatibilidade
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
         setUser(userData);
-        console.log('✅ Login offline realizado');
+        console.log('✅ Login offline realizado e salvo no localStorage');
         return true;
       }
       console.log('❌ Login offline falhou');

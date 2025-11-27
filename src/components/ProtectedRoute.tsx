@@ -9,14 +9,38 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const [forceTimeout, setForceTimeout] = useState(false);
+  const [hasLocalAuth, setHasLocalAuth] = useState<boolean | null>(null);
 
-  // Timeout de segurança - para o loading após 8 segundos
+  // Verificar localStorage diretamente para sessão persistida
+  useEffect(() => {
+    const checkLocalAuth = () => {
+      try {
+        const savedAuth = localStorage.getItem('nutraelite_auth');
+        if (savedAuth) {
+          const authData = JSON.parse(savedAuth);
+          if (authData?.user) {
+            setHasLocalAuth(true);
+            console.log('✅ ProtectedRoute: Sessão encontrada no localStorage');
+            return;
+          }
+        }
+        setHasLocalAuth(false);
+      } catch (error) {
+        console.error('Erro ao verificar localStorage:', error);
+        setHasLocalAuth(false);
+      }
+    };
+
+    checkLocalAuth();
+  }, []);
+
+  // Timeout de segurança - para o loading após 5 segundos (reduzido)
   useEffect(() => {
     if (isLoading) {
       const timeout = setTimeout(() => {
         console.warn('⚠️ ProtectedRoute: Timeout no loading, forçando parada');
         setForceTimeout(true);
-      }, 8000);
+      }, 5000);
 
       return () => clearTimeout(timeout);
     } else {
@@ -24,8 +48,15 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
   }, [isLoading]);
 
+  // Se há sessão no localStorage, permitir acesso mesmo durante loading
+  if (isLoading && !forceTimeout && hasLocalAuth === true) {
+    // Há sessão salva, permitir acesso enquanto carrega
+    console.log('✅ ProtectedRoute: Permitindo acesso com sessão local durante loading');
+    return <>{children}</>;
+  }
+
   // Se passou do timeout, permitir acesso mesmo sem autenticação (modo offline)
-  if (isLoading && !forceTimeout) {
+  if (isLoading && !forceTimeout && hasLocalAuth !== true) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
@@ -37,14 +68,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // Se não está autenticado e não é timeout, redirecionar para login
-  if (!isAuthenticated && !forceTimeout) {
+  // Se não está autenticado e não há sessão local, redirecionar para login
+  if (!isAuthenticated && !forceTimeout && hasLocalAuth !== true) {
     return <Navigate to="/login" replace />;
   }
 
-  // Se for timeout, permitir acesso (modo offline)
-  if (forceTimeout && !isAuthenticated) {
-    console.warn('⚠️ ProtectedRoute: Permitindo acesso em modo offline devido a timeout');
+  // Se for timeout ou há sessão local, permitir acesso
+  if ((forceTimeout || hasLocalAuth === true) && !isAuthenticated) {
+    console.warn('⚠️ ProtectedRoute: Permitindo acesso com sessão local ou timeout');
   }
 
   return <>{children}</>;
