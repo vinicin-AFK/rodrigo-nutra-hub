@@ -104,36 +104,39 @@ const Index = () => {
   const handleAddComment = async (postId: string, content: string) => {
     try {
       console.log('💬 handleAddComment chamado:', { postId, content: content.substring(0, 50) });
+      
+      // Adicionar comentário
       const newComment = await addComment(postId, content);
       console.log('✅ Comentário adicionado com sucesso:', newComment?.id);
       
-      // Forçar atualização do post selecionado
-      // Usar uma função de atualização que busca o post mais recente
-      setTimeout(() => {
-        // Recarregar posts para pegar a versão mais atualizada
-        const refreshPosts = async () => {
-          // Buscar o post atualizado diretamente do hook
-          const updatedPost = allPosts.find(p => p.id === postId);
-          if (updatedPost) {
-            console.log('🔄 Atualizando post selecionado:', updatedPost.id, 'comentários:', updatedPost.commentsList?.length);
-            // Criar uma nova referência do objeto para forçar re-render
+      // Aguardar um pouco para o estado ser atualizado
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Buscar o post atualizado do estado
+      const updatedPost = allPosts.find(p => p.id === postId);
+      if (updatedPost) {
+        console.log('🔄 Atualizando post selecionado:', updatedPost.id, 'comentários:', updatedPost.commentsList?.length);
+        // Criar uma nova referência completa do objeto para forçar re-render
+        setSelectedPostForComments({
+          ...updatedPost,
+          commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
+        });
+      } else {
+        console.warn('⚠️ Post não encontrado, tentando novamente...');
+        // Tentar novamente após mais tempo
+        setTimeout(() => {
+          const retryPost = allPosts.find(p => p.id === postId);
+          if (retryPost) {
+            console.log('✅ Post encontrado na segunda tentativa');
             setSelectedPostForComments({
-              ...updatedPost,
-              commentsList: [...(updatedPost.commentsList || [])],
+              ...retryPost,
+              commentsList: retryPost.commentsList ? [...retryPost.commentsList] : [],
             });
           } else {
-            console.warn('⚠️ Post não encontrado após adicionar comentário');
-            // Tentar buscar novamente após um delay maior
-            setTimeout(() => {
-              const retryPost = allPosts.find(p => p.id === postId);
-              if (retryPost) {
-                setSelectedPostForComments({ ...retryPost });
-              }
-            }, 500);
+            console.error('❌ Post ainda não encontrado após múltiplas tentativas');
           }
-        };
-        refreshPosts();
-      }, 200);
+        }, 300);
+      }
     } catch (error) {
       console.error('❌ Erro ao adicionar comentário:', error);
       toast({
@@ -141,6 +144,7 @@ const Index = () => {
         description: error instanceof Error ? error.message : "Não foi possível adicionar o comentário. Tente novamente.",
         variant: 'destructive',
       });
+      throw error; // Re-throw para o modal tratar
     }
   };
 
