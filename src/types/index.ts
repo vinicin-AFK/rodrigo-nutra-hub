@@ -58,6 +58,7 @@ export interface Message {
   audioUrl?: string;
   image?: string;
   author?: {
+    id?: string;
     name: string;
     avatar: string;
     role?: string;

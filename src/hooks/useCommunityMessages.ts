@@ -252,6 +252,7 @@ export function useCommunityMessages() {
       audioDuration: audioDuration || undefined,
       audioUrl: audioUrl || undefined,
       author: {
+        id: authorData.id,
         name: authorData.name || 'Usuário',
         avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'Usuario')}&background=random`,
         role: isSupportUser ? 'support' : undefined,

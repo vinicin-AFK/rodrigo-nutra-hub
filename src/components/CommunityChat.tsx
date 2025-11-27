@@ -751,18 +751,18 @@ export function CommunityChat() {
                       )}>
                         {/* Author name - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                         {!group.isCurrentUser && (
-                          <div className="mb-0.5 px-1">
+                          <div className="mb-1 px-1">
                             {(groupIndex === 0 || grouped[groupIndex - 1]?.isCurrentUser !== group.isCurrentUser || 
                               grouped[groupIndex - 1]?.author?.id !== group.author?.id ||
                               grouped[groupIndex - 1]?.author?.name !== group.author?.name) && (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 mb-1">
                                 <span className={cn(
-                                  "text-[12px] font-semibold",
+                                  "text-[13px] font-semibold",
                                   group.author?.role === 'support' 
                                     ? "text-[#ff6b35] dark:text-[#ff8c5a] font-bold" 
-                                    : "text-[#667781] dark:text-[#8696a0]"
+                                    : "text-[#111b21] dark:text-[#e9edef]"
                                 )}>
-                                  {group.author?.name || 'Usuário'}
+                                  ~ {group.author?.name || 'Usuário'} {group.author?.id && group.author.id.length >= 12 ? `+${group.author.id.substring(0, 2)} ${group.author.id.substring(2, 4)} ${group.author.id.substring(4, 8)}-${group.author.id.substring(8, 12)}` : (group.author?.id ? ` (${group.author.id.substring(0, 8)})` : '')}
                                 </span>
                                 {group.author?.role && (
                                   <span className={cn(
