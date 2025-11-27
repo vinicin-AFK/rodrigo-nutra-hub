@@ -548,12 +548,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
+    console.log('📝 AuthContext.register chamado', { name, email, isSupabaseConfigured });
+    
     if (!isSupabaseConfigured) {
+      console.log('📦 Modo offline: usando localStorage');
       // Modo offline - usar localStorage
       const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
       const emailExists = mockUsers.some((u: any) => u.email === email);
       
       if (emailExists) {
+        console.log('❌ Email já cadastrado no modo offline');
         return false;
       }
       
@@ -571,11 +575,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: newUser, token, timestamp: Date.now() }));
       localStorage.setItem('nutraelite_users', JSON.stringify([...mockUsers, { ...newUser, password }]));
       setUser(newUser);
+      console.log('✅ Cadastro offline realizado');
       return true;
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      console.log('🌐 Tentando cadastro no Supabase...');
+      
+      // Timeout de 15 segundos para o signUp
+      const signUpPromise = supabase.auth.signUp({
         email,
         password,
         options: {
@@ -584,26 +592,97 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         },
       });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Cadastro demorou mais de 15 segundos')), 15000)
+      );
+      
+      const { data, error } = await Promise.race([signUpPromise, timeoutPromise]) as any;
 
       if (error) {
-        console.error('Erro ao cadastrar:', error);
-        return false;
+        console.error('❌ Erro ao cadastrar:', error.message || error);
+        // Verificar se é erro de email já cadastrado
+        if (error.message?.includes('already registered') || error.message?.includes('User already registered')) {
+          throw new Error('Este email já está cadastrado. Tente fazer login.');
+        }
+        throw new Error(error.message || 'Erro ao cadastrar. Tente novamente.');
       }
 
-      if (data.user) {
-        // Perfil será criado automaticamente pelo trigger no Supabase
-        // Aguardar um pouco para garantir que o trigger executou
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await loadProfile(data.user.id);
-        await loadStats(data.user.id);
-        await loadAchievements(data.user.id);
+      if (data?.user) {
+        console.log('✅ Cadastro no Supabase bem-sucedido, aguardando criação de perfil...', data.user.id);
+        
+        // Aguardar um pouco para o trigger criar o perfil
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Tentar carregar perfil - se não existir, criar
+        let profileLoaded = false;
+        try {
+          const profile = await loadProfile(data.user.id);
+          if (profile) {
+            profileLoaded = true;
+            console.log('✅ Perfil carregado após cadastro');
+          }
+        } catch (err) {
+          console.warn('⚠️ Erro ao carregar perfil após cadastro:', err);
+        }
+        
+        // Se perfil não foi carregado, criar manualmente
+        if (!profileLoaded) {
+          console.log('🔨 Criando perfil manualmente após cadastro...');
+          try {
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: data.user.id,
+                name: name,
+                email: email,
+                avatar: null,
+                level: 'Bronze',
+                points: 0,
+                plan: 'bronze',
+              });
+
+            if (insertError && !insertError.message?.includes('duplicate')) {
+              console.error('❌ Erro ao criar perfil:', insertError);
+            } else {
+              console.log('✅ Perfil criado manualmente');
+              await loadProfile(data.user.id);
+            }
+          } catch (createErr) {
+            console.error('❌ Erro ao criar perfil manualmente:', createErr);
+            // Usar dados básicos mesmo assim
+            const basicUser: User = {
+              id: data.user.id,
+              name: name,
+              email: email,
+              level: 'Bronze',
+              points: 0,
+              plan: 'bronze',
+            };
+            setUser(basicUser);
+            persistAuthData(basicUser);
+          }
+        }
+        
+        // Carregar stats e achievements (não críticos)
+        try {
+          await Promise.all([
+            loadStats(data.user.id).catch(err => console.warn('⚠️ Erro ao carregar stats (não crítico):', err)),
+            loadAchievements(data.user.id).catch(err => console.warn('⚠️ Erro ao carregar conquistas (não crítico):', err)),
+          ]);
+        } catch (err) {
+          console.warn('⚠️ Erro ao carregar stats/conquistas (não crítico):', err);
+        }
+        
+        console.log('✅ Cadastro completo');
         return true;
       }
 
+      console.log('❌ Cadastro falhou: nenhum usuário retornado');
       return false;
-    } catch (error) {
-      console.error('Erro ao cadastrar:', error);
-      return false;
+    } catch (error: any) {
+      console.error('❌ Erro ao cadastrar:', error?.message || error);
+      throw error; // Re-throw para a página mostrar a mensagem
     }
   };
 

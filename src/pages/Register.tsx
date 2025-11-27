@@ -51,7 +51,17 @@ export default function Register() {
     setIsLoading(true);
     
     try {
-      const success = await register(name, email, password);
+      console.log('📝 Iniciando cadastro...', { name, email });
+      
+      // Timeout de segurança - 20 segundos
+      const registerPromise = register(name, email, password);
+      const timeoutPromise = new Promise<boolean>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Cadastro demorou mais de 20 segundos')), 20000)
+      );
+      
+      const success = await Promise.race([registerPromise, timeoutPromise]);
+      
+      console.log('📊 Resultado do cadastro:', { success });
       
       if (success) {
         toast({
@@ -66,11 +76,15 @@ export default function Register() {
           variant: 'destructive',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ Erro no cadastro:', error);
+      const errorMessage = error?.message || 'Ocorreu um erro ao cadastrar. Tente novamente.';
+      
       toast({
-        title: 'Erro',
-        description: 'Ocorreu um erro ao cadastrar. Tente novamente.',
+        title: 'Erro no cadastro',
+        description: errorMessage,
         variant: 'destructive',
+        duration: 6000,
       });
     } finally {
       setIsLoading(false);
