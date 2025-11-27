@@ -4,6 +4,7 @@ import { Message } from '@/types';
 import { cn } from '@/lib/utils';
 import { useCommunityMessages } from '@/hooks/useCommunityMessages';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { currentUser as fallbackUser, users } from '@/data/mockData';
 
 // Componente para player de áudio
@@ -137,6 +138,7 @@ function AudioPlayer({
 export function CommunityChat() {
   const { messages, isLoading: messagesLoading, sendMessage } = useCommunityMessages();
   const { user } = useAuth();
+  const { toast } = useToast();
   
   const currentUser = user ? {
     ...fallbackUser,
@@ -212,16 +214,23 @@ export function CommunityChat() {
     if (!input.trim() && !selectedImage) return;
 
     try {
+      console.log('💬 handleSend chamado', { input, selectedImage: !!selectedImage });
       const messageType = selectedImage ? 'image' : input.length <= 2 && /[\u{1F300}-\u{1F9FF}]/u.test(input) ? 'emoji' : 'text';
       await sendMessage(
         input || (selectedImage ? '📷' : ''),
         messageType,
         selectedImage || undefined
       );
+      console.log('✅ Mensagem enviada com sucesso');
       setInput('');
       setSelectedImage(null);
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
+    } catch (error: any) {
+      console.error('❌ Erro ao enviar mensagem:', error);
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: error?.message || "Não foi possível enviar a mensagem. Tente novamente.",
+        variant: 'destructive',
+      });
     }
   };
 
