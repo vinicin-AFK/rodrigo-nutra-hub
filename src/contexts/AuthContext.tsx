@@ -582,7 +582,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = supabaseResult;
 
       if (error) {
-        console.error('❌ Erro ao fazer login:', error.message || error);
+        console.error('❌ Erro ao fazer login no Supabase:', error.message || error);
+        
+        // Se for login de suporte e der erro no Supabase, usar modo offline
+        if (isSupportLogin(email, password)) {
+          console.log('✅ Login de suporte detectado após erro Supabase, usando modo offline');
+          const userData: User = {
+            id: 'support_user',
+            name: 'Suporte NutraElite',
+            email: SUPPORT_CREDENTIALS.email,
+            avatar: 'https://ui-avatars.com/api/?name=Suporte&background=FF6B35&color=fff',
+            level: 'Suporte',
+            points: 0,
+            plan: 'support',
+            role: 'support',
+          };
+          
+          const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
+          setUser(userData);
+          persistAuthData(userData);
+          console.log('✅ Login de suporte realizado (erro Supabase)', { role: userData.role });
+          return true;
+        }
         
         // Se for erro de API key inválida, usar modo offline automaticamente
         if (isInvalidApiKeyError(error)) {
