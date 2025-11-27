@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, MessageCircle, LogOut } from 'lucide-react';
 import { BottomNav } from '@/components/BottomNav';
 import { PostCard } from '@/components/PostCard';
@@ -97,6 +97,7 @@ const Index = () => {
   const handleOpenComments = (postId: string) => {
     const post = allPosts.find(p => p.id === postId);
     if (post) {
+      selectedPostIdRef.current = postId;
       setSelectedPostForComments(post);
     }
   };
