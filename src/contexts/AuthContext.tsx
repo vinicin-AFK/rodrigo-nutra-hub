@@ -342,7 +342,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const nextPlan = user ? getNextPlan(userPoints) : null;
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    console.log('🔐 AuthContext.login chamado', { email, isSupabaseConfigured });
+    
     if (!isSupabaseConfigured) {
+      console.log('📦 Modo offline: usando localStorage');
       // Modo offline - usar localStorage
       const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
       const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
@@ -369,32 +372,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
         setUser(userData);
+        console.log('✅ Login offline realizado');
         return true;
       }
+      console.log('❌ Login offline falhou');
       return false;
     }
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      console.log('🌐 Tentando login no Supabase...');
+      
+      // Timeout de 10 segundos para o signInWithPassword
+      const signInPromise = supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Login demorou mais de 10 segundos')), 10000)
+      );
+      
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise]) as any;
 
       if (error) {
-        console.error('Erro ao fazer login:', error);
+        console.error('❌ Erro ao fazer login:', error.message || error);
         return false;
       }
 
-      if (data.user) {
-        await loadProfile(data.user.id);
-        await loadStats(data.user.id);
-        await loadAchievements(data.user.id);
+      if (data?.user) {
+        console.log('✅ Login no Supabase bem-sucedido, carregando dados...', data.user.id);
+        
+        // Carregar dados com timeout individual de 5s cada
+        try {
+          await Promise.all([
+            Promise.race([
+              loadProfile(data.user.id),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout loadProfile')), 5000))
+            ]).catch(err => {
+              console.warn('⚠️ Erro ao carregar perfil (não crítico):', err);
+              // Criar perfil básico se não conseguir carregar
+              const basicUser: User = {
+                id: data.user.id,
+                name: data.user.user_metadata?.name || email.split('@')[0],
+                email: data.user.email || email,
+                level: 'Bronze',
+                points: 0,
+                plan: 'bronze',
+              };
+              setUser(basicUser);
+              persistAuthData(basicUser);
+            }),
+            Promise.race([
+              loadStats(data.user.id),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout loadStats')), 5000))
+            ]).catch(err => console.warn('⚠️ Erro ao carregar stats (não crítico):', err)),
+            Promise.race([
+              loadAchievements(data.user.id),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout loadAchievements')), 5000))
+            ]).catch(err => console.warn('⚠️ Erro ao carregar conquistas (não crítico):', err)),
+          ]);
+          console.log('✅ Dados do usuário carregados');
+        } catch (err) {
+          console.error('❌ Erro ao carregar dados do usuário:', err);
+          // Mesmo com erro, permitir login com dados básicos
+        }
+        
         return true;
       }
 
+      console.log('❌ Login falhou: nenhum usuário retornado');
       return false;
-    } catch (error) {
-      console.error('Erro ao fazer login:', error);
+    } catch (error: any) {
+      console.error('❌ Erro ao fazer login:', error?.message || error);
       return false;
     }
   };

@@ -31,7 +31,17 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      const success = await login(email, password);
+      console.log('🔐 Iniciando login...', { email });
+      
+      // Timeout de segurança - 15 segundos
+      const loginPromise = login(email, password);
+      const timeoutPromise = new Promise<boolean>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Login demorou mais de 15 segundos')), 15000)
+      );
+      
+      const success = await Promise.race([loginPromise, timeoutPromise]);
+      
+      console.log('📊 Resultado do login:', { success });
       
       if (success) {
         toast({
@@ -46,10 +56,11 @@ export default function Login() {
           variant: 'destructive',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ Erro no login:', error);
       toast({
         title: 'Erro',
-        description: 'Ocorreu um erro ao fazer login. Tente novamente.',
+        description: error?.message || 'Ocorreu um erro ao fazer login. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
