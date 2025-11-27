@@ -176,20 +176,15 @@ export function usePosts() {
 
       // Salvar no localStorage
       const savedPosts = localStorage.getItem('nutraelite_posts');
-      const posts = savedPosts ? JSON.parse(savedPosts) : [];
-      posts.unshift({
+      const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
+      const updatedPosts = [{
         ...newPost,
         createdAt: newPost.createdAt.toISOString(),
-      });
-      localStorage.setItem('nutraelite_posts', JSON.stringify(posts));
+      }, ...existingPosts];
+      localStorage.setItem('nutraelite_posts', JSON.stringify(updatedPosts));
 
-      // Atualizar estado local
-      setPosts([newPost, ...posts.map((p: any) => ({
-        ...p,
-        createdAt: new Date(p.createdAt),
-        author: p.author,
-        commentsList: p.commentsList || [],
-      }))]);
+      // Atualizar estado local - adicionar nova postagem no início
+      setPosts(prevPosts => [newPost, ...prevPosts]);
 
       return newPost;
     }
