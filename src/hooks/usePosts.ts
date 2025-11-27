@@ -10,9 +10,12 @@ export function usePosts() {
   const loadPosts = async () => {
     setIsLoading(true);
     
+    console.log('📥 Carregando postagens...', { isSupabaseConfigured });
+    
     // PRIORIZAR Supabase se estiver configurado (rede social compartilhada)
     if (isSupabaseConfigured) {
       try {
+        console.log('🔍 Buscando postagens no Supabase...');
         const { data, error } = await supabase
           .from('posts')
           .select(`
@@ -23,7 +26,14 @@ export function usePosts() {
           `)
           .order('created_at', { ascending: false });
 
-        if (!error && data) {
+        console.log('📊 Resultado Supabase:', { data: data?.length || 0, error });
+
+        if (error) {
+          console.error('❌ Erro ao buscar do Supabase:', error);
+          throw error;
+        }
+
+        if (data && data.length > 0) {
           const { data: { user } } = await supabase.auth.getUser();
           const currentUserId = user?.id;
 
@@ -73,9 +83,36 @@ export function usePosts() {
             })) || [],
           })));
           safeSetItem('nutraelite_posts', serialized);
+          console.log('✅ Postagens carregadas do Supabase:', transformedPosts.length);
+        } else {
+          console.log('⚠️ Nenhuma postagem encontrada no Supabase, usando cache local');
+          // Se não houver dados no Supabase, usar localStorage
+          const savedPosts = safeGetItem('nutraelite_posts');
+          if (savedPosts) {
+            const parsed = JSON.parse(savedPosts);
+            const loadedPosts: Post[] = parsed.map((post: any) => ({
+              ...post,
+              createdAt: new Date(post.createdAt),
+              author: post.author || {
+                id: 'unknown',
+                name: 'Usuário',
+                avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+                level: 'Bronze',
+                points: 0,
+                rank: 999,
+                totalSales: 0,
+              },
+              commentsList: post.commentsList?.map((c: any) => ({
+                ...c,
+                createdAt: new Date(c.createdAt),
+              })) || [],
+            }));
+            setPosts(loadedPosts);
+            console.log('✅ Postagens carregadas do localStorage:', loadedPosts.length);
+          }
         }
-      } catch (error) {
-        console.warn('Erro ao carregar do Supabase, usando cache local:', error);
+      } catch (error: any) {
+        console.error('❌ Erro ao carregar do Supabase, usando cache local:', error?.message || error);
         // Fallback para localStorage se Supabase falhar
         try {
           const savedPosts = safeGetItem('nutraelite_posts');
@@ -258,34 +295,50 @@ export function usePosts() {
       commentsList: [],
     };
 
+    console.log('📝 Criando postagem...', { isSupabaseConfigured, content: content.substring(0, 50) });
+    
     // PRIORIZAR Supabase se estiver configurado (rede social compartilhada)
     if (isSupabaseConfigured) {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Salvar no Supabase PRIMEIRO
-          const { data: insertedPost, error } = await supabase
-            .from('posts')
-            .insert({
-              author_id: user.id,
-              content,
-              image,
-              result_value: resultValue,
-              type: resultValue ? 'result' : 'post',
-            })
-            .select(`
-              *,
-              author:profiles(*)
-            `)
-            .single();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        console.log('👤 Usuário autenticado:', { userId: user?.id, authError });
+        
+        if (!user) {
+          console.warn('⚠️ Usuário não autenticado no Supabase, usando fallback');
+          throw new Error('Usuário não autenticado');
+        }
+        
+        // Salvar no Supabase PRIMEIRO
+        console.log('💾 Salvando no Supabase...');
+        const { data: insertedPost, error } = await supabase
+          .from('posts')
+          .insert({
+            author_id: user.id,
+            content,
+            image,
+            result_value: resultValue,
+            type: resultValue ? 'result' : 'post',
+          })
+          .select(`
+            *,
+            author:profiles(*)
+          `)
+          .single();
 
-          if (error) throw error;
+        if (error) {
+          console.error('❌ Erro ao inserir no Supabase:', error);
+          throw error;
+        }
+        
+        console.log('✅ Postagem salva no Supabase:', insertedPost?.id);
 
           // Recarregar todas as postagens do Supabase para garantir sincronização
+          console.log('🔄 Recarregando postagens do Supabase...');
           await loadPosts();
           
           // Retornar a postagem criada
           if (insertedPost) {
+            console.log('✅ Postagem criada e sincronizada:', insertedPost.id);
             const transformedPost: Post = {
               id: insertedPost.id,
               author: {
@@ -310,10 +363,13 @@ export function usePosts() {
             return transformedPost;
           }
         }
-      } catch (error) {
-        console.error('Erro ao salvar no Supabase:', error);
+      } catch (error: any) {
+        console.error('❌ Erro ao salvar no Supabase, usando fallback:', error?.message || error);
         // Fallback para localStorage se Supabase falhar
+        // Continuar com o código abaixo para salvar localmente
       }
+    } else {
+      console.log('⚠️ Supabase não configurado, salvando apenas localmente');
     }
 
     // Fallback: salvar no localStorage (modo offline ou se Supabase falhar)

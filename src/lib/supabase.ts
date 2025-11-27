@@ -25,7 +25,14 @@ if (!isSupabaseConfigured) {
     'A aplicação funcionará em modo offline. ' +
     'Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env.local para usar o Supabase.'
   );
+  console.warn('📋 Variáveis encontradas:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    urlLength: supabaseUrl?.length || 0,
+    keyLength: supabaseAnonKey?.length || 0,
+  });
 } else {
   console.log('✅ Supabase configurado:', supabaseUrl?.substring(0, 30) + '...');
+  console.log('🔑 Chave configurada:', supabaseAnonKey?.substring(0, 20) + '...');
 }
 
