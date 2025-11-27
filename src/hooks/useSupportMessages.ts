@@ -300,22 +300,32 @@ export function useSupportMessages(userId?: string) {
       console.log('✅ Conversa atual atualizada com', conversation.messages?.length || 0, 'mensagens');
     }
 
-    // Sincronizar com Supabase em background
+    // Sincronizar com Supabase em background (não bloqueia)
     if (isSupabaseConfigured) {
       (async () => {
         try {
-          await supabase.from('support_messages').insert({
+          console.log('🔄 Sincronizando mensagem com Supabase...', { convId, isFromSupport });
+          const { error } = await supabase.from('support_messages').insert({
             user_id: convId,
             content,
             type,
             is_from_support: isFromSupport,
-            user_name: isFromSupport ? undefined : 'Usuário',
-            user_avatar: isFromSupport ? undefined : '',
+            image: image || null,
+            audio_url: audioUrl || null,
+            audio_duration: audioDuration || null,
+            user_name: isFromSupport ? undefined : authorName,
+            user_avatar: isFromSupport ? undefined : authorAvatar,
             support_name: isFromSupport ? 'Suporte' : undefined,
             support_avatar: isFromSupport ? '' : undefined,
           });
+          
+          if (error) {
+            console.warn('⚠️ Erro ao sincronizar com Supabase:', error);
+          } else {
+            console.log('✅ Mensagem sincronizada com Supabase');
+          }
         } catch (error) {
-          console.warn('Erro ao sincronizar com Supabase:', error);
+          console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', error);
         }
       })();
     }
