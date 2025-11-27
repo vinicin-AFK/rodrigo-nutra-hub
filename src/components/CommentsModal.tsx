@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send } from 'lucide-react';
+import { X, Send, Shield, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Post, Comment } from '@/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import { currentUser as fallbackUser } from '@/data/mockData';
 
 interface CommentsModalProps {
@@ -11,6 +12,7 @@ interface CommentsModalProps {
   onClose: () => void;
   post: Post;
   onAddComment: (postId: string, content: string) => void;
+  onDeleteComment?: (postId: string, commentId: string) => void;
 }
 
 export function CommentsModal({ isOpen, onClose, post, onAddComment, onDeleteComment }: CommentsModalProps) {
