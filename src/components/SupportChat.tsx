@@ -824,9 +824,9 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
       )}
 
       {/* Input Bar - SEMPRE mostrar quando suporte tem conversa aberta */}
-      {/* Se é suporte: mostrar quando tem conversa E não está na lista */}
+      {/* Se é suporte: mostrar quando tem conversa (simples assim!) */}
       {/* Se não é suporte: sempre mostrar */}
-      {(!isSupport || (isSupport && currentConversation && !showConversationList)) && (
+      {(!isSupport || (isSupport && !!currentConversation)) && (
       <div 
         className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10 pb-safe"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 65px)' }}
