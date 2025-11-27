@@ -750,14 +750,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log('⚠️ Usando dados básicos do usuário (perfil não disponível)');
           const basicUser: User = {
             id: data.user.id,
-            name: data.user.user_metadata?.name || email.split('@')[0],
+            name: isSupport 
+              ? 'Suporte NutraElite' 
+              : (data.user.user_metadata?.name || email.split('@')[0]),
             email: data.user.email || email,
-            level: 'Bronze',
+            avatar: isSupport
+              ? 'https://ui-avatars.com/api/?name=Suporte&background=FF6B35&color=fff'
+              : (data.user.user_metadata?.avatar || undefined),
+            level: isSupport ? 'Suporte' : 'Bronze',
             points: 0,
-            plan: 'bronze',
+            plan: isSupport ? 'support' : 'bronze',
+            role: isSupport ? 'support' : 'user',
           };
           setUser(basicUser);
           persistAuthData(basicUser);
+          return true;
+        }
+        
+        // Usar perfil carregado (garantir role de suporte se necessário)
+        if (loadedProfile) {
+          if (isSupport && loadedProfile.role !== 'support') {
+            loadedProfile.role = 'support';
+          }
+          setUser(loadedProfile);
+          persistAuthData(loadedProfile);
+          return true;
         }
         
         // Carregar stats e achievements (não críticos)
