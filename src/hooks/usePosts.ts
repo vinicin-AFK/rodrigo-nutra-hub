@@ -350,42 +350,7 @@ export function usePosts() {
   };
 
   const likePost = async (postId: string) => {
-    // Atualizar localmente primeiro
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id === postId) {
-        const wasLiked = post.isLiked;
-        return {
-          ...post,
-          isLiked: !wasLiked,
-          likes: wasLiked ? post.likes - 1 : post.likes + 1,
-        };
-      }
-      return post;
-    }));
-
-    // Salvar no localStorage
-    const savedPosts = safeGetItem('nutraelite_posts');
-    if (savedPosts) {
-      try {
-        const parsed = JSON.parse(savedPosts);
-        const updated = parsed.map((post: any) => {
-          if (post.id === postId) {
-            const wasLiked = post.isLiked;
-            return {
-              ...post,
-              isLiked: !wasLiked,
-              likes: wasLiked ? (post.likes || 0) - 1 : (post.likes || 0) + 1,
-            };
-          }
-          return post;
-        });
-        safeSetItem('nutraelite_posts', JSON.stringify(updated));
-      } catch (error) {
-        console.warn('Erro ao salvar like (não crítico):', error);
-      }
-    }
-
-    // Tentar Supabase em background
+    // PRIORIZAR Supabase se estiver configurado
     if (isSupabaseConfigured) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -411,15 +376,102 @@ export function usePosts() {
                 user_id: user.id,
               });
           }
+          // Recarregar do Supabase para sincronizar com todos
           await loadPosts();
+          return;
         }
       } catch (error) {
-        // Ignorar - já atualizado localmente
+        console.error('Erro ao salvar like no Supabase:', error);
+        // Fallback para localStorage
+      }
+    }
+
+    // Fallback: atualizar localmente
+    setPosts(prevPosts => prevPosts.map(post => {
+      if (post.id === postId) {
+        const wasLiked = post.isLiked;
+        return {
+          ...post,
+          isLiked: !wasLiked,
+          likes: wasLiked ? post.likes - 1 : post.likes + 1,
+        };
+      }
+      return post;
+    }));
+
+    const savedPosts = safeGetItem('nutraelite_posts');
+    if (savedPosts) {
+      try {
+        const parsed = JSON.parse(savedPosts);
+        const updated = parsed.map((post: any) => {
+          if (post.id === postId) {
+            const wasLiked = post.isLiked;
+            return {
+              ...post,
+              isLiked: !wasLiked,
+              likes: wasLiked ? (post.likes || 0) - 1 : (post.likes || 0) + 1,
+            };
+          }
+          return post;
+        });
+        safeSetItem('nutraelite_posts', JSON.stringify(updated));
+      } catch (error) {
+        console.warn('Erro ao salvar like (não crítico):', error);
       }
     }
   };
 
   const addComment = async (postId: string, content: string) => {
+    // PRIORIZAR Supabase se estiver configurado
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Salvar no Supabase PRIMEIRO
+          const { data: insertedComment, error } = await supabase
+            .from('comments')
+            .insert({
+              post_id: postId,
+              author_id: user.id,
+              content,
+            })
+            .select(`
+              *,
+              author:profiles(*)
+            `)
+            .single();
+
+          if (error) throw error;
+
+          // Recarregar do Supabase para sincronizar com todos
+          await loadPosts();
+          
+          // Retornar o comentário criado
+          if (insertedComment) {
+            const newComment: Comment = {
+              id: insertedComment.id,
+              author: {
+                id: insertedComment.author.id,
+                name: insertedComment.author.name,
+                avatar: insertedComment.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(insertedComment.author.name)}&background=random`,
+                level: insertedComment.author.level || 'Bronze',
+                points: insertedComment.author.points || 0,
+                rank: insertedComment.author.rank || 999,
+                totalSales: insertedComment.author.total_sales || 0,
+              },
+              content: insertedComment.content,
+              createdAt: new Date(insertedComment.created_at),
+            };
+            return newComment;
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao salvar comentário no Supabase:', error);
+        // Fallback para localStorage
+      }
+    }
+
+    // Fallback: usar localStorage
     const savedAuth = localStorage.getItem('nutraelite_auth');
     if (!savedAuth) {
       throw new Error('Usuário não autenticado');
@@ -459,7 +511,6 @@ export function usePosts() {
       return post;
     }));
 
-    // Salvar no localStorage
     const savedPosts = safeGetItem('nutraelite_posts');
     if (savedPosts) {
       try {
@@ -480,23 +531,6 @@ export function usePosts() {
         safeSetItem('nutraelite_posts', JSON.stringify(updated));
       } catch (error) {
         console.warn('Erro ao salvar comentário (não crítico):', error);
-      }
-    }
-
-    // Tentar Supabase em background
-    if (isSupabaseConfigured) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from('comments').insert({
-            post_id: postId,
-            author_id: user.id,
-            content,
-          });
-          await loadPosts();
-        }
-      } catch (error) {
-        // Ignorar - já salvo localmente
       }
     }
 
