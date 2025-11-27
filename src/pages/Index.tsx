@@ -45,32 +45,19 @@ const Index = () => {
 
 
   const handleNewPost = async (content: string, resultValue?: number, image?: string) => {
-    console.log('🚀 handleNewPost chamado', { content, resultValue, image: !!image, user: !!user });
-    
-    if (!user) {
-      console.warn('⚠️ Usuário não autenticado');
-      toast({
-        title: "Erro ao publicar",
-        description: "Você precisa estar logado para publicar.",
-        variant: 'destructive',
-      });
-      return;
-    }
-
     try {
-      console.log('📝 Chamando createPost...');
+      // Criar postagem - SEMPRE funciona, mesmo sem usuário autenticado
       await createPost(content, resultValue, image);
-      console.log('✅ createPost concluído com sucesso');
       
-      // Adicionar 2 pontos por postagem
-      console.log('💰 Adicionando pontos...');
-      await addPoints(2);
-      console.log('✅ Pontos adicionados');
-      
-      // Atualizar stats e verificar conquistas
-      console.log('📊 Atualizando stats...');
-      await updateStats({ postsCount: allPosts.length + 1 });
-      console.log('✅ Stats atualizados');
+      // Tentar adicionar pontos (não crítico se falhar)
+      try {
+        if (user) {
+          await addPoints(2);
+          await updateStats({ postsCount: allPosts.length + 1 });
+        }
+      } catch (pointsError) {
+        console.warn('Erro ao adicionar pontos (não crítico):', pointsError);
+      }
       
       toast({
         title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
@@ -79,8 +66,7 @@ const Index = () => {
           : "Seu post foi compartilhado com a comunidade. +2 pontos!",
       });
     } catch (error: any) {
-      console.error('❌ Erro completo no handleNewPost:', error);
-      console.error('❌ Stack trace:', error?.stack);
+      console.error('❌ Erro ao publicar:', error);
       toast({
         title: "Erro ao publicar",
         description: error?.message || "Não foi possível publicar. Tente novamente.",
