@@ -869,7 +869,7 @@ export function CommunityChat() {
                                       className="rounded-lg w-full"
                                     />
                                     {message.content && message.content !== '📷' && (
-                                      <p className="text-sm mt-2 whitespace-pre-wrap break-words">
+                                      <p className="text-sm mt-2 break-words" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                                         {message.content}
                                       </p>
                                     )}
