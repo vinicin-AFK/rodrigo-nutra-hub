@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, MessageCircle } from 'lucide-react';
+import { Plus, MessageCircle, LogOut } from 'lucide-react';
 import { BottomNav } from '@/components/BottomNav';
 import { PostCard } from '@/components/PostCard';
 import { RankingCard } from '@/components/RankingCard';
@@ -19,6 +19,7 @@ import { Comment } from '@/types';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePosts } from '@/hooks/usePosts';
+import { useNavigate } from 'react-router-dom';
 import { posts, users, prizes, currentUser as fallbackUser } from '@/data/mockData';
 import { Post } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -27,8 +28,9 @@ import { cn } from '@/lib/utils';
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
 const Index = () => {
-  const { user, addPoints, userPoints, updateStats, stats } = useAuth();
+  const { user, addPoints, userPoints, updateStats, stats, logout } = useAuth();
   const { posts: allPosts, isLoading: postsLoading, createPost, likePost, addComment } = usePosts();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -291,6 +293,24 @@ const Index = () => {
               title="Suporte"
             >
               <MessageCircle className="w-5 h-5" />
+            </button>
+            
+            {/* Botão de Logout */}
+            <button
+              onClick={async () => {
+                if (confirm('Tem certeza que deseja sair?')) {
+                  await logout();
+                  navigate('/login');
+                }
+              }}
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center",
+                "bg-secondary hover:bg-red-500/20 transition-colors",
+                "text-foreground hover:text-red-500"
+              )}
+              title="Sair"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
             
             {/* Avatar */}
