@@ -235,6 +235,7 @@ export function usePosts() {
     }
 
     return newPost;
+  };
 
   const likePost = async (postId: string) => {
     if (!isSupabaseConfigured) {
