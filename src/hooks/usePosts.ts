@@ -337,81 +337,7 @@ export function usePosts() {
 
     console.log('📝 Criando postagem...', { isSupabaseConfigured, content: content.substring(0, 50) });
     
-    // PRIORIZAR Supabase se estiver configurado (rede social compartilhada)
-    if (isSupabaseConfigured) {
-      try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        console.log('👤 Usuário autenticado:', { userId: user?.id, authError });
-        
-        if (!user) {
-          console.warn('⚠️ Usuário não autenticado no Supabase, usando fallback');
-          throw new Error('Usuário não autenticado');
-        }
-        
-        // Salvar no Supabase PRIMEIRO
-        console.log('💾 Salvando no Supabase...');
-        const { data: insertedPost, error } = await supabase
-          .from('posts')
-          .insert({
-            author_id: user.id,
-            content,
-            image,
-            result_value: resultValue,
-            type: resultValue ? 'result' : 'post',
-          })
-          .select(`
-            *,
-            author:profiles(*)
-          `)
-          .single();
-
-        if (error) {
-          console.error('❌ Erro ao inserir no Supabase:', error);
-          throw error;
-        }
-        
-        console.log('✅ Postagem salva no Supabase:', insertedPost?.id);
-
-        // Recarregar todas as postagens do Supabase para garantir sincronização
-        console.log('🔄 Recarregando postagens do Supabase...');
-        await loadPosts();
-        
-        // Retornar a postagem criada
-        if (insertedPost) {
-          console.log('✅ Postagem criada e sincronizada:', insertedPost.id);
-          const transformedPost: Post = {
-            id: insertedPost.id,
-            author: {
-              id: insertedPost.author.id,
-              name: insertedPost.author.name,
-              avatar: insertedPost.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(insertedPost.author.name)}&background=random`,
-              level: insertedPost.author.level || 'Bronze',
-              points: insertedPost.author.points || 0,
-              rank: insertedPost.author.rank || 999,
-              totalSales: insertedPost.author.total_sales || 0,
-            },
-            content: insertedPost.content,
-            image: insertedPost.image || undefined,
-            likes: 0,
-            comments: 0,
-            isLiked: false,
-            createdAt: new Date(insertedPost.created_at),
-            resultValue: insertedPost.result_value || undefined,
-            type: insertedPost.type || 'post',
-            commentsList: [],
-          };
-          return transformedPost;
-        }
-      } catch (error: any) {
-        console.error('❌ Erro ao salvar no Supabase, usando fallback:', error?.message || error);
-        // Fallback para localStorage se Supabase falhar
-        // Continuar com o código abaixo para salvar localmente
-      }
-    } else {
-      console.log('⚠️ Supabase não configurado, salvando apenas localmente');
-    }
-
-    // Fallback: salvar no localStorage (modo offline ou se Supabase falhar)
+    // SEMPRE salvar no localStorage PRIMEIRO (para feedback imediato)
     ensureStorageSpace();
     
     const savedPosts = safeGetItem('nutraelite_posts');
@@ -438,8 +364,49 @@ export function usePosts() {
       }
     }
 
-    // Atualizar estado local
+    // Atualizar estado local IMEDIATAMENTE
     setPosts(prevPosts => [newPost, ...prevPosts]);
+    console.log('✅ Postagem salva localmente (feedback imediato)');
+    
+    // Depois tentar sincronizar com Supabase (em background, não bloqueia)
+    if (isSupabaseConfigured) {
+      (async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            console.log('💾 Sincronizando com Supabase...');
+            const { data: insertedPost, error } = await supabase
+              .from('posts')
+              .insert({
+                author_id: user.id,
+                content,
+                image,
+                result_value: resultValue,
+                type: resultValue ? 'result' : 'post',
+              })
+              .select(`
+                *,
+                author:profiles(*)
+              `)
+              .single();
+
+            if (!error && insertedPost) {
+              console.log('✅ Postagem sincronizada com Supabase:', insertedPost.id);
+              // Recarregar do Supabase para ter dados atualizados
+              await loadPosts();
+            } else {
+              console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', error);
+            }
+          } else {
+            console.log('ℹ️ Usuário não autenticado no Supabase, mantendo apenas local');
+          }
+        } catch (error: any) {
+          console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', error?.message || error);
+          // Não é crítico - já está salvo localmente
+        }
+      })();
+    }
 
     return newPost;
   };

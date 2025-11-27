@@ -259,76 +259,7 @@ export function useCommunityMessages() {
 
     console.log('📝 Enviando mensagem...', { isSupabaseConfigured, type, content: content.substring(0, 50) });
     
-    // PRIORIZAR Supabase se estiver configurado (rede social compartilhada)
-    if (isSupabaseConfigured) {
-      try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        console.log('👤 Usuário autenticado:', { userId: user?.id, authError });
-        
-        if (!user) {
-          console.warn('⚠️ Usuário não autenticado no Supabase, usando fallback');
-          throw new Error('Usuário não autenticado');
-        }
-        
-        // Salvar no Supabase PRIMEIRO
-        console.log('💾 Salvando no Supabase...');
-        const { data: insertedMessage, error } = await supabase
-          .from('community_messages')
-          .insert({
-            author_id: user.id,
-            content,
-            type,
-            image,
-            audio_url: audioUrl,
-            audio_duration: audioDuration,
-          })
-          .select(`
-            *,
-            author:profiles(*)
-          `)
-          .single();
-
-        if (error) {
-          console.error('❌ Erro ao inserir no Supabase:', error);
-          throw error;
-        }
-        
-        console.log('✅ Mensagem salva no Supabase:', insertedMessage?.id);
-
-        // Recarregar todas as mensagens do Supabase para garantir sincronização
-        console.log('🔄 Recarregando mensagens do Supabase...');
-        await loadMessages();
-        
-        // Retornar a mensagem criada
-        if (insertedMessage) {
-          console.log('✅ Mensagem criada e sincronizada:', insertedMessage.id);
-          const transformedMessage: Message = {
-            id: insertedMessage.id,
-            content: insertedMessage.content || '',
-            isUser: insertedMessage.author_id === user.id,
-            timestamp: new Date(insertedMessage.created_at),
-            type: (insertedMessage.type || 'text') as 'text' | 'audio' | 'emoji' | 'image',
-            image: insertedMessage.image || undefined,
-            audioDuration: insertedMessage.audio_duration || undefined,
-            audioUrl: insertedMessage.audio_url || undefined,
-            author: {
-              name: insertedMessage.author.name,
-              avatar: insertedMessage.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(insertedMessage.author.name)}&background=random`,
-              role: insertedMessage.author.role || undefined,
-            },
-          };
-          return transformedMessage;
-        }
-      } catch (error: any) {
-        console.error('❌ Erro ao salvar no Supabase, usando fallback:', error?.message || error);
-        // Fallback para localStorage se Supabase falhar
-        // Continuar com o código abaixo para salvar localmente
-      }
-    } else {
-      console.log('⚠️ Supabase não configurado, salvando apenas localmente');
-    }
-
-    // Fallback: salvar no localStorage (modo offline ou se Supabase falhar)
+    // SEMPRE salvar no localStorage PRIMEIRO (para feedback imediato)
     ensureStorageSpace();
     
     const savedMessages = safeGetItem('nutraelite_community_messages');
@@ -355,8 +286,50 @@ export function useCommunityMessages() {
       }
     }
 
-    // Atualizar estado local
+    // Atualizar estado local IMEDIATAMENTE
     setMessages(prevMessages => [...prevMessages, newMessage]);
+    console.log('✅ Mensagem salva localmente (feedback imediato)');
+    
+    // Depois tentar sincronizar com Supabase (em background, não bloqueia)
+    if (isSupabaseConfigured) {
+      (async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            console.log('💾 Sincronizando com Supabase...');
+            const { data: insertedMessage, error } = await supabase
+              .from('community_messages')
+              .insert({
+                author_id: user.id,
+                content,
+                type,
+                image,
+                audio_url: audioUrl,
+                audio_duration: audioDuration,
+              })
+              .select(`
+                *,
+                author:profiles(*)
+              `)
+              .single();
+
+            if (!error && insertedMessage) {
+              console.log('✅ Mensagem sincronizada com Supabase:', insertedMessage.id);
+              // Recarregar do Supabase para ter dados atualizados
+              await loadMessages();
+            } else {
+              console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', error);
+            }
+          } else {
+            console.log('ℹ️ Usuário não autenticado no Supabase, mantendo apenas local');
+          }
+        } catch (error: any) {
+          console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', error?.message || error);
+          // Não é crítico - já está salvo localmente
+        }
+      })();
+    }
 
     return newMessage;
   };
