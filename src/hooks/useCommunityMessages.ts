@@ -26,141 +26,133 @@ export function useCommunityMessages() {
           },
         }));
         setMessages(loadedMessages);
-        console.log('✅ Mensagens carregadas do localStorage (inicial):', loadedMessages.length);
+        console.log('✅ Mensagens carregadas do localStorage:', loadedMessages.length);
+      } else {
+        console.log('ℹ️ Nenhuma mensagem salva no localStorage');
+        setMessages([]);
       }
     } catch (error) {
       console.error('Erro ao carregar mensagens do localStorage:', error);
+      setMessages([]);
+    } finally {
+      // SEMPRE parar o loading imediatamente após carregar do localStorage
+      setIsLoading(false);
+      console.log('✅ Loading finalizado');
     }
     
-    // Depois tentar sincronizar com Supabase (se configurado)
+    // Depois tentar sincronizar com Supabase (em background, não bloqueia)
     if (isSupabaseConfigured) {
-      try {
-        console.log('🔍 Buscando mensagens no Supabase...');
-        const { data, error } = await supabase
-          .from('community_messages')
-          .select(`
-            *,
-            author:profiles(*)
-          `)
-          .order('created_at', { ascending: true });
-
-        console.log('📊 Resultado Supabase:', { data: data?.length || 0, error });
-
-        if (error) {
-          console.error('❌ Erro ao buscar do Supabase:', error);
-          throw error;
-        }
-
-        if (data && data.length > 0) {
-          const { data: { user } } = await supabase.auth.getUser();
-          const currentUserId = user?.id;
-
-          const transformed: Message[] = data.map((msg: any) => ({
-            id: msg.id,
-            content: msg.content || '',
-            isUser: msg.author_id === currentUserId,
-            timestamp: new Date(msg.created_at),
-            type: msg.type || 'text',
-            image: msg.image || undefined,
-            audioDuration: msg.audio_duration || undefined,
-            audioUrl: msg.audio_url || undefined,
-            author: {
-              name: msg.author.name,
-              avatar: msg.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author.name)}&background=random`,
-              role: msg.author.role || undefined,
-            },
-          }));
-
-          // Mesclar com mensagens do localStorage (manter ambas)
-          const savedMessages = safeGetItem('nutraelite_community_messages');
-          let allMessages = [...transformed];
-          
-          if (savedMessages) {
-            try {
-              const parsed = JSON.parse(savedMessages);
-              const localMessages: Message[] = parsed.map((msg: any) => ({
-                ...msg,
-                timestamp: new Date(msg.timestamp),
-                author: msg.author || {
-                  name: 'Usuário',
-                  avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-                },
-              }));
-              
-              // Adicionar mensagens locais que não estão no Supabase
-              const supabaseIds = new Set(transformed.map(m => m.id));
-              const localOnly = localMessages.filter(m => !supabaseIds.has(m.id));
-              allMessages = [...transformed, ...localOnly].sort((a, b) => 
-                a.timestamp.getTime() - b.timestamp.getTime()
-              );
-            } catch (err) {
-              console.warn('Erro ao mesclar mensagens locais:', err);
-            }
-          }
-          
-          setMessages(allMessages);
-          // Salvar tudo no localStorage
-          const serialized = JSON.stringify(allMessages.map(m => ({
-            ...m,
-            timestamp: m.timestamp.toISOString(),
-          })));
-          safeSetItem('nutraelite_community_messages', serialized);
-          console.log('✅ Mensagens sincronizadas (Supabase + local):', allMessages.length);
-        } else {
-          console.log('⚠️ Nenhuma mensagem no Supabase, mantendo cache local');
-          // Manter mensagens do localStorage que já foram carregadas
-        }
-      } catch (error: any) {
-        console.error('❌ Erro ao carregar do Supabase, usando cache local:', error?.message || error);
-        // Fallback para localStorage se Supabase falhar
+      (async () => {
         try {
-          const savedMessages = safeGetItem('nutraelite_community_messages');
-          if (savedMessages) {
-            const parsed = JSON.parse(savedMessages);
-            const loadedMessages: Message[] = parsed.map((msg: any) => ({
-              ...msg,
-              timestamp: new Date(msg.timestamp),
-              author: msg.author || {
-                name: 'Usuário',
-                avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+          console.log('🔍 Buscando mensagens no Supabase (background)...');
+          
+          // Timeout de 3 segundos para não travar
+          const supabasePromise = supabase
+            .from('community_messages')
+            .select(`
+              *,
+              author:profiles(*)
+            `)
+            .order('created_at', { ascending: true });
+
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 3000)
+          );
+
+          const { data, error } = await Promise.race([
+            supabasePromise,
+            timeoutPromise,
+          ]) as any;
+
+          console.log('📊 Resultado Supabase:', { data: data?.length || 0, error });
+
+          if (error) {
+            console.warn('⚠️ Erro ao buscar do Supabase:', error);
+            return;
+          }
+
+          if (data && data.length > 0) {
+            const { data: { user } } = await supabase.auth.getUser();
+            const currentUserId = user?.id;
+
+            const transformed: Message[] = data.map((msg: any) => ({
+              id: msg.id,
+              content: msg.content || '',
+              isUser: msg.author_id === currentUserId,
+              timestamp: new Date(msg.created_at),
+              type: msg.type || 'text',
+              image: msg.image || undefined,
+              audioDuration: msg.audio_duration || undefined,
+              audioUrl: msg.audio_url || undefined,
+              author: {
+                name: msg.author?.name || 'Usuário',
+                avatar: msg.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.author?.name || 'Usuario')}&background=random`,
+                role: msg.author?.role || undefined,
               },
             }));
-            setMessages(loadedMessages);
+
+            // Mesclar com mensagens do localStorage (manter ambas)
+            const savedMessages = safeGetItem('nutraelite_community_messages');
+            let allMessages = [...transformed];
+            
+            if (savedMessages) {
+              try {
+                const parsed = JSON.parse(savedMessages);
+                const localMessages: Message[] = parsed.map((msg: any) => ({
+                  ...msg,
+                  timestamp: new Date(msg.timestamp),
+                  author: msg.author || {
+                    name: 'Usuário',
+                    avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+                  },
+                }));
+                
+                // Adicionar mensagens locais que não estão no Supabase
+                const supabaseIds = new Set(transformed.map(m => m.id));
+                const localOnly = localMessages.filter(m => !supabaseIds.has(m.id));
+                allMessages = [...transformed, ...localOnly].sort((a, b) => 
+                  a.timestamp.getTime() - b.timestamp.getTime()
+                );
+              } catch (err) {
+                console.warn('Erro ao mesclar mensagens locais:', err);
+              }
+            }
+            
+            setMessages(allMessages);
+            // Salvar tudo no localStorage
+            const serialized = JSON.stringify(allMessages.map(m => ({
+              ...m,
+              timestamp: m.timestamp.toISOString(),
+            })));
+            safeSetItem('nutraelite_community_messages', serialized);
+            console.log('✅ Mensagens sincronizadas (Supabase + local):', allMessages.length);
+          } else {
+            console.log('ℹ️ Nenhuma mensagem no Supabase');
           }
-        } catch (localError) {
-          console.error('Erro ao carregar do localStorage:', localError);
+        } catch (error: any) {
+          if (error?.message === 'Timeout') {
+            console.warn('⚠️ Timeout ao buscar do Supabase (não crítico)');
+          } else {
+            console.warn('⚠️ Erro ao carregar do Supabase (não crítico):', error?.message || error);
+          }
+          // Não é crítico - já temos dados do localStorage
         }
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      // Modo offline - usar apenas localStorage
-      try {
-        const savedMessages = safeGetItem('nutraelite_community_messages');
-        if (savedMessages) {
-          const parsed = JSON.parse(savedMessages);
-          const loadedMessages: Message[] = parsed.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp),
-            author: msg.author || {
-              name: 'Usuário',
-              avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-            },
-          }));
-          setMessages(loadedMessages);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar mensagens:', error);
-      } finally {
-        setIsLoading(false);
-      }
+      })();
     }
   };
 
   useEffect(() => {
     loadMessages();
-
-    if (!isSupabaseConfigured) return;
+    
+    // Timeout de segurança - sempre parar loading após 2 segundos
+    const safetyTimeout = setTimeout(() => {
+      console.warn('⚠️ Timeout de segurança: parando loading de mensagens');
+      setIsLoading(false);
+    }, 2000);
+    
+    if (!isSupabaseConfigured) {
+      return () => clearTimeout(safetyTimeout);
+    }
 
     const subscription = supabase
       .channel('community_messages_changes')
@@ -173,6 +165,7 @@ export function useCommunityMessages() {
       .subscribe();
 
     return () => {
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
