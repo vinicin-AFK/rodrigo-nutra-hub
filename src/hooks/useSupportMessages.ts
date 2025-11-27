@@ -157,7 +157,10 @@ export function useSupportMessages(userId?: string) {
     content: string,
     type: string = 'text',
     isFromSupport: boolean = false,
-    targetUserId?: string
+    targetUserId?: string,
+    image?: string,
+    audioUrl?: string,
+    audioDuration?: number
   ): Promise<Message> => {
     const currentUserId = userId || 'current_user';
     const now = new Date();
@@ -168,6 +171,9 @@ export function useSupportMessages(userId?: string) {
       isUser: !isFromSupport,
       timestamp: now,
       type: type as any,
+      image: image || undefined,
+      audioUrl: audioUrl || undefined,
+      audioDuration: audioDuration || undefined,
       author: isFromSupport ? {
         name: 'Suporte',
         avatar: '',

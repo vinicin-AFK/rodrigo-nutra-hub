@@ -565,6 +565,19 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
                         </div>
                       </div>
                     </div>
+                  ) : message.type === 'image' && (message as any).image ? (
+                    <div className="max-w-[250px]">
+                      <img
+                        src={(message as any).image}
+                        alt="Imagem"
+                        className="rounded-lg w-full"
+                      />
+                      {message.content && message.content !== '📷' && (
+                        <p className="text-sm mt-2 whitespace-pre-wrap break-words">
+                          {message.content}
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-sm whitespace-pre-wrap break-words">
                       {message.content}
