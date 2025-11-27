@@ -111,10 +111,10 @@ export function useSupportMessages(userId?: string) {
                 setConversations(convs);
                 safeSetItem(SUPPORT_MESSAGES_KEY, JSON.stringify(convs.map(c => ({
                   ...c,
-                  lastMessageTime: c.lastMessageTime.toISOString(),
+                  lastMessageTime: c.lastMessageTime instanceof Date ? c.lastMessageTime.toISOString() : c.lastMessageTime,
                   messages: c.messages.map(m => ({
                     ...m,
-                    timestamp: m.timestamp.toISOString(),
+                    timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : (typeof m.timestamp === 'string' ? m.timestamp : new Date(m.timestamp).toISOString()),
                   })),
                 }))));
                 console.log('✅ Conversas sincronizadas do Supabase:', convs.length);
@@ -215,10 +215,10 @@ export function useSupportMessages(userId?: string) {
 
     safeSetItem(SUPPORT_MESSAGES_KEY, JSON.stringify(conversations.map(c => ({
       ...c,
-      lastMessageTime: c.lastMessageTime.toISOString(),
+      lastMessageTime: c.lastMessageTime instanceof Date ? c.lastMessageTime.toISOString() : c.lastMessageTime,
       messages: c.messages.map(m => ({
         ...m,
-        timestamp: m.timestamp.toISOString(),
+        timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : (typeof m.timestamp === 'string' ? m.timestamp : new Date(m.timestamp).toISOString()),
       })),
     }))));
 
@@ -282,10 +282,10 @@ export function useSupportMessages(userId?: string) {
       setConversations(updated);
       safeSetItem(SUPPORT_MESSAGES_KEY, JSON.stringify(updated.map(c => ({
         ...c,
-        lastMessageTime: c.lastMessageTime.toISOString(),
+        lastMessageTime: c.lastMessageTime instanceof Date ? c.lastMessageTime.toISOString() : c.lastMessageTime,
         messages: c.messages.map(m => ({
           ...m,
-          timestamp: m.timestamp.toISOString(),
+          timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : (typeof m.timestamp === 'string' ? m.timestamp : new Date(m.timestamp).toISOString()),
         })),
       }))));
     }
