@@ -178,6 +178,8 @@ export function useCommunityMessages() {
   }, []);
 
   const sendMessage = async (content: string, type: string = 'text', image?: string, audioUrl?: string, audioDuration?: number): Promise<Message> => {
+    console.log('📤 sendMessage iniciado', { content: content.substring(0, 50), type, hasImage: !!image, hasAudio: !!audioUrl });
+    
     // Buscar dados do usuário - SEMPRE do localStorage
     let savedAuth: string | null = null;
     let authData: any = null;
@@ -240,6 +242,8 @@ export function useCommunityMessages() {
         totalSales: 0,
       };
     }
+    
+    console.log('👤 Dados do autor:', { name: authorData.name, id: authorData.id });
 
     // Criar mensagem
     const newMessage: Message = {
@@ -260,35 +264,44 @@ export function useCommunityMessages() {
     console.log('📝 Enviando mensagem...', { isSupabaseConfigured, type, content: content.substring(0, 50) });
     
     // SEMPRE salvar no localStorage PRIMEIRO (para feedback imediato)
-    ensureStorageSpace();
-    
-    const savedMessages = safeGetItem('nutraelite_community_messages');
-    const existingMessages = savedMessages ? JSON.parse(savedMessages) : [];
-    const updatedMessages = [...existingMessages, {
-      ...newMessage,
-      timestamp: newMessage.timestamp.toISOString(),
-    }];
-    
-    let serialized = JSON.stringify(updatedMessages);
-    let saved = safeSetItem('nutraelite_community_messages', serialized);
-    
-    if (!saved) {
-      const recentMessages = updatedMessages.slice(-30);
-      serialized = JSON.stringify(recentMessages);
-      saved = safeSetItem('nutraelite_community_messages', serialized);
+    try {
+      ensureStorageSpace();
+      
+      const savedMessages = safeGetItem('nutraelite_community_messages');
+      const existingMessages = savedMessages ? JSON.parse(savedMessages) : [];
+      const updatedMessages = [...existingMessages, {
+        ...newMessage,
+        timestamp: newMessage.timestamp.toISOString(),
+      }];
+      
+      let serialized = JSON.stringify(updatedMessages);
+      let saved = safeSetItem('nutraelite_community_messages', serialized);
       
       if (!saved) {
-        const minimalMessages = [{
-          ...newMessage,
-          timestamp: newMessage.timestamp.toISOString(),
-        }];
-        safeSetItem('nutraelite_community_messages', JSON.stringify(minimalMessages));
+        console.warn('⚠️ Falha ao salvar todas as mensagens, tentando salvar apenas as recentes...');
+        const recentMessages = updatedMessages.slice(-30);
+        serialized = JSON.stringify(recentMessages);
+        saved = safeSetItem('nutraelite_community_messages', serialized);
+        
+        if (!saved) {
+          console.warn('⚠️ Falha ao salvar mensagens recentes, salvando apenas a nova...');
+          const minimalMessages = [{
+            ...newMessage,
+            timestamp: newMessage.timestamp.toISOString(),
+          }];
+          safeSetItem('nutraelite_community_messages', JSON.stringify(minimalMessages));
+        }
       }
-    }
 
-    // Atualizar estado local IMEDIATAMENTE
-    setMessages(prevMessages => [...prevMessages, newMessage]);
-    console.log('✅ Mensagem salva localmente (feedback imediato)');
+      // Atualizar estado local IMEDIATAMENTE
+      setMessages(prevMessages => [...prevMessages, newMessage]);
+      console.log('✅ Mensagem salva localmente (feedback imediato)');
+    } catch (localError: any) {
+      console.error('❌ Erro crítico ao salvar localmente:', localError);
+      // Mesmo com erro, tentar atualizar o estado para feedback visual
+      setMessages(prevMessages => [...prevMessages, newMessage]);
+      throw new Error('Erro crítico: não foi possível salvar a mensagem localmente');
+    }
     
     // Depois tentar sincronizar com Supabase (em background, não bloqueia)
     if (isSupabaseConfigured) {

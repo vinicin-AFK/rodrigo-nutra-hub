@@ -213,24 +213,43 @@ export function CommunityChat() {
   const handleSend = async () => {
     if (!input.trim() && !selectedImage) return;
 
+    // Limpar campos imediatamente para feedback visual
+    const messageContent = input || (selectedImage ? '📷' : '');
+    const messageType = selectedImage ? 'image' : input.length <= 2 && /[\u{1F300}-\u{1F9FF}]/u.test(input) ? 'emoji' : 'text';
+    const imageToSend = selectedImage || undefined;
+    
+    // Limpar campos antes de enviar (feedback imediato)
+    setInput('');
+    setSelectedImage(null);
+
     try {
-      console.log('💬 handleSend chamado', { input, selectedImage: !!selectedImage });
-      const messageType = selectedImage ? 'image' : input.length <= 2 && /[\u{1F300}-\u{1F9FF}]/u.test(input) ? 'emoji' : 'text';
+      console.log('💬 handleSend chamado', { messageContent: messageContent.substring(0, 50), messageType, hasImage: !!imageToSend });
+      
+      // Enviar mensagem (sempre salva localmente primeiro)
       await sendMessage(
-        input || (selectedImage ? '📷' : ''),
+        messageContent,
         messageType,
-        selectedImage || undefined
+        imageToSend
       );
+      
       console.log('✅ Mensagem enviada com sucesso');
-      setInput('');
-      setSelectedImage(null);
     } catch (error: any) {
       console.error('❌ Erro ao enviar mensagem:', error);
-      toast({
-        title: "Erro ao enviar mensagem",
-        description: error?.message || "Não foi possível enviar a mensagem. Tente novamente.",
-        variant: 'destructive',
-      });
+      
+      // Restaurar campos se houver erro crítico
+      // (mas normalmente a mensagem já foi salva localmente)
+      if (error?.message?.includes('crítico') || error?.message?.includes('não foi possível salvar')) {
+        setInput(messageContent);
+        setSelectedImage(imageToSend || null);
+        toast({
+          title: "Erro ao enviar mensagem",
+          description: error?.message || "Não foi possível enviar a mensagem. Tente novamente.",
+          variant: 'destructive',
+        });
+      } else {
+        // Erro não crítico (já foi salvo localmente)
+        console.log('⚠️ Erro não crítico na sincronização, mensagem já salva localmente');
+      }
     }
   };
 
