@@ -35,6 +35,20 @@ const Index = () => {
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedPostForComments, setSelectedPostForComments] = useState<Post | null>(null);
+  const selectedPostIdRef = useRef<string | null>(null);
+
+  // Atualizar post selecionado automaticamente quando allPosts mudar
+  useEffect(() => {
+    if (selectedPostIdRef.current) {
+      const updatedPost = allPosts.find(p => p.id === selectedPostIdRef.current);
+      if (updatedPost) {
+        setSelectedPostForComments({
+          ...updatedPost,
+          commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
+        });
+      }
+    }
+  }, [allPosts]);
 
   // Usar dados do usuário autenticado ou fallback
   const currentUser = user ? {
