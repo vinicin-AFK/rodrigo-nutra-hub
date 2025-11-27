@@ -8,8 +8,37 @@ export function usePosts() {
 
   const loadPosts = async () => {
     if (!isSupabaseConfigured) {
+      // Modo offline - carregar do localStorage
+      try {
+        const savedPosts = localStorage.getItem('nutraelite_posts');
+        if (savedPosts) {
+          const parsed = JSON.parse(savedPosts);
+          const loadedPosts: Post[] = parsed.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+            author: post.author || {
+              id: 'unknown',
+              name: 'Usuário',
+              avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+              level: 'Bronze',
+              points: 0,
+              rank: 999,
+              totalSales: 0,
+            },
+            commentsList: post.commentsList?.map((c: any) => ({
+              ...c,
+              createdAt: new Date(c.createdAt),
+            })) || [],
+          }));
+          setPosts(loadedPosts);
+        } else {
+          setPosts([]);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar postagens do localStorage:', error);
+        setPosts([]);
+      }
       setIsLoading(false);
-      setPosts([]);
       return;
     }
 
@@ -109,7 +138,64 @@ export function usePosts() {
 
   const createPost = async (content: string, resultValue?: number, image?: string) => {
     if (!isSupabaseConfigured) {
-      throw new Error('Supabase não configurado. Configure as variáveis de ambiente.');
+      // Modo offline - criar post localmente
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Se não tiver usuário autenticado, usar dados do localStorage
+      let authorData;
+      if (user) {
+        // Tentar buscar perfil do localStorage
+        const savedAuth = localStorage.getItem('nutraelite_auth');
+        if (savedAuth) {
+          const authData = JSON.parse(savedAuth);
+          authorData = authData.user;
+        }
+      }
+      
+      if (!authorData) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const newPost: Post = {
+        id: Date.now().toString(),
+        author: {
+          id: authorData.id,
+          name: authorData.name,
+          avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name)}&background=random`,
+          level: authorData.level || 'Bronze',
+          points: authorData.points || 0,
+          rank: authorData.rank || 999,
+          totalSales: authorData.totalSales || 0,
+        },
+        content,
+        image,
+        likes: 0,
+        comments: 0,
+        isLiked: false,
+        createdAt: new Date(),
+        resultValue,
+        type: resultValue ? 'result' : 'post',
+        commentsList: [],
+      };
+
+      // Salvar no localStorage
+      const savedPosts = localStorage.getItem('nutraelite_posts');
+      const posts = savedPosts ? JSON.parse(savedPosts) : [];
+      posts.unshift({
+        ...newPost,
+        createdAt: newPost.createdAt.toISOString(),
+      });
+      localStorage.setItem('nutraelite_posts', JSON.stringify(posts));
+
+      // Atualizar estado local
+      setPosts([newPost, ...posts.map((p: any) => ({
+        ...p,
+        createdAt: new Date(p.createdAt),
+        author: p.author,
+        commentsList: p.commentsList || [],
+      }))]);
+
+      return newPost;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
