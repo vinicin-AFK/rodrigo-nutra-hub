@@ -8,37 +8,9 @@ export function usePosts() {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadPosts = async () => {
-    // SEMPRE carregar do localStorage primeiro
-    try {
-      const savedPosts = safeGetItem('nutraelite_posts');
-      if (savedPosts) {
-        const parsed = JSON.parse(savedPosts);
-        const loadedPosts: Post[] = parsed.map((post: any) => ({
-          ...post,
-          createdAt: new Date(post.createdAt),
-          author: post.author || {
-            id: 'unknown',
-            name: 'Usuário',
-            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-            level: 'Bronze',
-            points: 0,
-            rank: 999,
-            totalSales: 0,
-          },
-          commentsList: post.commentsList?.map((c: any) => ({
-            ...c,
-            createdAt: new Date(c.createdAt),
-          })) || [],
-        }));
-        setPosts(loadedPosts);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar postagens:', error);
-    } finally {
-      setIsLoading(false);
-    }
-
-    // Tentar carregar do Supabase em background (opcional)
+    setIsLoading(true);
+    
+    // PRIORIZAR Supabase se estiver configurado (rede social compartilhada)
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase
@@ -103,7 +75,66 @@ export function usePosts() {
           safeSetItem('nutraelite_posts', serialized);
         }
       } catch (error) {
-        console.warn('Erro ao carregar do Supabase (não crítico):', error);
+        console.warn('Erro ao carregar do Supabase, usando cache local:', error);
+        // Fallback para localStorage se Supabase falhar
+        try {
+          const savedPosts = safeGetItem('nutraelite_posts');
+          if (savedPosts) {
+            const parsed = JSON.parse(savedPosts);
+            const loadedPosts: Post[] = parsed.map((post: any) => ({
+              ...post,
+              createdAt: new Date(post.createdAt),
+              author: post.author || {
+                id: 'unknown',
+                name: 'Usuário',
+                avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+                level: 'Bronze',
+                points: 0,
+                rank: 999,
+                totalSales: 0,
+              },
+              commentsList: post.commentsList?.map((c: any) => ({
+                ...c,
+                createdAt: new Date(c.createdAt),
+              })) || [],
+            }));
+            setPosts(loadedPosts);
+          }
+        } catch (localError) {
+          console.error('Erro ao carregar do localStorage:', localError);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Modo offline - usar apenas localStorage
+      try {
+        const savedPosts = safeGetItem('nutraelite_posts');
+        if (savedPosts) {
+          const parsed = JSON.parse(savedPosts);
+          const loadedPosts: Post[] = parsed.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+            author: post.author || {
+              id: 'unknown',
+              name: 'Usuário',
+              avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+              level: 'Bronze',
+              points: 0,
+              rank: 999,
+              totalSales: 0,
+            },
+            commentsList: post.commentsList?.map((c: any) => ({
+              ...c,
+              createdAt: new Date(c.createdAt),
+            })) || [],
+          }));
+          setPosts(loadedPosts);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar postagens:', error);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -227,10 +258,67 @@ export function usePosts() {
       commentsList: [],
     };
 
-    // Garantir espaço no storage
+    // PRIORIZAR Supabase se estiver configurado (rede social compartilhada)
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Salvar no Supabase PRIMEIRO
+          const { data: insertedPost, error } = await supabase
+            .from('posts')
+            .insert({
+              author_id: user.id,
+              content,
+              image,
+              result_value: resultValue,
+              type: resultValue ? 'result' : 'post',
+            })
+            .select(`
+              *,
+              author:profiles(*)
+            `)
+            .single();
+
+          if (error) throw error;
+
+          // Recarregar todas as postagens do Supabase para garantir sincronização
+          await loadPosts();
+          
+          // Retornar a postagem criada
+          if (insertedPost) {
+            const transformedPost: Post = {
+              id: insertedPost.id,
+              author: {
+                id: insertedPost.author.id,
+                name: insertedPost.author.name,
+                avatar: insertedPost.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(insertedPost.author.name)}&background=random`,
+                level: insertedPost.author.level || 'Bronze',
+                points: insertedPost.author.points || 0,
+                rank: insertedPost.author.rank || 999,
+                totalSales: insertedPost.author.total_sales || 0,
+              },
+              content: insertedPost.content,
+              image: insertedPost.image || undefined,
+              likes: 0,
+              comments: 0,
+              isLiked: false,
+              createdAt: new Date(insertedPost.created_at),
+              resultValue: insertedPost.result_value || undefined,
+              type: insertedPost.type || 'post',
+              commentsList: [],
+            };
+            return transformedPost;
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao salvar no Supabase:', error);
+        // Fallback para localStorage se Supabase falhar
+      }
+    }
+
+    // Fallback: salvar no localStorage (modo offline ou se Supabase falhar)
     ensureStorageSpace();
     
-    // Salvar no localStorage
     const savedPosts = safeGetItem('nutraelite_posts');
     const existingPosts = savedPosts ? JSON.parse(savedPosts) : [];
     const updatedPosts = [{
@@ -238,18 +326,15 @@ export function usePosts() {
       createdAt: newPost.createdAt.toISOString(),
     }, ...existingPosts];
     
-    // Tentar salvar - se falhar, limpar e tentar novamente
     let serialized = JSON.stringify(updatedPosts);
     let saved = safeSetItem('nutraelite_posts', serialized);
     
     if (!saved) {
-      // Se falhar, tentar salvar apenas as 10 mais recentes
       const recentPosts = updatedPosts.slice(0, 10);
       serialized = JSON.stringify(recentPosts);
       saved = safeSetItem('nutraelite_posts', serialized);
       
       if (!saved) {
-        // Se ainda falhar, salvar apenas a nova postagem
         const minimalPost = [{
           ...newPost,
           createdAt: newPost.createdAt.toISOString(),
@@ -258,29 +343,8 @@ export function usePosts() {
       }
     }
 
-    // Atualizar estado
+    // Atualizar estado local
     setPosts(prevPosts => [newPost, ...prevPosts]);
-
-    // Tentar Supabase em background (não bloqueia)
-    if (isSupabaseConfigured) {
-      (async () => {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            await supabase.from('posts').insert({
-              author_id: user.id,
-              content,
-              image,
-              result_value: resultValue,
-              type: resultValue ? 'result' : 'post',
-            });
-            await loadPosts();
-          }
-        } catch (error) {
-          // Ignorar erro - já está salvo localmente
-        }
-      })();
-    }
 
     return newPost;
   };
