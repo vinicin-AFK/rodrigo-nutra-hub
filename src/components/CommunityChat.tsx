@@ -143,6 +143,7 @@ export function CommunityChat() {
   
   const currentUser = user ? {
     ...fallbackUser,
+    id: user.id, // Garantir que o ID está presente
     name: user.name,
     email: user.email,
     avatar: user.avatar || fallbackUser.avatar,
