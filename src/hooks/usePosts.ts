@@ -139,21 +139,17 @@ export function usePosts() {
   const createPost = async (content: string, resultValue?: number, image?: string) => {
     if (!isSupabaseConfigured) {
       // Modo offline - criar post localmente
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Se não tiver usuário autenticado, usar dados do localStorage
-      let authorData;
-      if (user) {
-        // Tentar buscar perfil do localStorage
-        const savedAuth = localStorage.getItem('nutraelite_auth');
-        if (savedAuth) {
-          const authData = JSON.parse(savedAuth);
-          authorData = authData.user;
-        }
+      // Buscar dados do usuário do localStorage
+      const savedAuth = localStorage.getItem('nutraelite_auth');
+      if (!savedAuth) {
+        throw new Error('Usuário não autenticado. Faça login primeiro.');
       }
       
+      const authData = JSON.parse(savedAuth);
+      const authorData = authData.user;
+      
       if (!authorData) {
-        throw new Error('Usuário não autenticado');
+        throw new Error('Usuário não autenticado. Faça login primeiro.');
       }
 
       const newPost: Post = {
