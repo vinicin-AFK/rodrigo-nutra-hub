@@ -26,7 +26,7 @@ export function useSupportMessages(userId?: string) {
     setIsLoading(true);
     
     try {
-      // Carregar do localStorage primeiro
+      // SEMPRE carregar do localStorage primeiro (para ter dados imediatamente)
       const saved = safeGetItem(SUPPORT_MESSAGES_KEY);
       if (saved) {
         try {
@@ -34,20 +34,24 @@ export function useSupportMessages(userId?: string) {
           const loaded: SupportConversation[] = data.map((conv: any) => ({
             ...conv,
             lastMessageTime: new Date(conv.lastMessageTime),
-            messages: conv.messages.map((msg: any) => ({
+            messages: (conv.messages || []).map((msg: any) => ({
               ...msg,
               timestamp: new Date(msg.timestamp),
             })),
           }));
           setConversations(loaded);
-          console.log('✅ Conversas carregadas do localStorage:', loaded.length);
+          console.log('✅ Conversas carregadas do localStorage:', loaded.length, 'total de mensagens:', loaded.reduce((acc, c) => acc + (c.messages?.length || 0), 0));
         } catch (parseError) {
           console.error('Erro ao parsear conversas do localStorage:', parseError);
+          setConversations([]);
         }
       } else {
         console.log('ℹ️ Nenhuma conversa salva no localStorage');
         setConversations([]);
       }
+      
+      // SEMPRE definir isLoading como false após carregar do localStorage
+      setIsLoading(false);
 
       // Se Supabase configurado, tentar sincronizar (em background, não bloqueia)
       if (isSupabaseConfigured) {
@@ -142,14 +146,6 @@ export function useSupportMessages(userId?: string) {
 
   useEffect(() => {
     loadConversations();
-    
-    // Timeout de segurança - sempre parar loading após 2 segundos
-    const safetyTimeout = setTimeout(() => {
-      console.warn('⚠️ Timeout de segurança: parando loading de conversas');
-      setIsLoading(false);
-    }, 2000);
-    
-    return () => clearTimeout(safetyTimeout);
   }, []);
 
   // Enviar mensagem (usuário ou suporte)
@@ -165,6 +161,25 @@ export function useSupportMessages(userId?: string) {
     const currentUserId = userId || 'current_user';
     const now = new Date();
     
+    // Buscar dados do autor do localStorage
+    let authorName = 'Usuário';
+    let authorAvatar = '';
+    if (!isFromSupport) {
+      const savedAuth = safeGetItem('nutraelite_auth');
+      if (savedAuth) {
+        try {
+          const authData = JSON.parse(savedAuth);
+          const userData = authData?.user;
+          if (userData) {
+            authorName = userData.name || 'Usuário';
+            authorAvatar = userData.avatar || '';
+          }
+        } catch (error) {
+          console.warn('Erro ao buscar dados do usuário:', error);
+        }
+      }
+    }
+    
     const newMessage: Message = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       content,
@@ -179,8 +194,8 @@ export function useSupportMessages(userId?: string) {
         avatar: '',
         role: 'support',
       } : {
-        name: 'Usuário',
-        avatar: '',
+        name: authorName,
+        avatar: authorAvatar,
       },
     };
 
@@ -213,26 +228,37 @@ export function useSupportMessages(userId?: string) {
       conversation.unreadCount++;
     }
 
-    safeSetItem(SUPPORT_MESSAGES_KEY, JSON.stringify(conversations.map(c => ({
+    // Salvar no localStorage ANTES de atualizar o estado
+    const serialized = JSON.stringify(conversations.map(c => ({
       ...c,
       lastMessageTime: c.lastMessageTime instanceof Date ? c.lastMessageTime.toISOString() : c.lastMessageTime,
-      messages: c.messages.map(m => ({
+      messages: (c.messages || []).map(m => ({
         ...m,
         timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : (typeof m.timestamp === 'string' ? m.timestamp : new Date(m.timestamp).toISOString()),
       })),
-    }))));
+    })));
+    
+    const saved = safeSetItem(SUPPORT_MESSAGES_KEY, serialized);
+    if (saved) {
+      console.log('✅ Mensagem salva no localStorage');
+    } else {
+      console.warn('⚠️ Erro ao salvar mensagem no localStorage');
+    }
 
+    // Atualizar estado
     setConversations([...conversations]);
     
+    // Atualizar conversa atual se estiver aberta
     if (currentConversation?.id === convId) {
       setCurrentConversation({
         ...conversation,
         lastMessageTime: now,
-        messages: conversation.messages.map(m => ({
+        messages: (conversation.messages || []).map(m => ({
           ...m,
-          timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp,
+          timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp),
         })),
       });
+      console.log('✅ Conversa atual atualizada com', conversation.messages?.length || 0, 'mensagens');
     }
 
     // Sincronizar com Supabase em background
