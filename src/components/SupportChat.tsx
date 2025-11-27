@@ -587,7 +587,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
                   "rounded-2xl px-3 py-2",
                   message.isUser
                     ? "bg-primary text-white rounded-tr-sm"
-                    : "bg-gray-100 dark:bg-secondary text-foreground rounded-tl-sm"
+                    : "bg-gray-100 dark:bg-secondary text-gray-900 dark:text-gray-100 rounded-tl-sm"
                 )}>
                   {message.type === 'audio' ? (
                     <div className="flex items-center gap-3 min-w-[200px]">
@@ -641,8 +641,8 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap break-words">
-                      {message.content}
+                    <p className="text-sm whitespace-pre-wrap break-words text-gray-900 dark:text-gray-100">
+                      {message.content || ''}
                     </p>
                   )}
                 </div>
