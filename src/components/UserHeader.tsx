@@ -25,11 +25,12 @@ export function UserHeader() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      // Usar window.location para garantir navegação
+      window.location.href = '/login';
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
-      // Mesmo com erro, tentar navegar para login
-      navigate('/login');
+      // Mesmo com erro, tentar navegar
+      window.location.href = '/login';
     }
   };
 

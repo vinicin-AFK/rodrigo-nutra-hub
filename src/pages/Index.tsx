@@ -299,8 +299,15 @@ const Index = () => {
             <button
               onClick={async () => {
                 if (confirm('Tem certeza que deseja sair?')) {
-                  await logout();
-                  navigate('/login');
+                  try {
+                    await logout();
+                    // Usar window.location para garantir navegação
+                    window.location.href = '/login';
+                  } catch (error) {
+                    console.error('Erro ao fazer logout:', error);
+                    // Mesmo com erro, tentar navegar
+                    window.location.href = '/login';
+                  }
                 }
               }}
               className={cn(
