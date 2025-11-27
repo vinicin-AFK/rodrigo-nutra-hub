@@ -77,8 +77,15 @@ const STORAGE_KEY = 'nutraelite_auth';
 const STATS_KEY = 'nutraelite_stats';
 const ACHIEVEMENTS_KEY = 'nutraelite_achievements';
 
+// Credenciais de suporte fixas
+const SUPPORT_CREDENTIALS = {
+  email: 'suporte@gmail.com',
+  password: 'suporte123',
+};
+
 // Lista de emails de suporte (pode ser expandida)
 const SUPPORT_EMAILS = [
+  'suporte@gmail.com',
   'suporte@nutraelite.com',
   'support@nutraelite.com',
   'atendimento@nutraelite.com',
@@ -93,6 +100,13 @@ const isSupportEmail = (email: string): boolean => {
          emailLower.includes('suporte') ||
          emailLower.includes('support') ||
          emailLower.includes('atendimento');
+};
+
+// Função para verificar se é login de suporte
+const isSupportLogin = (email: string, password: string): boolean => {
+  const emailLower = email.toLowerCase();
+  return emailLower === SUPPORT_CREDENTIALS.email.toLowerCase() && 
+         password === SUPPORT_CREDENTIALS.password;
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -425,6 +439,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured) {
       console.log('📦 Modo offline: usando localStorage');
       // Modo offline - usar localStorage
+      
+      // Verificar se é login de suporte primeiro
+      if (isSupportLogin(email, password)) {
+        const userData: User = {
+          id: 'support_user',
+          name: 'Suporte NutraElite',
+          email: SUPPORT_CREDENTIALS.email,
+          avatar: 'https://ui-avatars.com/api/?name=Suporte&background=FF6B35&color=fff',
+          level: 'Suporte',
+          points: 0,
+          plan: 'support',
+          role: 'support',
+        };
+        
+        const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        persistAuthData(userData);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
+        setUser(userData);
+        console.log('✅ Login de suporte realizado', { role: userData.role });
+        return true;
+      }
+      
       const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
       const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
       
@@ -484,6 +520,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (timeoutError?.message === 'TIMEOUT_SUPABASE') {
           console.warn('⚠️ Supabase demorou muito, usando modo offline para login');
           // Fallback para modo offline
+          
+          // Verificar se é login de suporte primeiro
+          if (isSupportLogin(email, password)) {
+            const userData: User = {
+              id: 'support_user',
+              name: 'Suporte NutraElite',
+              email: SUPPORT_CREDENTIALS.email,
+              avatar: 'https://ui-avatars.com/api/?name=Suporte&background=FF6B35&color=fff',
+              level: 'Suporte',
+              points: 0,
+              plan: 'support',
+              role: 'support',
+            };
+            
+            const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
+            setUser(userData);
+            console.log('✅ Login de suporte realizado (Supabase timeout)', { role: userData.role });
+            return true;
+          }
+          
           const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
           const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
           
@@ -530,6 +587,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           markApiKeyAsInvalid();
           console.warn('⚠️ API key inválida detectada, usando modo offline para login');
           // Fallback para modo offline
+          
+          // Verificar se é login de suporte primeiro
+          if (isSupportLogin(email, password)) {
+            const userData: User = {
+              id: 'support_user',
+              name: 'Suporte NutraElite',
+              email: SUPPORT_CREDENTIALS.email,
+              avatar: 'https://ui-avatars.com/api/?name=Suporte&background=FF6B35&color=fff',
+              level: 'Suporte',
+              points: 0,
+              plan: 'support',
+              role: 'support',
+            };
+            
+            const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
+            setUser(userData);
+            console.log('✅ Login de suporte realizado (API key inválida)', { role: userData.role });
+            return true;
+          }
+          
           const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
           const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
           
