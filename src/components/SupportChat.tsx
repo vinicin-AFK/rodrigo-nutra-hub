@@ -469,12 +469,13 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
                   key={conv.id}
                   onClick={() => {
                     console.log('📂 Abrindo conversa:', conv.id);
-                    openConversation(conv.id);
+                    // IMPORTANTE: Fechar lista PRIMEIRO, depois abrir conversa
                     setShowConversationList(false);
-                    // Forçar atualização do estado
+                    // Usar setTimeout para garantir que o estado seja atualizado
                     setTimeout(() => {
-                      console.log('✅ Conversa aberta, currentConversation deve estar definido');
-                    }, 100);
+                      openConversation(conv.id);
+                      console.log('✅ Conversa aberta:', conv.id);
+                    }, 50);
                   }}
                   className="w-full p-4 hover:bg-gray-50 dark:hover:bg-secondary/50 transition-colors text-left"
                 >
@@ -822,10 +823,10 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
         </div>
       )}
 
-      {/* Input Bar - sempre mostrar quando há conversa aberta (para suporte) ou quando não é suporte */}
-      {/* Para suporte: mostrar apenas quando tem conversa aberta (não na lista) */}
-      {/* Para usuário: sempre mostrar */}
-      {(isSupport ? (currentConversation && !showConversationList) : true) && (
+      {/* Input Bar - SEMPRE mostrar quando suporte tem conversa aberta */}
+      {/* Se é suporte: mostrar quando tem conversa E não está na lista */}
+      {/* Se não é suporte: sempre mostrar */}
+      {(!isSupport || (isSupport && currentConversation && !showConversationList)) && (
       <div 
         className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10 pb-safe"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 65px)' }}
