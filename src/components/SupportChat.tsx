@@ -167,7 +167,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
           <button
             onClick={() => {
               setShowConversationList(true);
-              openConversation('');
+              setCurrentConversation(null);
             }}
             className="p-2 hover:bg-gray-100 dark:hover:bg-secondary rounded-lg transition-colors"
           >
