@@ -875,7 +875,7 @@ export function CommunityChat() {
                                     )}
                                   </div>
                                 ) : (
-                                  <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                                  <p className="text-sm break-words leading-relaxed" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                                     {message.content}
                                   </p>
                                 )}
