@@ -324,39 +324,64 @@ export function CommunityChat() {
   const handleSendAudio = async () => {
     if (recordedAudio) {
       try {
-        // Converter blob para base64 para salvar no Supabase
+        console.log('🎤 Enviando áudio...', { duration: recordedAudio.duration });
+        // Converter blob para base64 para salvar
         // Em produção, seria melhor fazer upload para Supabase Storage
         const reader = new FileReader();
         reader.onloadend = async () => {
-          const base64Audio = reader.result as string;
-          
-          await sendMessage(
-            '',
-            'audio',
-            undefined,
-            base64Audio, // Salvar como base64 temporariamente
-            recordedAudio.duration
-          );
-          
-          // Limpar preview
-          if (previewAudioRef.current) {
-            previewAudioRef.current.pause();
-            previewAudioRef.current.src = '';
-            previewAudioRef.current = null;
+          try {
+            const base64Audio = reader.result as string;
+            
+            await sendMessage(
+              '',
+              'audio',
+              undefined,
+              base64Audio, // Salvar como base64 temporariamente
+              recordedAudio.duration
+            );
+            
+            console.log('✅ Áudio enviado com sucesso');
+            
+            // Limpar preview
+            if (previewAudioRef.current) {
+              previewAudioRef.current.pause();
+              previewAudioRef.current.src = '';
+              previewAudioRef.current = null;
+            }
+            
+            // Revogar URL do preview
+            URL.revokeObjectURL(recordedAudio.url);
+            
+            setRecordedAudio(null);
+            setRecordingTime(0);
+            recordingTimeRef.current = 0;
+            setPreviewCurrentTime(0);
+            setIsPlayingPreview(false);
+          } catch (error: any) {
+            console.error('❌ Erro ao enviar áudio:', error);
+            toast({
+              title: "Erro ao enviar áudio",
+              description: error?.message || "Não foi possível enviar o áudio. Tente novamente.",
+              variant: 'destructive',
+            });
           }
-          
-          // Revogar URL do preview
-          URL.revokeObjectURL(recordedAudio.url);
-          
-          setRecordedAudio(null);
-          setRecordingTime(0);
-          recordingTimeRef.current = 0;
-          setPreviewCurrentTime(0);
-          setIsPlayingPreview(false);
+        };
+        reader.onerror = () => {
+          console.error('❌ Erro ao ler arquivo de áudio');
+          toast({
+            title: "Erro ao processar áudio",
+            description: "Não foi possível processar o áudio. Tente novamente.",
+            variant: 'destructive',
+          });
         };
         reader.readAsDataURL(recordedAudio.blob);
-      } catch (error) {
-        console.error('Erro ao enviar áudio:', error);
+      } catch (error: any) {
+        console.error('❌ Erro ao enviar áudio:', error);
+        toast({
+          title: "Erro ao enviar áudio",
+          description: error?.message || "Não foi possível enviar o áudio. Tente novamente.",
+          variant: 'destructive',
+        });
       }
     }
   };
