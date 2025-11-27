@@ -796,19 +796,20 @@ export function CommunityChat() {
 
       {/* Selected image preview */}
       {selectedImage && (
-        <div className="absolute bottom-20 left-4 right-4 z-20">
-          <div className="bg-white dark:bg-[#202c33] rounded-lg p-2 shadow-lg">
+        <div className="absolute bottom-20 left-2 z-20 max-w-[100px] sm:max-w-[150px]">
+          <div className="bg-white dark:bg-[#202c33] rounded-lg p-1 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="relative">
               <img
                 src={selectedImage}
                 alt="Preview"
-                className="w-full max-h-40 object-cover rounded"
+                className="w-full max-h-16 sm:max-h-20 object-cover rounded"
               />
               <button
                 onClick={() => setSelectedImage(null)}
-                className="absolute top-2 right-2 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center hover:bg-black/70 transition-colors"
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-md"
+                aria-label="Remover imagem"
               >
-                <X className="w-4 h-4 text-white" />
+                <X className="w-3 h-3 text-white" />
               </button>
             </div>
           </div>
