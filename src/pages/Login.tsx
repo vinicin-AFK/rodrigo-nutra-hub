@@ -33,10 +33,10 @@ export default function Login() {
     try {
       console.log('🔐 Iniciando login...', { email });
       
-      // Timeout de segurança - 15 segundos
+      // Timeout de segurança - 20 segundos (aumentado para dar tempo ao suporte)
       const loginPromise = login(email, password);
       const timeoutPromise = new Promise<boolean>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout: Login demorou mais de 15 segundos')), 15000)
+        setTimeout(() => reject(new Error('Timeout: Login demorou mais de 20 segundos')), 20000)
       );
       
       const success = await Promise.race([loginPromise, timeoutPromise]);
@@ -48,7 +48,10 @@ export default function Login() {
           title: 'Login realizado!',
           description: 'Bem-vindo de volta!',
         });
-        navigate('/');
+        // Pequeno delay para garantir que o estado foi atualizado
+        setTimeout(() => {
+          navigate('/');
+        }, 100);
       } else {
         toast({
           title: 'Erro no login',
@@ -59,6 +62,30 @@ export default function Login() {
     } catch (error: any) {
       console.error('❌ Erro no login:', error);
       const errorMessage = error?.message || 'Ocorreu um erro ao fazer login. Tente novamente.';
+      
+      // Se for timeout mas o login de suporte foi detectado, pode ter funcionado
+      if (error?.message?.includes('Timeout') && email.toLowerCase() === 'suporte@gmail.com') {
+        console.log('⚠️ Timeout no login de suporte, mas pode ter funcionado - verificando...');
+        // Verificar se o usuário foi setado mesmo assim
+        setTimeout(() => {
+          const savedAuth = localStorage.getItem('nutraelite_auth');
+          if (savedAuth) {
+            try {
+              const authData = JSON.parse(savedAuth);
+              if (authData?.user?.role === 'support') {
+                toast({
+                  title: 'Login realizado!',
+                  description: 'Bem-vindo, Suporte!',
+                });
+                navigate('/');
+                return;
+              }
+            } catch (e) {
+              // Ignorar
+            }
+          }
+        }, 500);
+      }
       
       toast({
         title: error?.message?.includes('confirme seu email') ? 'Email não confirmado' : 'Erro no login',
