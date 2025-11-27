@@ -501,11 +501,11 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background">
       {/* Header - se for suporte, mostrar botão para voltar */}
       {isSupport && currentConversation && (
-        <div className="p-3 border-b border-border/50 flex items-center gap-3">
+        <div className="p-3 border-b border-border/50 flex items-center gap-3 bg-white dark:bg-background">
           <button
             onClick={() => {
               setShowConversationList(true);
-              setCurrentConversation(null);
+              openConversation(null);
             }}
             className="p-2 hover:bg-gray-100 dark:hover:bg-secondary rounded-lg transition-colors"
           >
@@ -803,7 +803,8 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
         </div>
       )}
 
-      {/* Input Bar */}
+      {/* Input Bar - sempre mostrar quando há conversa aberta ou quando é suporte */}
+      {(currentConversation || !isSupport) && (
       <div 
         className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10 pb-safe"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 65px)' }}
@@ -882,6 +883,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
           )}
         </div>
       </div>
+      )}
 
       {/* Hidden audio element */}
       <audio ref={audioRef} />
