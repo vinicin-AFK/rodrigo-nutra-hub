@@ -92,12 +92,26 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     setIsTyping(true);
 
     try {
-      if (isSupport && currentConversation) {
-        // Suporte respondendo
-        await sendMessage(messageContent, messageType, true, currentConversation.userId, imageToSend);
+      if (isSupport) {
+        // Suporte respondendo - precisa ter conversa aberta
+        if (currentConversation) {
+          await sendMessage(messageContent, messageType, true, currentConversation.userId, imageToSend);
+        } else {
+          console.warn('⚠️ Nenhuma conversa aberta para o suporte responder');
+          // Criar conversa se necessário
+          if (conversations.length > 0) {
+            openConversation(conversations[0].id);
+            await sendMessage(messageContent, messageType, true, conversations[0].userId, imageToSend);
+          }
+        }
       } else {
-        // Usuário enviando mensagem
-        await sendMessage(messageContent, messageType, false, user?.id, imageToSend);
+        // Usuário enviando mensagem - sempre criar/enviar para própria conversa
+        const userId = user?.id || 'current_user';
+        await sendMessage(messageContent, messageType, false, userId, imageToSend);
+        // Garantir que a conversa está aberta
+        if (!currentConversation) {
+          openConversation(userId);
+        }
       }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
