@@ -103,15 +103,23 @@ const Index = () => {
 
   const handleAddComment = async (postId: string, content: string) => {
     try {
+      console.log('💬 handleAddComment chamado:', { postId, content: content.substring(0, 50) });
       await addComment(postId, content);
+      console.log('✅ Comentário adicionado com sucesso');
       
-      // Atualizar post selecionado para mostrar o novo comentário
-      const updatedPost = allPosts.find(p => p.id === postId);
-      if (updatedPost) {
-        setSelectedPostForComments(updatedPost);
-      }
+      // Aguardar um pouco para garantir que o estado foi atualizado
+      setTimeout(() => {
+        // Atualizar post selecionado para mostrar o novo comentário
+        const updatedPost = allPosts.find(p => p.id === postId);
+        if (updatedPost) {
+          console.log('🔄 Atualizando post selecionado:', updatedPost.id);
+          setSelectedPostForComments({ ...updatedPost });
+        } else {
+          console.warn('⚠️ Post não encontrado após adicionar comentário');
+        }
+      }, 100);
     } catch (error) {
-      console.error('Erro ao adicionar comentário:', error);
+      console.error('❌ Erro ao adicionar comentário:', error);
       toast({
         title: "Erro ao comentar",
         description: "Não foi possível adicionar o comentário. Tente novamente.",
