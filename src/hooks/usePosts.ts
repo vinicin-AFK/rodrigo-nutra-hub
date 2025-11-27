@@ -332,36 +332,35 @@ export function usePosts() {
         
         console.log('✅ Postagem salva no Supabase:', insertedPost?.id);
 
-          // Recarregar todas as postagens do Supabase para garantir sincronização
-          console.log('🔄 Recarregando postagens do Supabase...');
-          await loadPosts();
-          
-          // Retornar a postagem criada
-          if (insertedPost) {
-            console.log('✅ Postagem criada e sincronizada:', insertedPost.id);
-            const transformedPost: Post = {
-              id: insertedPost.id,
-              author: {
-                id: insertedPost.author.id,
-                name: insertedPost.author.name,
-                avatar: insertedPost.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(insertedPost.author.name)}&background=random`,
-                level: insertedPost.author.level || 'Bronze',
-                points: insertedPost.author.points || 0,
-                rank: insertedPost.author.rank || 999,
-                totalSales: insertedPost.author.total_sales || 0,
-              },
-              content: insertedPost.content,
-              image: insertedPost.image || undefined,
-              likes: 0,
-              comments: 0,
-              isLiked: false,
-              createdAt: new Date(insertedPost.created_at),
-              resultValue: insertedPost.result_value || undefined,
-              type: insertedPost.type || 'post',
-              commentsList: [],
-            };
-            return transformedPost;
-          }
+        // Recarregar todas as postagens do Supabase para garantir sincronização
+        console.log('🔄 Recarregando postagens do Supabase...');
+        await loadPosts();
+        
+        // Retornar a postagem criada
+        if (insertedPost) {
+          console.log('✅ Postagem criada e sincronizada:', insertedPost.id);
+          const transformedPost: Post = {
+            id: insertedPost.id,
+            author: {
+              id: insertedPost.author.id,
+              name: insertedPost.author.name,
+              avatar: insertedPost.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(insertedPost.author.name)}&background=random`,
+              level: insertedPost.author.level || 'Bronze',
+              points: insertedPost.author.points || 0,
+              rank: insertedPost.author.rank || 999,
+              totalSales: insertedPost.author.total_sales || 0,
+            },
+            content: insertedPost.content,
+            image: insertedPost.image || undefined,
+            likes: 0,
+            comments: 0,
+            isLiked: false,
+            createdAt: new Date(insertedPost.created_at),
+            resultValue: insertedPost.result_value || undefined,
+            type: insertedPost.type || 'post',
+            commentsList: [],
+          };
+          return transformedPost;
         }
       } catch (error: any) {
         console.error('❌ Erro ao salvar no Supabase, usando fallback:', error?.message || error);

@@ -262,30 +262,29 @@ export function useCommunityMessages() {
         
         console.log('✅ Mensagem salva no Supabase:', insertedMessage?.id);
 
-          // Recarregar todas as mensagens do Supabase para garantir sincronização
-          console.log('🔄 Recarregando mensagens do Supabase...');
-          await loadMessages();
-          
-          // Retornar a mensagem criada
-          if (insertedMessage) {
-            console.log('✅ Mensagem criada e sincronizada:', insertedMessage.id);
-            const transformedMessage: Message = {
-              id: insertedMessage.id,
-              content: insertedMessage.content || '',
-              isUser: insertedMessage.author_id === user.id,
-              timestamp: new Date(insertedMessage.created_at),
-              type: (insertedMessage.type || 'text') as 'text' | 'audio' | 'emoji' | 'image',
-              image: insertedMessage.image || undefined,
-              audioDuration: insertedMessage.audio_duration || undefined,
-              audioUrl: insertedMessage.audio_url || undefined,
-              author: {
-                name: insertedMessage.author.name,
-                avatar: insertedMessage.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(insertedMessage.author.name)}&background=random`,
-                role: insertedMessage.author.role || undefined,
-              },
-            };
-            return transformedMessage;
-          }
+        // Recarregar todas as mensagens do Supabase para garantir sincronização
+        console.log('🔄 Recarregando mensagens do Supabase...');
+        await loadMessages();
+        
+        // Retornar a mensagem criada
+        if (insertedMessage) {
+          console.log('✅ Mensagem criada e sincronizada:', insertedMessage.id);
+          const transformedMessage: Message = {
+            id: insertedMessage.id,
+            content: insertedMessage.content || '',
+            isUser: insertedMessage.author_id === user.id,
+            timestamp: new Date(insertedMessage.created_at),
+            type: (insertedMessage.type || 'text') as 'text' | 'audio' | 'emoji' | 'image',
+            image: insertedMessage.image || undefined,
+            audioDuration: insertedMessage.audio_duration || undefined,
+            audioUrl: insertedMessage.audio_url || undefined,
+            author: {
+              name: insertedMessage.author.name,
+              avatar: insertedMessage.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(insertedMessage.author.name)}&background=random`,
+              role: insertedMessage.author.role || undefined,
+            },
+          };
+          return transformedMessage;
         }
       } catch (error: any) {
         console.error('❌ Erro ao salvar no Supabase, usando fallback:', error?.message || error);
