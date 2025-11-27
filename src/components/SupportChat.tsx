@@ -85,10 +85,10 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     try {
       if (isSupport && currentConversation) {
         // Suporte respondendo
-        await sendMessage(messageContent, messageType, true, currentConversation.userId);
+        await sendMessage(messageContent, messageType, true, currentConversation.userId, imageToSend);
       } else {
         // Usuário enviando mensagem
-        await sendMessage(messageContent, messageType, false, user?.id);
+        await sendMessage(messageContent, messageType, false, user?.id, imageToSend);
       }
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
