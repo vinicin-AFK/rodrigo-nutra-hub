@@ -45,6 +45,15 @@ const Index = () => {
 
 
   const handleNewPost = async (content: string, resultValue?: number, image?: string) => {
+    if (!user) {
+      toast({
+        title: "Erro ao publicar",
+        description: "Você precisa estar logado para publicar.",
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       await createPost(content, resultValue, image);
       
@@ -52,7 +61,7 @@ const Index = () => {
       await addPoints(2);
       
       // Atualizar stats e verificar conquistas
-      await updateStats({ postsCount: allPosts.length });
+      await updateStats({ postsCount: allPosts.length + 1 });
       
       toast({
         title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
@@ -60,11 +69,11 @@ const Index = () => {
           ? `+${Math.floor(resultValue / 100)} pontos ganhos!` 
           : "Seu post foi compartilhado com a comunidade. +2 pontos!",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar postagem:', error);
       toast({
         title: "Erro ao publicar",
-        description: "Não foi possível publicar. Tente novamente.",
+        description: error?.message || "Não foi possível publicar. Tente novamente.",
         variant: 'destructive',
       });
     }
