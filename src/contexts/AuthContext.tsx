@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Achievement, ACHIEVEMENTS } from '@/types/achievements';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
@@ -164,13 +164,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Verificar sessão e carregar dados ao iniciar
   useEffect(() => {
-    // Verificar sessão atual
+    if (!isSupabaseConfigured) {
+      // Modo offline - carregar do localStorage
+      const savedAuth = localStorage.getItem(STORAGE_KEY);
+      if (savedAuth) {
+        try {
+          const authData = JSON.parse(savedAuth);
+          if (authData.user && authData.token) {
+            if (!authData.user.points) {
+              authData.user.points = 0;
+            }
+            setUser(authData.user);
+          }
+        } catch (error) {
+          console.error('Erro ao carregar sessão:', error);
+        }
+      }
+      
+      // Carregar stats
+      const savedStats = localStorage.getItem(STATS_KEY);
+      if (savedStats) {
+        try {
+          setStats(JSON.parse(savedStats));
+        } catch (error) {
+          console.error('Erro ao carregar stats:', error);
+        }
+      }
+      
+      // Carregar conquistas
+      const savedAchievements = localStorage.getItem(ACHIEVEMENTS_KEY);
+      if (savedAchievements) {
+        try {
+          const unlocked = JSON.parse(savedAchievements);
+          const achievementsWithStatus = ACHIEVEMENTS.map(achievement => {
+            const unlockedData = unlocked.find((u: any) => u.id === achievement.id);
+            return {
+              ...achievement,
+              unlockedAt: unlockedData?.unlockedAt ? new Date(unlockedData.unlockedAt) : undefined,
+              progress: unlockedData?.progress || (achievement.target ? 0 : undefined),
+            };
+          });
+          setAchievements(achievementsWithStatus);
+        } catch (error) {
+          console.error('Erro ao carregar conquistas:', error);
+          setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
+        }
+      } else {
+        setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
+      }
+      
+      setIsLoading(false);
+      return;
+    }
+
+    // Modo Supabase - verificar sessão atual
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        loadProfile(session.user.id);
-        loadStats(session.user.id);
-        loadAchievements(session.user.id);
+        loadProfile(session.user.id).catch(console.error);
+        loadStats(session.user.id).catch(console.error);
+        loadAchievements(session.user.id).catch(console.error);
       }
+      setIsLoading(false);
+    }).catch((error) => {
+      console.error('Erro ao verificar sessão:', error);
       setIsLoading(false);
     });
 
@@ -179,9 +235,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        await loadProfile(session.user.id);
-        await loadStats(session.user.id);
-        await loadAchievements(session.user.id);
+        try {
+          await loadProfile(session.user.id);
+          await loadStats(session.user.id);
+          await loadAchievements(session.user.id);
+        } catch (error) {
+          console.error('Erro ao carregar dados do usuário:', error);
+        }
       } else {
         setUser(null);
         setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
@@ -198,6 +258,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const nextPlan = user ? getNextPlan(userPoints) : null;
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    if (!isSupabaseConfigured) {
+      // Modo offline - usar localStorage
+      const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
+      const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
+      
+      if (foundUser || (email && password)) {
+        const userData: User = foundUser ? {
+          id: foundUser.id,
+          name: foundUser.name,
+          email: foundUser.email,
+          avatar: foundUser.avatar,
+          level: foundUser.level || 'Iniciante',
+          points: foundUser.points || 0,
+          plan: foundUser.plan || 'bronze',
+        } : {
+          id: Date.now().toString(),
+          name: email.split('@')[0],
+          email: email,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}&background=random`,
+          level: 'Iniciante',
+          points: 0,
+          plan: 'bronze',
+        };
+        
+        const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
+        setUser(userData);
+        return true;
+      }
+      return false;
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -224,6 +316,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
+    if (!isSupabaseConfigured) {
+      // Modo offline - usar localStorage
+      const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
+      const emailExists = mockUsers.some((u: any) => u.email === email);
+      
+      if (emailExists) {
+        return false;
+      }
+      
+      const newUser: User = {
+        id: Date.now().toString(),
+        name: name,
+        email: email,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+        level: 'Iniciante',
+        points: 0,
+        plan: 'bronze',
+      };
+      
+      const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: newUser, token, timestamp: Date.now() }));
+      localStorage.setItem('nutraelite_users', JSON.stringify([...mockUsers, { ...newUser, password }]));
+      setUser(newUser);
+      return true;
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -258,7 +376,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
     setUser(null);
     setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
     setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
@@ -270,30 +392,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const newPoints = (user.points || 0) + points;
     const newPlan = getPlanByPoints(newPoints);
     
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          points: newPoints,
-          plan: newPlan.id,
-          level: newPlan.name,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+    const updatedUser: User = {
+      ...user,
+      points: newPoints,
+      plan: newPlan.id,
+      level: newPlan.name,
+    };
+    
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            points: newPoints,
+            plan: newPlan.id,
+            level: newPlan.name,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
 
-      if (error) throw error;
-
-      const updatedUser: User = {
-        ...user,
-        points: newPoints,
-        plan: newPlan.id,
-        level: newPlan.name,
-      };
-      
-      setUser(updatedUser);
-    } catch (error) {
-      console.error('Erro ao adicionar pontos:', error);
+        if (error) throw error;
+      } catch (error) {
+        console.error('Erro ao adicionar pontos:', error);
+      }
+    } else {
+      // Modo offline - salvar no localStorage
+      const savedAuth = localStorage.getItem(STORAGE_KEY);
+      if (savedAuth) {
+        try {
+          const authData = JSON.parse(savedAuth);
+          authData.user = updatedUser;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
+        } catch (error) {
+          console.error('Erro ao salvar pontos:', error);
+        }
+      }
     }
+    
+    setUser(updatedUser);
   };
 
   const updateProfile = async (data: { name?: string; avatar?: string }) => {
