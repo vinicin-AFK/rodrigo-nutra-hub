@@ -151,14 +151,24 @@ export function useCommunityMessages() {
               }
             }
             
-            setMessages(allMessages);
+            // Recalcular isUser para todas as mensagens antes de salvar
+            const finalMessages = allMessages.map((msg: Message) => {
+              const authorId = msg.author?.id || null;
+              const isUser = currentUserId && authorId ? authorId === currentUserId : msg.isUser;
+              return {
+                ...msg,
+                isUser,
+              };
+            });
+            
+            setMessages(finalMessages);
             // Salvar tudo no localStorage
-            const serialized = JSON.stringify(allMessages.map(m => ({
+            const serialized = JSON.stringify(finalMessages.map(m => ({
               ...m,
               timestamp: m.timestamp.toISOString(),
             })));
             safeSetItem('nutraelite_community_messages', serialized);
-            console.log('✅ Mensagens sincronizadas (Supabase + local):', allMessages.length);
+            console.log('✅ Mensagens sincronizadas (Supabase + local):', finalMessages.length);
           } else {
             console.log('ℹ️ Nenhuma mensagem no Supabase');
           }
