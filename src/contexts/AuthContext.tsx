@@ -320,9 +320,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error: any) {
         console.error('❌ Erro ao verificar sessão:', error?.message || error);
-        // Mesmo com erro, parar o loading
-        persistAuthData(null);
-        setUser(null);
+        // Se houver erro, manter dados do localStorage (não limpar)
+        // Só limpar se realmente não houver dados salvos
+        if (!user) {
+          persistAuthData(null);
+          setUser(null);
+        } else {
+          console.log('ℹ️ Mantendo dados do localStorage devido a erro no Supabase');
+        }
       } finally {
         if (isMounted) {
           clearTimeout(safetyTimeout);
