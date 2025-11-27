@@ -112,8 +112,47 @@ export function useSupportMessages(userId?: string) {
                   };
                 });
 
-                setConversations(convs);
-                safeSetItem(SUPPORT_MESSAGES_KEY, JSON.stringify(convs.map(c => ({
+                // Mesclar com conversas do localStorage (manter ambas, mas priorizar Supabase se mais recente)
+                const saved = safeGetItem(SUPPORT_MESSAGES_KEY);
+                const localConvs: SupportConversation[] = saved ? JSON.parse(saved).map((c: any) => ({
+                  ...c,
+                  lastMessageTime: new Date(c.lastMessageTime),
+                  messages: (c.messages || []).map((m: any) => ({
+                    ...m,
+                    timestamp: new Date(m.timestamp),
+                  })),
+                })) : [];
+
+                // Mesclar: usar Supabase se tiver mais mensagens ou se for mais recente
+                const merged: SupportConversation[] = [];
+                const allConvIds = new Set([...convs.map(c => c.id), ...localConvs.map(c => c.id)]);
+                
+                allConvIds.forEach(convId => {
+                  const supabaseConv = convs.find(c => c.id === convId);
+                  const localConv = localConvs.find(c => c.id === convId);
+                  
+                  if (supabaseConv && localConv) {
+                    // Mesclar mensagens: pegar todas e ordenar por timestamp
+                    const allMessages = [...supabaseConv.messages, ...localConv.messages];
+                    const uniqueMessages = Array.from(
+                      new Map(allMessages.map(m => [m.id, m])).values()
+                    ).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+                    
+                    merged.push({
+                      ...supabaseConv,
+                      messages: uniqueMessages,
+                      lastMessage: uniqueMessages[uniqueMessages.length - 1]?.content || supabaseConv.lastMessage,
+                      lastMessageTime: uniqueMessages[uniqueMessages.length - 1]?.timestamp || supabaseConv.lastMessageTime,
+                    });
+                  } else if (supabaseConv) {
+                    merged.push(supabaseConv);
+                  } else if (localConv) {
+                    merged.push(localConv);
+                  }
+                });
+
+                setConversations(merged);
+                safeSetItem(SUPPORT_MESSAGES_KEY, JSON.stringify(merged.map(c => ({
                   ...c,
                   lastMessageTime: c.lastMessageTime instanceof Date ? c.lastMessageTime.toISOString() : c.lastMessageTime,
                   messages: c.messages.map(m => ({
@@ -121,7 +160,7 @@ export function useSupportMessages(userId?: string) {
                     timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : (typeof m.timestamp === 'string' ? m.timestamp : new Date(m.timestamp).toISOString()),
                   })),
                 }))));
-                console.log('✅ Conversas sincronizadas do Supabase:', convs.length);
+                console.log('✅ Conversas sincronizadas do Supabase:', merged.length, 'total de mensagens:', merged.reduce((acc, c) => acc + (c.messages?.length || 0), 0));
               } else {
                 console.log('ℹ️ Nenhuma conversa no Supabase');
               }
@@ -292,18 +331,48 @@ export function useSupportMessages(userId?: string) {
       setCurrentConversation(null);
       return;
     }
-    const conv = conversations.find(c => c.id === conversationId);
+    
+    // Buscar conversa nas conversas carregadas
+    let conv = conversations.find(c => c.id === conversationId);
+    
+    // Se não encontrou, tentar carregar do localStorage diretamente
+    if (!conv) {
+      console.log('⚠️ Conversa não encontrada no estado, buscando no localStorage...');
+      const saved = safeGetItem(SUPPORT_MESSAGES_KEY);
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          const loaded: SupportConversation[] = data.map((c: any) => ({
+            ...c,
+            lastMessageTime: new Date(c.lastMessageTime),
+            messages: (c.messages || []).map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp),
+            })),
+          }));
+          conv = loaded.find(c => c.id === conversationId);
+          if (conv) {
+            console.log('✅ Conversa encontrada no localStorage');
+            // Atualizar o estado de conversas também
+            setConversations(loaded);
+          }
+        } catch (error) {
+          console.error('Erro ao carregar do localStorage:', error);
+        }
+      }
+    }
+    
     if (conv) {
-      console.log('✅ Conversa encontrada, abrindo:', conv.id, conv.userName);
+      console.log('✅ Conversa encontrada, abrindo:', conv.id, conv.userName, 'mensagens:', conv.messages?.length || 0);
       setCurrentConversation({
         ...conv,
         unreadCount: 0,
-        messages: conv.messages.map(m => ({
+        messages: (conv.messages || []).map(m => ({
           ...m,
-          timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp,
+          timestamp: typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp),
         })),
       });
-      console.log('✅ currentConversation atualizado');
+      console.log('✅ currentConversation atualizado com', conv.messages?.length || 0, 'mensagens');
       
       // Marcar como lida
       const updated = conversations.map(c => 
