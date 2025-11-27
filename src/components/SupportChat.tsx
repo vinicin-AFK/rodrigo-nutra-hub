@@ -42,11 +42,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const recordingTimeRef = useRef<number>(0);
 
-  // Se é suporte e não há conversa aberta, mostrar lista de conversas
-  const [showConversationList, setShowConversationList] = useState(false);
-  
-  // Não precisamos mais do showConversationList - usamos currentConversation diretamente
-  // useEffect removido - a lógica agora é direta no return
+  // Removido showConversationList - agora usamos currentConversation diretamente
 
   useEffect(() => {
     if (initialMessage && !isSupport) {
@@ -418,11 +414,10 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     if (isSupport) {
       console.log('🔍 Estado do suporte:', { 
         hasConversation: !!currentConversation, 
-        conversationId: currentConversation?.id,
-        showList: showConversationList 
+        conversationId: currentConversation?.id
       });
     }
-  }, [isSupport, currentConversation, showConversationList]);
+  }, [isSupport, currentConversation]);
 
   // Se é suporte e NÃO tem conversa aberta, mostrar lista
   if (isSupport && !currentConversation) {
