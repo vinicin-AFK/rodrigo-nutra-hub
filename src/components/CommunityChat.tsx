@@ -762,7 +762,7 @@ export function CommunityChat() {
                                     ? "text-[#ff6b35] dark:text-[#ff8c5a] font-bold" 
                                     : "text-[#111b21] dark:text-[#e9edef]"
                                 )}>
-                                  ~ {group.author?.name || 'Usuário'} {group.author?.id && group.author.id.length >= 12 ? `+${group.author.id.substring(0, 2)} ${group.author.id.substring(2, 4)} ${group.author.id.substring(4, 8)}-${group.author.id.substring(8, 12)}` : (group.author?.id ? ` (${group.author.id.substring(0, 8)})` : '')}
+                                  ~ {group.author?.name || 'Usuário'}
                                 </span>
                                 {group.author?.role && (
                                   <span className={cn(
