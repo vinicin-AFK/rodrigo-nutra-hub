@@ -1014,7 +1014,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('🚪 Iniciando logout...');
     
     try {
-      // Limpar dados do Supabase primeiro (se configurado)
+      // Limpar estado PRIMEIRO (para atualizar UI imediatamente)
+      setUser(null);
+      setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
+      setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
+      
+      // Limpar dados do Supabase (se configurado)
       if (isSupabaseConfigured) {
         try {
           await supabase.auth.signOut();
@@ -1024,30 +1029,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       
-      // Limpar localStorage
+      // Limpar localStorage COMPLETAMENTE
       try {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(STATS_KEY);
         localStorage.removeItem(ACHIEVEMENTS_KEY);
-        console.log('✅ Dados do localStorage removidos');
+        localStorage.removeItem('nutraelite_users');
+        localStorage.removeItem('nutraelite_community_messages');
+        localStorage.removeItem('nutraelite_posts');
+        localStorage.removeItem('nutraelite_support_messages');
+        console.log('✅ Todos os dados do localStorage removidos');
       } catch (error) {
         console.warn('⚠️ Erro ao limpar localStorage:', error);
+        // Tentar limpar item por item
+        try {
+          localStorage.clear();
+          console.log('✅ localStorage limpo completamente');
+        } catch (clearError) {
+          console.error('❌ Erro ao limpar localStorage completamente:', clearError);
+        }
       }
       
-      // Limpar estado
-      setUser(null);
+      // Garantir que persistAuthData também limpe
       persistAuthData(null);
+      
+      console.log('✅ Logout concluído - todos os dados foram limpos');
+    } catch (error) {
+      console.error('❌ Erro durante logout:', error);
+      // Mesmo com erro, limpar TUDO
+      setUser(null);
       setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
       setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
       
-      console.log('✅ Logout concluído');
-    } catch (error) {
-      console.error('❌ Erro durante logout:', error);
-      // Mesmo com erro, limpar estado local
-      setUser(null);
+      // Tentar limpar localStorage mesmo com erro
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STATS_KEY);
+        localStorage.removeItem(ACHIEVEMENTS_KEY);
+      } catch (e) {
+        // Ignorar
+      }
+      
       persistAuthData(null);
-      setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
-      setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
       throw error;
     }
   };

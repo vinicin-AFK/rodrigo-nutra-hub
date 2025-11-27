@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [forceTimeout, setForceTimeout] = useState(false);
   const [hasLocalAuth, setHasLocalAuth] = useState<boolean | null>(null);
 
@@ -32,7 +32,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     };
 
     checkLocalAuth();
-  }, []);
+    
+    // Atualizar quando user mudar (incluindo logout)
+    if (!user) {
+      setHasLocalAuth(false);
+    }
+  }, [user]);
 
   // Timeout de segurança - para o loading após 5 segundos (reduzido)
   useEffect(() => {
@@ -69,12 +74,20 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   // Se não está autenticado e não há sessão local, redirecionar para login
-  if (!isAuthenticated && !forceTimeout && hasLocalAuth !== true) {
+  // IMPORTANTE: Se user é null, sempre redirecionar (mesmo que hasLocalAuth seja true)
+  if ((!isAuthenticated || !user) && !forceTimeout && hasLocalAuth !== true) {
+    console.log('🔄 ProtectedRoute: Redirecionando para login - usuário não autenticado');
+    return <Navigate to="/login" replace />;
+  }
+  
+  // Se user foi limpo (logout), redirecionar mesmo se hasLocalAuth ainda for true
+  if (!user && !isLoading) {
+    console.log('🔄 ProtectedRoute: Redirecionando para login - user foi limpo (logout)');
     return <Navigate to="/login" replace />;
   }
 
   // Se for timeout ou há sessão local, permitir acesso
-  if ((forceTimeout || hasLocalAuth === true) && !isAuthenticated) {
+  if ((forceTimeout || hasLocalAuth === true) && !isAuthenticated && user) {
     console.warn('⚠️ ProtectedRoute: Permitindo acesso com sessão local ou timeout');
   }
 
