@@ -12,7 +12,27 @@ export function useCommunityMessages() {
     
     console.log('📥 Carregando mensagens...', { isSupabaseConfigured });
     
-    // PRIORIZAR Supabase se estiver configurado (rede social compartilhada)
+    // SEMPRE carregar do localStorage primeiro (para ter dados imediatamente)
+    try {
+      const savedMessages = safeGetItem('nutraelite_community_messages');
+      if (savedMessages) {
+        const parsed = JSON.parse(savedMessages);
+        const loadedMessages: Message[] = parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+          author: msg.author || {
+            name: 'Usuário',
+            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+          },
+        }));
+        setMessages(loadedMessages);
+        console.log('✅ Mensagens carregadas do localStorage (inicial):', loadedMessages.length);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar mensagens do localStorage:', error);
+    }
+    
+    // Depois tentar sincronizar com Supabase (se configurado)
     if (isSupabaseConfigured) {
       try {
         console.log('🔍 Buscando mensagens no Supabase...');
@@ -51,31 +71,44 @@ export function useCommunityMessages() {
             },
           }));
 
-          setMessages(transformed);
-          // Salvar no localStorage também
-          const serialized = JSON.stringify(transformed.map(m => ({
+          // Mesclar com mensagens do localStorage (manter ambas)
+          const savedMessages = safeGetItem('nutraelite_community_messages');
+          let allMessages = [...transformed];
+          
+          if (savedMessages) {
+            try {
+              const parsed = JSON.parse(savedMessages);
+              const localMessages: Message[] = parsed.map((msg: any) => ({
+                ...msg,
+                timestamp: new Date(msg.timestamp),
+                author: msg.author || {
+                  name: 'Usuário',
+                  avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+                },
+              }));
+              
+              // Adicionar mensagens locais que não estão no Supabase
+              const supabaseIds = new Set(transformed.map(m => m.id));
+              const localOnly = localMessages.filter(m => !supabaseIds.has(m.id));
+              allMessages = [...transformed, ...localOnly].sort((a, b) => 
+                a.timestamp.getTime() - b.timestamp.getTime()
+              );
+            } catch (err) {
+              console.warn('Erro ao mesclar mensagens locais:', err);
+            }
+          }
+          
+          setMessages(allMessages);
+          // Salvar tudo no localStorage
+          const serialized = JSON.stringify(allMessages.map(m => ({
             ...m,
             timestamp: m.timestamp.toISOString(),
           })));
           safeSetItem('nutraelite_community_messages', serialized);
-          console.log('✅ Mensagens carregadas do Supabase:', transformed.length);
+          console.log('✅ Mensagens sincronizadas (Supabase + local):', allMessages.length);
         } else {
-          console.log('⚠️ Nenhuma mensagem encontrada no Supabase, usando cache local');
-          // Se não houver dados no Supabase, usar localStorage
-          const savedMessages = safeGetItem('nutraelite_community_messages');
-          if (savedMessages) {
-            const parsed = JSON.parse(savedMessages);
-            const loadedMessages: Message[] = parsed.map((msg: any) => ({
-              ...msg,
-              timestamp: new Date(msg.timestamp),
-              author: msg.author || {
-                name: 'Usuário',
-                avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-              },
-            }));
-            setMessages(loadedMessages);
-            console.log('✅ Mensagens carregadas do localStorage:', loadedMessages.length);
-          }
+          console.log('⚠️ Nenhuma mensagem no Supabase, mantendo cache local');
+          // Manter mensagens do localStorage que já foram carregadas
         }
       } catch (error: any) {
         console.error('❌ Erro ao carregar do Supabase, usando cache local:', error?.message || error);

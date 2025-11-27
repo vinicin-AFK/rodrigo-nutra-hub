@@ -12,7 +12,36 @@ export function usePosts() {
     
     console.log('📥 Carregando postagens...', { isSupabaseConfigured });
     
-    // PRIORIZAR Supabase se estiver configurado (rede social compartilhada)
+    // SEMPRE carregar do localStorage primeiro (para ter dados imediatamente)
+    try {
+      const savedPosts = safeGetItem('nutraelite_posts');
+      if (savedPosts) {
+        const parsed = JSON.parse(savedPosts);
+        const loadedPosts: Post[] = parsed.map((post: any) => ({
+          ...post,
+          createdAt: new Date(post.createdAt),
+          author: post.author || {
+            id: 'unknown',
+            name: 'Usuário',
+            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+            level: 'Bronze',
+            points: 0,
+            rank: 999,
+            totalSales: 0,
+          },
+          commentsList: post.commentsList?.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt),
+          })) || [],
+        }));
+        setPosts(loadedPosts);
+        console.log('✅ Postagens carregadas do localStorage (inicial):', loadedPosts.length);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar postagens do localStorage:', error);
+    }
+    
+    // Depois tentar sincronizar com Supabase (se configurado)
     if (isSupabaseConfigured) {
       try {
         console.log('🔍 Buscando postagens no Supabase...');
@@ -72,9 +101,43 @@ export function usePosts() {
             })) || [],
           }));
 
-          setPosts(transformedPosts);
-          // Salvar no localStorage também
-          const serialized = JSON.stringify(transformedPosts.map(p => ({
+          // Mesclar com postagens do localStorage (manter ambas)
+          const savedPosts = safeGetItem('nutraelite_posts');
+          let allPosts = [...transformedPosts];
+          
+          if (savedPosts) {
+            try {
+              const parsed = JSON.parse(savedPosts);
+              const localPosts: Post[] = parsed.map((post: any) => ({
+                ...post,
+                createdAt: new Date(post.createdAt),
+                author: post.author || {
+                  id: 'unknown',
+                  name: 'Usuário',
+                  avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+                  level: 'Bronze',
+                  points: 0,
+                  rank: 999,
+                  totalSales: 0,
+                },
+                commentsList: post.commentsList?.map((c: any) => ({
+                  ...c,
+                  createdAt: new Date(c.createdAt),
+                })) || [],
+              }));
+              
+              // Adicionar postagens locais que não estão no Supabase
+              const supabaseIds = new Set(transformedPosts.map(p => p.id));
+              const localOnly = localPosts.filter(p => !supabaseIds.has(p.id));
+              allPosts = [...transformedPosts, ...localOnly];
+            } catch (err) {
+              console.warn('Erro ao mesclar postagens locais:', err);
+            }
+          }
+          
+          setPosts(allPosts);
+          // Salvar tudo no localStorage
+          const serialized = JSON.stringify(allPosts.map(p => ({
             ...p,
             createdAt: p.createdAt.toISOString(),
             commentsList: p.commentsList?.map(c => ({
@@ -83,33 +146,10 @@ export function usePosts() {
             })) || [],
           })));
           safeSetItem('nutraelite_posts', serialized);
-          console.log('✅ Postagens carregadas do Supabase:', transformedPosts.length);
+          console.log('✅ Postagens sincronizadas (Supabase + local):', allPosts.length);
         } else {
-          console.log('⚠️ Nenhuma postagem encontrada no Supabase, usando cache local');
-          // Se não houver dados no Supabase, usar localStorage
-          const savedPosts = safeGetItem('nutraelite_posts');
-          if (savedPosts) {
-            const parsed = JSON.parse(savedPosts);
-            const loadedPosts: Post[] = parsed.map((post: any) => ({
-              ...post,
-              createdAt: new Date(post.createdAt),
-              author: post.author || {
-                id: 'unknown',
-                name: 'Usuário',
-                avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-                level: 'Bronze',
-                points: 0,
-                rank: 999,
-                totalSales: 0,
-              },
-              commentsList: post.commentsList?.map((c: any) => ({
-                ...c,
-                createdAt: new Date(c.createdAt),
-              })) || [],
-            }));
-            setPosts(loadedPosts);
-            console.log('✅ Postagens carregadas do localStorage:', loadedPosts.length);
-          }
+          console.log('⚠️ Nenhuma postagem no Supabase, mantendo cache local');
+          // Manter postagens do localStorage que já foram carregadas
         }
       } catch (error: any) {
         console.error('❌ Erro ao carregar do Supabase, usando cache local:', error?.message || error);

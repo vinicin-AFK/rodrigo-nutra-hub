@@ -201,57 +201,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔄 AuthContext: Iniciando verificação de sessão...', { isSupabaseConfigured });
     
-    if (!isSupabaseConfigured) {
-      console.log('📦 Modo offline: carregando do localStorage');
-      // Modo offline - carregar do localStorage
-      const savedAuth = localStorage.getItem(STORAGE_KEY);
-      if (savedAuth) {
-        try {
-          const authData = JSON.parse(savedAuth);
-          if (authData.user && authData.token) {
-            if (!authData.user.points) {
-              authData.user.points = 0;
-            }
-            setUser(authData.user);
-            console.log('✅ Usuário carregado do localStorage:', authData.user.email);
+    // SEMPRE carregar do localStorage primeiro (para ter dados imediatamente)
+    const savedAuth = localStorage.getItem(STORAGE_KEY);
+    if (savedAuth) {
+      try {
+        const authData = JSON.parse(savedAuth);
+        if (authData.user) {
+          if (!authData.user.points) {
+            authData.user.points = 0;
           }
-        } catch (error) {
-          console.error('Erro ao carregar sessão:', error);
+          setUser(authData.user);
+          console.log('✅ Usuário carregado do localStorage (inicial):', authData.user.email);
         }
+      } catch (error) {
+        console.error('Erro ao carregar sessão do localStorage:', error);
       }
-      
-      // Carregar stats
-      const savedStats = localStorage.getItem(STATS_KEY);
-      if (savedStats) {
-        try {
-          setStats(JSON.parse(savedStats));
-        } catch (error) {
-          console.error('Erro ao carregar stats:', error);
-        }
+    }
+    
+    // Carregar stats do localStorage
+    const savedStats = localStorage.getItem(STATS_KEY);
+    if (savedStats) {
+      try {
+        setStats(JSON.parse(savedStats));
+      } catch (error) {
+        console.error('Erro ao carregar stats:', error);
       }
-      
-      // Carregar conquistas
-      const savedAchievements = localStorage.getItem(ACHIEVEMENTS_KEY);
-      if (savedAchievements) {
-        try {
-          const unlocked = JSON.parse(savedAchievements);
-          const achievementsWithStatus = ACHIEVEMENTS.map(achievement => {
-            const unlockedData = unlocked.find((u: any) => u.id === achievement.id);
-            return {
-              ...achievement,
-              unlockedAt: unlockedData?.unlockedAt ? new Date(unlockedData.unlockedAt) : undefined,
-              progress: unlockedData?.progress || (achievement.target ? 0 : undefined),
-            };
-          });
-          setAchievements(achievementsWithStatus);
-        } catch (error) {
-          console.error('Erro ao carregar conquistas:', error);
-          setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
-        }
-      } else {
+    }
+    
+    // Carregar conquistas do localStorage
+    const savedAchievements = localStorage.getItem(ACHIEVEMENTS_KEY);
+    if (savedAchievements) {
+      try {
+        const unlocked = JSON.parse(savedAchievements);
+        const achievementsWithStatus = ACHIEVEMENTS.map(achievement => {
+          const unlockedData = unlocked.find((u: any) => u.id === achievement.id);
+          return {
+            ...achievement,
+            unlockedAt: unlockedData?.unlockedAt ? new Date(unlockedData.unlockedAt) : undefined,
+            progress: unlockedData?.progress || (achievement.target ? 0 : undefined),
+          };
+        });
+        setAchievements(achievementsWithStatus);
+      } catch (error) {
+        console.error('Erro ao carregar conquistas:', error);
         setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
       }
-      
+    } else {
+      setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
+    }
+    
+    // Se não estiver configurado, parar aqui
+    if (!isSupabaseConfigured) {
       console.log('✅ Modo offline: loading finalizado');
       setIsLoading(false);
       return;
@@ -294,15 +294,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           console.log('👤 Carregando dados do usuário:', session.user.id);
           await Promise.all([
-            loadProfile(session.user.id).catch(err => console.error('Erro ao carregar perfil:', err)),
-            loadStats(session.user.id).catch(err => console.error('Erro ao carregar stats:', err)),
-            loadAchievements(session.user.id).catch(err => console.error('Erro ao carregar conquistas:', err)),
+            loadProfile(session.user.id).catch(err => {
+              console.error('Erro ao carregar perfil:', err);
+              // Se falhar, manter dados do localStorage
+            }),
+            loadStats(session.user.id).catch(err => {
+              console.error('Erro ao carregar stats:', err);
+              // Se falhar, manter stats do localStorage
+            }),
+            loadAchievements(session.user.id).catch(err => {
+              console.error('Erro ao carregar conquistas:', err);
+              // Se falhar, manter conquistas do localStorage
+            }),
           ]);
           console.log('✅ Dados do usuário carregados');
         } else {
-          console.log('ℹ️ Nenhuma sessão ativa');
-          persistAuthData(null);
-          setUser(null);
+          console.log('ℹ️ Nenhuma sessão ativa no Supabase, mantendo dados do localStorage');
+          // NÃO limpar dados do localStorage se não houver sessão no Supabase
+          // Manter o usuário que já foi carregado do localStorage
+          if (!user) {
+            // Só limpar se realmente não houver dados salvos
+            persistAuthData(null);
+            setUser(null);
+          }
         }
       } catch (error: any) {
         console.error('❌ Erro ao verificar sessão:', error?.message || error);
