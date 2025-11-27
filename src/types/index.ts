@@ -6,6 +6,8 @@ export interface User {
   rank: number;
   level: string;
   totalSales: number;
+  role?: 'user' | 'support' | 'admin';
+  email?: string;
 }
 
 export interface Comment {

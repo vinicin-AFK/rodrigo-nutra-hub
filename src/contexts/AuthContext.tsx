@@ -11,6 +11,7 @@ interface User {
   level?: string;
   points?: number;
   plan?: string;
+  role?: 'user' | 'support' | 'admin';
 }
 
 interface Plan {
@@ -75,6 +76,24 @@ const STORAGE_KEY = 'nutraelite_auth';
 
 const STATS_KEY = 'nutraelite_stats';
 const ACHIEVEMENTS_KEY = 'nutraelite_achievements';
+
+// Lista de emails de suporte (pode ser expandida)
+const SUPPORT_EMAILS = [
+  'suporte@nutraelite.com',
+  'support@nutraelite.com',
+  'atendimento@nutraelite.com',
+  'gustavo@nutraelite.com',
+  'socio.gustavo@nutraelite.com',
+];
+
+// Função para detectar se é email de suporte
+const isSupportEmail = (email: string): boolean => {
+  const emailLower = email.toLowerCase();
+  return SUPPORT_EMAILS.some(supportEmail => emailLower === supportEmail.toLowerCase()) ||
+         emailLower.includes('suporte') ||
+         emailLower.includes('support') ||
+         emailLower.includes('atendimento');
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -410,6 +429,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
       
       if (foundUser || (email && password)) {
+        const isSupport = isSupportEmail(email);
         const userData: User = foundUser ? {
           id: foundUser.id,
           name: foundUser.name,
@@ -418,6 +438,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           level: foundUser.level || 'Iniciante',
           points: foundUser.points || 0,
           plan: foundUser.plan || 'bronze',
+          role: foundUser.role || (isSupport ? 'support' : 'user'),
         } : {
           id: Date.now().toString(),
           name: email.split('@')[0],
@@ -426,6 +447,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           level: 'Iniciante',
           points: 0,
           plan: 'bronze',
+          role: isSupport ? 'support' : 'user',
         };
         
         const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -434,7 +456,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Também salvar com token para compatibilidade
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
         setUser(userData);
-        console.log('✅ Login offline realizado e salvo no localStorage');
+        console.log('✅ Login offline realizado e salvo no localStorage', { role: userData.role });
         return true;
       }
       console.log('❌ Login offline falhou');
@@ -466,6 +488,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
           
           if (foundUser || (email && password)) {
+            const isSupport = isSupportEmail(email);
             const userData: User = foundUser ? {
               id: foundUser.id,
               name: foundUser.name,
@@ -474,6 +497,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               level: foundUser.level || 'Iniciante',
               points: foundUser.points || 0,
               plan: foundUser.plan || 'bronze',
+              role: foundUser.role || (isSupport ? 'support' : 'user'),
             } : {
               id: Date.now().toString(),
               name: email.split('@')[0],
@@ -482,12 +506,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               level: 'Iniciante',
               points: 0,
               plan: 'bronze',
+              role: isSupport ? 'support' : 'user',
             };
             
             const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
             setUser(userData);
-            console.log('✅ Login realizado em modo offline (Supabase não respondeu)');
+            console.log('✅ Login realizado em modo offline (Supabase não respondeu)', { role: userData.role });
             return true;
           }
           throw new Error('Email ou senha incorretos. Tente novamente.');
@@ -509,6 +534,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
           
           if (foundUser || (email && password)) {
+            const isSupport = isSupportEmail(email);
             const userData: User = foundUser ? {
               id: foundUser.id,
               name: foundUser.name,
@@ -517,6 +543,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               level: foundUser.level || 'Iniciante',
               points: foundUser.points || 0,
               plan: foundUser.plan || 'bronze',
+              role: foundUser.role || (isSupport ? 'support' : 'user'),
             } : {
               id: Date.now().toString(),
               name: email.split('@')[0],
@@ -525,12 +552,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               level: 'Iniciante',
               points: 0,
               plan: 'bronze',
+              role: isSupport ? 'support' : 'user',
             };
             
             const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
             setUser(userData);
-            console.log('✅ Login realizado em modo offline (API key inválida)');
+            console.log('✅ Login realizado em modo offline (API key inválida)', { role: userData.role });
             return true;
           }
           throw new Error('Email ou senha incorretos. Tente novamente.');
