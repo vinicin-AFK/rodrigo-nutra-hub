@@ -44,29 +44,18 @@
         scrollbar-width: none;
       }
       
-      /* Mobile viewport height fix */
-      :root {
-        --vh: 1vh;
-      }
-      
       /* Prevent zoom on input focus (iOS) */
       input, textarea, select {
         font-size: 16px !important;
       }
       
       @media screen and (max-width: 768px) {
-        /* Use CSS custom property for viewport height */
+        /* Fix viewport height for mobile */
         html {
           height: -webkit-fill-available;
         }
         
         body {
-          min-height: 100vh;
-          min-height: -webkit-fill-available;
-        }
-        
-        /* Fix for mobile browsers */
-        #root {
           min-height: 100vh;
           min-height: -webkit-fill-available;
         }

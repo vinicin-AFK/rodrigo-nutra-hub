@@ -62,9 +62,6 @@
     font-family: 'Inter', system-ui, sans-serif;
     /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
-    /* Fix viewport height on mobile */
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
   }
   
   /* Prevent zoom on input focus (iOS Safari) */
@@ -82,6 +79,11 @@
     /* Fix viewport height for mobile */
     html {
       height: -webkit-fill-available;
+    }
+    
+    body {
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
     }
     
     #root {

@@ -667,11 +667,7 @@ export function CommunityChat() {
   const commonEmojis = ['😀', '😂', '😍', '🔥', '💪', '🎉', '👍', '❤️', '😊', '👏'];
 
   return (
-    <div className="flex flex-col bg-[#e5ddd5] dark:bg-[#0b141a] relative" style={{ 
-      height: 'calc(100vh - 180px)',
-      minHeight: 'calc(100vh - 180px)',
-      maxHeight: 'calc(100vh - 180px)'
-    }}>
+    <div className="flex flex-col h-[calc(100vh-180px)] bg-[#e5ddd5] dark:bg-[#0b141a] relative">
       {/* Background pattern */}
       <div 
         className="absolute inset-0 opacity-5"
@@ -681,11 +677,7 @@ export function CommunityChat() {
       />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-2 relative z-10" style={{ 
-        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
-        maxHeight: 'calc(100vh - 260px)',
-        minHeight: 'calc(100vh - 260px)'
-      }}>
+      <div className="flex-1 overflow-y-auto p-2 relative z-10">
         {messagesLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -1071,10 +1063,9 @@ export function CommunityChat() {
 
       {/* Input Bar */}
       <div
-        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 fixed bottom-0 left-0 right-0 z-50"
+        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-10"
         style={{ 
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
-          paddingTop: '8px'
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)'
         }}
       >
         <div className="flex items-end gap-2 w-full">
