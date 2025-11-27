@@ -412,7 +412,10 @@ const Index = () => {
       {selectedPostForComments && (
         <CommentsModal
           isOpen={!!selectedPostForComments}
-          onClose={() => setSelectedPostForComments(null)}
+          onClose={() => {
+            selectedPostIdRef.current = null;
+            setSelectedPostForComments(null);
+          }}
           post={selectedPostForComments}
           onAddComment={handleAddComment}
           onDeleteComment={deleteComment}
