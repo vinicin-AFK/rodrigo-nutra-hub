@@ -392,7 +392,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
   // Se é suporte e está mostrando lista de conversas
   if (isSupport && showConversationList) {
     return (
-      <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background">
+      <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background pb-20">
         <div className="p-4 border-b border-border/50">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Users className="w-5 h-5" />
@@ -468,7 +468,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     : (user?.name || currentUser.name);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background">
+    <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background pb-20">
       {/* Header - se for suporte, mostrar botão para voltar */}
       {isSupport && currentConversation && (
         <div className="p-3 border-b border-border/50 flex items-center gap-3">
@@ -774,7 +774,10 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
       )}
 
       {/* Input Bar */}
-      <div className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10">
+      <div 
+        className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10 pb-safe"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
+      >
         <div className="flex items-end gap-2 w-full">
           {/* Icons */}
           <button
