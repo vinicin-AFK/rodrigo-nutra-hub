@@ -383,7 +383,11 @@ const Index = () => {
       <main className={cn(
         "max-w-lg mx-auto pb-24",
         activeTab === 'community' ? "px-0" : "px-4 py-6"
-      )} style={{ color: 'hsl(40, 20%, 95%)' }}>
+      )} style={{ 
+        color: 'hsl(40, 20%, 95%)',
+        minHeight: 'calc(100vh - 180px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)'
+      }}>
         {renderContent()}
       </main>
 

@@ -667,7 +667,7 @@ export function CommunityChat() {
   const commonEmojis = ['😀', '😂', '😍', '🔥', '💪', '🎉', '👍', '❤️', '😊', '👏'];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] bg-[#e5ddd5] dark:bg-[#0b141a] relative pb-safe">
+    <div className="flex flex-col h-[calc(100vh-180px)] min-h-[calc(100vh-180px)] max-h-[calc(100vh-180px)] bg-[#e5ddd5] dark:bg-[#0b141a] relative pb-safe" style={{ height: 'calc(100vh - 180px)', minHeight: 'calc(100vh - 180px)' }}>
       {/* Background pattern */}
       <div 
         className="absolute inset-0 opacity-5"
@@ -677,7 +677,11 @@ export function CommunityChat() {
       />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-2 relative z-10">
+      <div className="flex-1 overflow-y-auto p-2 relative z-10" style={{ 
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+        maxHeight: 'calc(100vh - 260px)',
+        minHeight: 'calc(100vh - 260px)'
+      }}>
         {messagesLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -1114,7 +1118,8 @@ export function CommunityChat() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 placeholder="Digite uma mensagem"
-                className="flex-1 min-w-0 bg-white dark:bg-[#2a3942] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-[#111b21] dark:text-[#e9edef] placeholder:text-[#667781] dark:placeholder:text-[#8696a0]"
+                className="flex-1 min-w-0 bg-white dark:bg-[#2a3942] rounded-lg px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 text-[#111b21] dark:text-[#e9edef] placeholder:text-[#667781] dark:placeholder:text-[#8696a0]"
+                style={{ fontSize: '16px' }}
               />
 
               {/* Send Button */}

@@ -60,6 +60,34 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
+    /* Fix viewport height on mobile */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Prevent zoom on input focus (iOS Safari) */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  
+  @media screen and (max-width: 768px) {
+    /* Fix viewport height for mobile */
+    html {
+      height: -webkit-fill-available;
+    }
+    
+    #root {
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
   }
 }
 
