@@ -454,8 +454,13 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
                 <button
                   key={conv.id}
                   onClick={() => {
+                    console.log('📂 Abrindo conversa:', conv.id);
                     openConversation(conv.id);
                     setShowConversationList(false);
+                    // Forçar atualização do estado
+                    setTimeout(() => {
+                      console.log('✅ Conversa aberta, currentConversation deve estar definido');
+                    }, 100);
                   }}
                   className="w-full p-4 hover:bg-gray-50 dark:hover:bg-secondary/50 transition-colors text-left"
                 >
@@ -496,6 +501,17 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
   const displayName = isSupport && currentConversation 
     ? currentConversation.userName 
     : (user?.name || currentUser.name);
+
+  // Debug: verificar se a conversa está aberta
+  useEffect(() => {
+    if (isSupport) {
+      console.log('🔍 Estado do suporte:', { 
+        hasConversation: !!currentConversation, 
+        conversationId: currentConversation?.id,
+        showList: showConversationList 
+      });
+    }
+  }, [isSupport, currentConversation, showConversationList]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background">
