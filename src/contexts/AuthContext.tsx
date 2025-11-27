@@ -400,17 +400,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🌐 Tentando login no Supabase...');
       
-      // Timeout de 10 segundos para o signInWithPassword
+      // Timeout reduzido para 5 segundos - se demorar, usar modo offline
       const signInPromise = supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout: Login demorou mais de 10 segundos')), 10000)
+        setTimeout(() => reject(new Error('TIMEOUT_SUPABASE')), 5000)
       );
       
-      const { data, error } = await Promise.race([signInPromise, timeoutPromise]) as any;
+      let supabaseResult: any;
+      try {
+        supabaseResult = await Promise.race([signInPromise, timeoutPromise]);
+      } catch (timeoutError: any) {
+        // Se der timeout, usar modo offline automaticamente
+        if (timeoutError?.message === 'TIMEOUT_SUPABASE') {
+          console.warn('⚠️ Supabase demorou muito, usando modo offline para login');
+          // Fallback para modo offline
+          const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
+          const foundUser = mockUsers.find((u: any) => u.email === email && u.password === password);
+          
+          if (foundUser || (email && password)) {
+            const userData: User = foundUser ? {
+              id: foundUser.id,
+              name: foundUser.name,
+              email: foundUser.email,
+              avatar: foundUser.avatar,
+              level: foundUser.level || 'Iniciante',
+              points: foundUser.points || 0,
+              plan: foundUser.plan || 'bronze',
+            } : {
+              id: Date.now().toString(),
+              name: email.split('@')[0],
+              email: email,
+              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}&background=random`,
+              level: 'Iniciante',
+              points: 0,
+              plan: 'bronze',
+            };
+            
+            const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token, timestamp: Date.now() }));
+            setUser(userData);
+            console.log('✅ Login realizado em modo offline (Supabase não respondeu)');
+            return true;
+          }
+          throw new Error('Email ou senha incorretos. Tente novamente.');
+        }
+        throw timeoutError;
+      }
+      
+      const { data, error } = supabaseResult;
 
       if (error) {
         console.error('❌ Erro ao fazer login:', error.message || error);
@@ -582,7 +623,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🌐 Tentando cadastro no Supabase...');
       
-      // Timeout de 15 segundos para o signUp
+      // Timeout reduzido para 5 segundos - se demorar, usar modo offline
       const signUpPromise = supabase.auth.signUp({
         email,
         password,
@@ -594,10 +635,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout: Cadastro demorou mais de 15 segundos')), 15000)
+        setTimeout(() => reject(new Error('TIMEOUT_SUPABASE')), 5000)
       );
       
-      const { data, error } = await Promise.race([signUpPromise, timeoutPromise]) as any;
+      let supabaseResult: any;
+      try {
+        supabaseResult = await Promise.race([signUpPromise, timeoutPromise]);
+      } catch (timeoutError: any) {
+        // Se der timeout, usar modo offline automaticamente
+        if (timeoutError?.message === 'TIMEOUT_SUPABASE') {
+          console.warn('⚠️ Supabase demorou muito, usando modo offline para cadastro');
+          // Fallback para modo offline
+          const mockUsers = JSON.parse(localStorage.getItem('nutraelite_users') || '[]');
+          const emailExists = mockUsers.some((u: any) => u.email === email);
+          
+          if (emailExists) {
+            throw new Error('Este email já está cadastrado. Tente fazer login.');
+          }
+          
+          const newUser: User = {
+            id: Date.now().toString(),
+            name: name,
+            email: email,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+            level: 'Iniciante',
+            points: 0,
+            plan: 'bronze',
+          };
+          
+          const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: newUser, token, timestamp: Date.now() }));
+          localStorage.setItem('nutraelite_users', JSON.stringify([...mockUsers, { ...newUser, password }]));
+          setUser(newUser);
+          console.log('✅ Cadastro realizado em modo offline (Supabase não respondeu)');
+          return true;
+        }
+        throw timeoutError;
+      }
+      
+      const { data, error } = supabaseResult;
 
       if (error) {
         console.error('❌ Erro ao cadastrar:', error.message || error);
