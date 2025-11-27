@@ -79,6 +79,22 @@ const ACHIEVEMENTS_KEY = 'nutraelite_achievements';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const persistAuthData = (userData: User | null) => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (userData) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          user: userData,
+          timestamp: Date.now(),
+        }));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch (error) {
+      console.error('Erro ao persistir dados de autenticação:', error);
+    }
+  };
+
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [stats, setStats] = useState({
     postsCount: 0,
@@ -108,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           plan: profile.plan || 'bronze',
         };
         setUser(userData);
+        persistAuthData(userData);
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
@@ -217,23 +234,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Modo Supabase - verificar sessão atual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        loadProfile(session.user.id).catch(console.error);
-        loadStats(session.user.id).catch(console.error);
-        loadAchievements(session.user.id).catch(console.error);
+    let isMounted = true;
+
+    const initializeSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          throw error;
+        }
+
+        if (session?.user) {
+          await Promise.all([
+            loadProfile(session.user.id),
+            loadStats(session.user.id),
+            loadAchievements(session.user.id),
+          ]);
+        } else {
+          persistAuthData(null);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-      setIsLoading(false);
-    }).catch((error) => {
-      console.error('Erro ao verificar sessão:', error);
-      setIsLoading(false);
-    });
+    };
+
+    initializeSession();
 
     // Ouvir mudanças de autenticação
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setIsLoading(true);
       if (session?.user) {
         try {
           await loadProfile(session.user.id);
@@ -244,13 +279,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setUser(null);
+        persistAuthData(null);
         setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
         setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
       }
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const userPoints = user?.points || 0;
@@ -382,6 +421,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(STORAGE_KEY);
     }
     setUser(null);
+    persistAuthData(null);
     setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
     setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
   };
@@ -430,6 +470,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     setUser(updatedUser);
+    persistAuthData(updatedUser);
   };
 
   const updateProfile = async (data: { name?: string; avatar?: string }) => {
