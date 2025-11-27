@@ -488,54 +488,118 @@ export function usePosts() {
   };
 
   const addComment = async (postId: string, content: string) => {
-    // PRIORIZAR Supabase se estiver configurado
-    if (isSupabaseConfigured) {
+    console.log('💬 addComment chamado:', { postId, content: content.substring(0, 50) });
+    
+    // SEMPRE salvar no localStorage PRIMEIRO (para feedback imediato)
+    // Fallback: usar localStorage
+    const savedAuth = localStorage.getItem('nutraelite_auth');
+    if (!savedAuth) {
+      console.error('❌ Usuário não autenticado');
+      throw new Error('Usuário não autenticado');
+    }
+    
+    const authData = JSON.parse(savedAuth);
+    const authorData = authData?.user;
+    
+    if (!authorData) {
+      console.error('❌ Dados do usuário não encontrados');
+      throw new Error('Usuário não autenticado');
+    }
+
+    // Verificar se é suporte
+    const isSupportUser = authorData.role === 'support' || authorData.role === 'admin';
+    
+    const newComment: Comment = {
+      id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      author: {
+        id: authorData.id || 'unknown',
+        name: authorData.name || 'Usuário',
+        avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'Usuario')}&background=random`,
+        level: authorData.level || 'Bronze',
+        points: authorData.points || 0,
+        rank: authorData.rank || 999,
+        totalSales: authorData.totalSales || 0,
+        role: isSupportUser ? 'support' : undefined,
+      },
+      content,
+      createdAt: new Date(),
+    };
+
+    console.log('✅ Comentário criado:', newComment.id);
+
+    // Atualizar estado local IMEDIATAMENTE
+    setPosts(prevPosts => prevPosts.map(post => {
+      if (post.id === postId) {
+        return {
+          ...post,
+          comments: (post.comments || 0) + 1,
+          commentsList: [...(post.commentsList || []), newComment],
+        };
+      }
+      return post;
+    }));
+
+    // Salvar no localStorage
+    const savedPosts = safeGetItem('nutraelite_posts');
+    if (savedPosts) {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Salvar no Supabase PRIMEIRO
-          const { data: insertedComment, error } = await supabase
-            .from('comments')
-            .insert({
-              post_id: postId,
-              author_id: user.id,
-              content,
-            })
-            .select(`
-              *,
-              author:profiles(*)
-            `)
-            .single();
-
-          if (error) throw error;
-
-          // Recarregar do Supabase para sincronizar com todos
-          await loadPosts();
-          
-          // Retornar o comentário criado
-          if (insertedComment) {
-            const newComment: Comment = {
-              id: insertedComment.id,
-              author: {
-                id: insertedComment.author.id,
-                name: insertedComment.author.name,
-                avatar: insertedComment.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(insertedComment.author.name)}&background=random`,
-                level: insertedComment.author.level || 'Bronze',
-                points: insertedComment.author.points || 0,
-                rank: insertedComment.author.rank || 999,
-                totalSales: insertedComment.author.total_sales || 0,
-              },
-              content: insertedComment.content,
-              createdAt: new Date(insertedComment.created_at),
+        const parsed = JSON.parse(savedPosts);
+        const updated = parsed.map((post: any) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              comments: (post.comments || 0) + 1,
+              commentsList: [...(post.commentsList || []), {
+                ...newComment,
+                createdAt: newComment.createdAt.toISOString(),
+              }],
             };
-            return newComment;
           }
-        }
+          return post;
+        });
+        safeSetItem('nutraelite_posts', JSON.stringify(updated));
+        console.log('✅ Comentário salvo no localStorage');
       } catch (error) {
-        console.error('Erro ao salvar comentário no Supabase:', error);
-        // Fallback para localStorage
+        console.warn('⚠️ Erro ao salvar comentário no localStorage:', error);
       }
     }
+
+    // Tentar sincronizar com Supabase em background (não bloqueia)
+    if (isSupabaseConfigured) {
+      (async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            console.log('🔄 Tentando sincronizar comentário com Supabase...');
+            const { data: insertedComment, error } = await supabase
+              .from('post_comments')
+              .insert({
+                post_id: postId,
+                author_id: user.id,
+                content,
+              })
+              .select(`
+                *,
+                author:profiles(*)
+              `)
+              .single();
+
+            if (error) {
+              console.warn('⚠️ Erro ao salvar comentário no Supabase:', error);
+              return;
+            }
+
+            console.log('✅ Comentário sincronizado com Supabase');
+            // Recarregar do Supabase para sincronizar com todos (em background)
+            loadPosts();
+          }
+        } catch (error) {
+          console.warn('⚠️ Erro ao sincronizar comentário com Supabase (não crítico):', error);
+        }
+      })();
+    }
+
+    return newComment;
 
     // Fallback: usar localStorage
     const savedAuth = localStorage.getItem('nutraelite_auth');
