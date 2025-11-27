@@ -26,93 +26,127 @@ export function useSupportMessages(userId?: string) {
     setIsLoading(true);
     
     try {
-      // Carregar do localStorage
+      // Carregar do localStorage primeiro
       const saved = safeGetItem(SUPPORT_MESSAGES_KEY);
       if (saved) {
-        const data = JSON.parse(saved);
-        const loaded: SupportConversation[] = data.map((conv: any) => ({
-          ...conv,
-          lastMessageTime: new Date(conv.lastMessageTime),
-          messages: conv.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp),
-          })),
-        }));
-        setConversations(loaded);
+        try {
+          const data = JSON.parse(saved);
+          const loaded: SupportConversation[] = data.map((conv: any) => ({
+            ...conv,
+            lastMessageTime: new Date(conv.lastMessageTime),
+            messages: conv.messages.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp),
+            })),
+          }));
+          setConversations(loaded);
+          console.log('✅ Conversas carregadas do localStorage:', loaded.length);
+        } catch (parseError) {
+          console.error('Erro ao parsear conversas do localStorage:', parseError);
+        }
+      } else {
+        console.log('ℹ️ Nenhuma conversa salva no localStorage');
+        setConversations([]);
       }
 
-      // Se Supabase configurado, tentar sincronizar
+      // Se Supabase configurado, tentar sincronizar (em background, não bloqueia)
       if (isSupabaseConfigured) {
-        try {
-          const { data, error } = await supabase
-            .from('support_messages')
-            .select('*')
-            .order('created_at', { ascending: false });
+        (async () => {
+          try {
+            console.log('🔍 Buscando conversas no Supabase...');
+            const { data, error } = await supabase
+              .from('support_messages')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(100); // Limitar para não travar
 
-          if (!error && data) {
-            // Agrupar por usuário
-            const grouped: Record<string, any[]> = {};
-            data.forEach((msg: any) => {
-              const key = msg.user_id;
-              if (!grouped[key]) grouped[key] = [];
-              grouped[key].push(msg);
-            });
+            if (error) {
+              console.warn('⚠️ Erro ao buscar do Supabase:', error);
+              return;
+            }
 
-            const convs: SupportConversation[] = Object.entries(grouped).map(([userId, msgs]) => {
-              const sorted = msgs.sort((a, b) => 
-                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-              );
-              const lastMsg = sorted[sorted.length - 1];
-              
-              return {
-                id: userId,
-                userId,
-                userName: lastMsg.user_name || 'Usuário',
-                userAvatar: lastMsg.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userId)}&background=random`,
-                lastMessage: lastMsg.content || '',
-                lastMessageTime: new Date(lastMsg.created_at),
-                unreadCount: msgs.filter(m => !m.read && !m.is_from_support).length,
-                messages: sorted.map((msg: any) => ({
-                  id: msg.id,
-                  content: msg.content,
-                  isUser: !msg.is_from_support,
-                  timestamp: new Date(msg.created_at),
-                  type: msg.type || 'text',
-                  author: msg.is_from_support ? {
-                    name: msg.support_name || 'Suporte',
-                    avatar: msg.support_avatar || '',
-                    role: 'support',
-                  } : {
-                    name: msg.user_name || 'Usuário',
-                    avatar: msg.user_avatar || '',
-                  },
+            if (data && data.length > 0) {
+              // Agrupar por usuário
+              const grouped: Record<string, any[]> = {};
+              data.forEach((msg: any) => {
+                const key = msg.user_id;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(msg);
+              });
+
+              const convs: SupportConversation[] = Object.entries(grouped).map(([userId, msgs]) => {
+                const sorted = msgs.sort((a, b) => 
+                  new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                );
+                const lastMsg = sorted[sorted.length - 1];
+                
+                return {
+                  id: userId,
+                  userId,
+                  userName: lastMsg.user_name || 'Usuário',
+                  userAvatar: lastMsg.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userId)}&background=random`,
+                  lastMessage: lastMsg.content || '',
+                  lastMessageTime: new Date(lastMsg.created_at),
+                  unreadCount: msgs.filter(m => !m.read && !m.is_from_support).length,
+                  messages: sorted.map((msg: any) => ({
+                    id: msg.id,
+                    content: msg.content,
+                    isUser: !msg.is_from_support,
+                    timestamp: new Date(msg.created_at),
+                    type: msg.type || 'text',
+                    author: msg.is_from_support ? {
+                      name: msg.support_name || 'Suporte',
+                      avatar: msg.support_avatar || '',
+                      role: 'support',
+                    } : {
+                      name: msg.user_name || 'Usuário',
+                      avatar: msg.user_avatar || '',
+                    },
+                  })),
+                };
+              });
+
+              setConversations(convs);
+              safeSetItem(SUPPORT_MESSAGES_KEY, JSON.stringify(convs.map(c => ({
+                ...c,
+                lastMessageTime: c.lastMessageTime.toISOString(),
+                messages: c.messages.map(m => ({
+                  ...m,
+                  timestamp: m.timestamp.toISOString(),
                 })),
-              };
-            });
-
-            setConversations(convs);
-            safeSetItem(SUPPORT_MESSAGES_KEY, JSON.stringify(convs.map(c => ({
-              ...c,
-              lastMessageTime: c.lastMessageTime.toISOString(),
-              messages: c.messages.map(m => ({
-                ...m,
-                timestamp: m.timestamp.toISOString(),
-              })),
-            }))));
+              }))));
+              console.log('✅ Conversas sincronizadas do Supabase:', convs.length);
+            } else {
+              console.log('ℹ️ Nenhuma conversa no Supabase');
+            }
+          } catch (error) {
+            console.warn('⚠️ Erro ao carregar do Supabase (não crítico):', error);
           }
-        } catch (error) {
-          console.error('Erro ao carregar do Supabase:', error);
-        }
+        })();
       }
     } catch (error) {
       console.error('Erro ao carregar conversas:', error);
+      setConversations([]);
     } finally {
-      setIsLoading(false);
+      // Sempre parar o loading após um tempo máximo
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 2000); // Máximo 2 segundos de loading
     }
   };
 
   useEffect(() => {
     loadConversations();
+    
+    // Timeout de segurança - sempre parar loading após 3 segundos
+    const safetyTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('⚠️ Timeout no carregamento de conversas, parando loading');
+        setIsLoading(false);
+      }
+    }, 3000);
+    
+    return () => clearTimeout(safetyTimeout);
   }, []);
 
   // Enviar mensagem (usuário ou suporte)
