@@ -181,7 +181,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Verificar sessão e carregar dados ao iniciar
   useEffect(() => {
+    console.log('🔄 AuthContext: Iniciando verificação de sessão...', { isSupabaseConfigured });
+    
     if (!isSupabaseConfigured) {
+      console.log('📦 Modo offline: carregando do localStorage');
       // Modo offline - carregar do localStorage
       const savedAuth = localStorage.getItem(STORAGE_KEY);
       if (savedAuth) {
@@ -192,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               authData.user.points = 0;
             }
             setUser(authData.user);
+            console.log('✅ Usuário carregado do localStorage:', authData.user.email);
           }
         } catch (error) {
           console.error('Erro ao carregar sessão:', error);
@@ -230,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
       }
       
+      console.log('✅ Modo offline: loading finalizado');
       setIsLoading(false);
       return;
     }
@@ -237,41 +242,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
     let hasInitialized = false;
 
-    // Timeout de segurança - sempre para o loading após 10 segundos
+    console.log('🌐 Modo Supabase: iniciando verificação de sessão...');
+
+    // Timeout de segurança - sempre para o loading após 5 segundos
     const safetyTimeout = setTimeout(() => {
       if (isMounted && !hasInitialized) {
-        console.warn('⚠️ Timeout ao carregar sessão, parando loading');
+        console.warn('⚠️ TIMEOUT: Parando loading após 5 segundos');
         setIsLoading(false);
         hasInitialized = true;
       }
-    }, 10000);
+    }, 5000);
 
     const initializeSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('🔍 Buscando sessão do Supabase...');
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout ao buscar sessão')), 4000)
+        );
+        
+        const { data: { session }, error } = await Promise.race([
+          sessionPromise,
+          timeoutPromise,
+        ]) as any;
+
         if (error) {
-          console.error('Erro ao buscar sessão:', error);
+          console.error('❌ Erro ao buscar sessão:', error);
           throw error;
         }
 
+        console.log('📊 Sessão encontrada:', { hasSession: !!session, hasUser: !!session?.user });
+
         if (session?.user) {
+          console.log('👤 Carregando dados do usuário:', session.user.id);
           await Promise.all([
             loadProfile(session.user.id).catch(err => console.error('Erro ao carregar perfil:', err)),
             loadStats(session.user.id).catch(err => console.error('Erro ao carregar stats:', err)),
             loadAchievements(session.user.id).catch(err => console.error('Erro ao carregar conquistas:', err)),
           ]);
+          console.log('✅ Dados do usuário carregados');
         } else {
+          console.log('ℹ️ Nenhuma sessão ativa');
           persistAuthData(null);
           setUser(null);
         }
-      } catch (error) {
-        console.error('Erro ao verificar sessão:', error);
+      } catch (error: any) {
+        console.error('❌ Erro ao verificar sessão:', error?.message || error);
         // Mesmo com erro, parar o loading
         persistAuthData(null);
         setUser(null);
       } finally {
         if (isMounted) {
           clearTimeout(safetyTimeout);
+          console.log('✅ Finalizando loading');
           setIsLoading(false);
           hasInitialized = true;
         }
