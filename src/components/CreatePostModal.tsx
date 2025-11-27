@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 interface CreatePostModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPost: (content: string, resultValue?: number, image?: string) => void;
+  onPost: (content: string, resultValue?: number, image?: string) => Promise<void>;
 }
 
 export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProps) {
@@ -75,7 +75,7 @@ export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProp
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!content.trim() && !selectedImage) {
       toast({
         title: 'Conteúdo necessário',
@@ -99,10 +99,7 @@ export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProp
     const postResultValue = isResult ? Number(resultValue) : undefined;
     const postImage = selectedImage || undefined;
 
-    // Fechar o modal IMEDIATAMENTE para evitar bugs
-    onClose();
-    
-    // Limpar campos
+    // Limpar campos primeiro
     setContent('');
     setResultValue('');
     setIsResult(false);
@@ -111,10 +108,18 @@ export function CreatePostModal({ isOpen, onClose, onPost }: CreatePostModalProp
       fileInputRef.current.value = '';
     }
 
-    // Chamar onPost após fechar (usar setTimeout para garantir que o modal fechou)
-    setTimeout(() => {
-      onPost(postContent, postResultValue, postImage);
-    }, 100);
+    // Fechar o modal
+    onClose();
+
+    // Chamar onPost - agora é async, então podemos aguardar
+    try {
+      // Usar setTimeout para garantir que o modal fechou antes de processar
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await onPost(postContent, postResultValue, postImage);
+    } catch (error) {
+      console.error('Erro ao chamar onPost:', error);
+      // O erro já será tratado no handleNewPost
+    }
   };
 
   if (!isOpen) return null;
