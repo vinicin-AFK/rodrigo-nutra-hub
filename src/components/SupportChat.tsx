@@ -118,16 +118,16 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
         const userId = user?.id || 'current_user';
         console.log('✅ Usuário enviando mensagem:', { userId, content: contentToSend.substring(0, 50) });
         
-        // Garantir que a conversa está aberta ANTES de enviar
-        if (!currentConversation) {
-          console.log('📝 Abrindo conversa do usuário:', userId);
-          openConversation(userId);
-          // Aguardar um pouco para a conversa ser criada
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
+        // SEMPRE enviar a mensagem - sendMessage vai criar a conversa se não existir
+        // Não precisa abrir a conversa antes, pois sendMessage já faz isso internamente
         await sendMessage(contentToSend, typeToSend, false, userId, imageToSendFinal);
         console.log('✅ Mensagem enviada com sucesso');
+        
+        // Após enviar, garantir que a conversa está aberta para o usuário ver
+        if (!currentConversation) {
+          console.log('📝 Abrindo conversa do usuário após enviar mensagem:', userId);
+          openConversation(userId);
+        }
       }
     } catch (error: any) {
       console.error('❌ Erro ao enviar mensagem:', error);

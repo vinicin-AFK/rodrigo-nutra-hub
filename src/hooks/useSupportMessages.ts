@@ -185,7 +185,31 @@ export function useSupportMessages(userId?: string) {
 
   useEffect(() => {
     loadConversations();
-  }, []);
+    
+    // Recarregar conversas periodicamente para suporte ver novas mensagens
+    if (userId) {
+      const savedAuth = safeGetItem('nutraelite_auth');
+      if (savedAuth) {
+        try {
+          const authData = JSON.parse(savedAuth);
+          const userData = authData?.user;
+          const isSupportUser = userData?.role === 'support' || userData?.role === 'admin';
+          
+          if (isSupportUser) {
+            // Recarregar conversas a cada 5 segundos para suporte ver novas mensagens
+            const interval = setInterval(() => {
+              console.log('🔄 Recarregando conversas para suporte...');
+              loadConversations();
+            }, 5000);
+            
+            return () => clearInterval(interval);
+          }
+        } catch (error) {
+          console.warn('Erro ao verificar role do usuário:', error);
+        }
+      }
+    }
+  }, [userId]);
 
   // Enviar mensagem (usuário ou suporte)
   const sendMessage = async (
@@ -265,9 +289,14 @@ export function useSupportMessages(userId?: string) {
     conversation.lastMessageTime = now;
     if (!isFromSupport) {
       conversation.unreadCount++;
+      // Atualizar nome e avatar do usuário se não estiver definido ou se for genérico
+      if (!conversation.userName || conversation.userName === 'Você' || conversation.userName === 'Usuário') {
+        conversation.userName = authorName;
+        conversation.userAvatar = authorAvatar;
+      }
     }
 
-    // Salvar no localStorage ANTES de atualizar o estado
+    // Salvar no localStorage ANTES de atualizar o estado (CRÍTICO para persistência)
     const serialized = JSON.stringify(conversations.map(c => ({
       ...c,
       lastMessageTime: c.lastMessageTime instanceof Date ? c.lastMessageTime.toISOString() : c.lastMessageTime,
@@ -279,13 +308,14 @@ export function useSupportMessages(userId?: string) {
     
     const saveResult = safeSetItem(SUPPORT_MESSAGES_KEY, serialized);
     if (saveResult) {
-      console.log('✅ Mensagem salva no localStorage');
+      console.log('✅ Mensagem salva no localStorage:', { convId, isFromSupport, messageCount: conversation.messages.length, userName: conversation.userName });
     } else {
       console.warn('⚠️ Erro ao salvar mensagem no localStorage');
     }
 
-    // Atualizar estado
-    setConversations([...conversations]);
+    // Atualizar estado IMEDIATAMENTE
+    const updatedConversations = [...conversations];
+    setConversations(updatedConversations);
     
     // Atualizar conversa atual se estiver aberta
     if (currentConversation?.id === convId) {

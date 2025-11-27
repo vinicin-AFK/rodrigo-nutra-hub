@@ -721,10 +721,11 @@ export function CommunityChat() {
                       "flex gap-2 mb-1 animate-fade-in",
                       group.isCurrentUser ? "flex-row-reverse" : "flex-row"
                     )}>
-                      {/* Avatar - apenas na primeira mensagem do grupo */}
+                      {/* Avatar - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                       {!group.isCurrentUser && (
                         <div className="flex-shrink-0 w-8 h-8">
                           {groupIndex === 0 || grouped[groupIndex - 1]?.isCurrentUser !== group.isCurrentUser || 
+                           grouped[groupIndex - 1]?.author?.id !== group.author?.id ||
                            grouped[groupIndex - 1]?.author?.name !== group.author?.name ? (
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold overflow-hidden">
                               {group.author?.avatar ? (
@@ -734,7 +735,7 @@ export function CommunityChat() {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <span>{group.author?.name?.charAt(0) || 'U'}</span>
+                                <span>{group.author?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
                               )}
                             </div>
                           ) : (
@@ -748,10 +749,11 @@ export function CommunityChat() {
                         "flex flex-col max-w-[75%]",
                         group.isCurrentUser ? "items-end" : "items-start"
                       )}>
-                        {/* Author name - apenas na primeira mensagem do grupo */}
+                        {/* Author name - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                         {!group.isCurrentUser && (
                           <div className="mb-0.5 px-1">
                             {(groupIndex === 0 || grouped[groupIndex - 1]?.isCurrentUser !== group.isCurrentUser || 
+                              grouped[groupIndex - 1]?.author?.id !== group.author?.id ||
                               grouped[groupIndex - 1]?.author?.name !== group.author?.name) && (
                               <div className="flex items-center gap-2">
                                 <span className={cn(
@@ -760,7 +762,7 @@ export function CommunityChat() {
                                     ? "text-[#ff6b35] dark:text-[#ff8c5a] font-bold" 
                                     : "text-[#667781] dark:text-[#8696a0]"
                                 )}>
-                                  {group.author?.name}
+                                  {group.author?.name || 'Usuário'}
                                 </span>
                                 {group.author?.role && (
                                   <span className={cn(
