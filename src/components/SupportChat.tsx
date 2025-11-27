@@ -803,8 +803,8 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
         </div>
       )}
 
-      {/* Input Bar - sempre mostrar quando há conversa aberta ou quando é suporte */}
-      {(currentConversation || !isSupport) && (
+      {/* Input Bar - sempre mostrar quando há conversa aberta (para suporte) ou quando não é suporte */}
+      {((isSupport && currentConversation) || !isSupport) && (
       <div 
         className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10 pb-safe"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 65px)' }}

@@ -787,7 +787,7 @@ export function CommunityChat() {
                               <div
                                 key={message.id}
                                 className={cn(
-                                  "rounded-lg px-3 py-1.5 shadow-sm max-w-full relative",
+                                  "rounded-lg px-3 py-1.5 shadow-sm max-w-full relative group/message",
                                   group.isCurrentUser
                                     ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-white"
                                     : group.author?.role === 'support'
@@ -807,6 +807,28 @@ export function CommunityChat() {
                                         : "rounded-l-none"
                                 )}
                               >
+                                {/* Botão de deletar - aparece no hover para suporte */}
+                                {isSupport && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (confirm('Tem certeza que deseja deletar esta mensagem?')) {
+                                        console.log('🗑️ Deletando mensagem:', message.id);
+                                        deleteMessage(message.id);
+                                        toast({
+                                          title: "Mensagem deletada",
+                                          description: "A mensagem foi removida da comunidade.",
+                                        });
+                                      }
+                                    }}
+                                    className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover/message:opacity-100 transition-opacity shadow-lg z-10"
+                                    title="Deletar mensagem"
+                                    type="button"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-white" />
+                                  </button>
+                                )}
                                 {message.type === 'audio' ? (
                                   message.audioUrl ? (
                                     <AudioPlayer
@@ -868,11 +890,14 @@ export function CommunityChat() {
                                     {group.isCurrentUser && (
                                       <span className="text-[#53bdeb] text-xs">✓✓</span>
                                     )}
-                                    {/* Botão de deletar - apenas para suporte */}
-                                    {isSupport && !group.isCurrentUser && (
+                                    {/* Botão de deletar - apenas para suporte (pode deletar qualquer mensagem) */}
+                                    {isSupport && (
                                       <button
-                                        onClick={() => {
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
                                           if (confirm('Tem certeza que deseja deletar esta mensagem?')) {
+                                            console.log('🗑️ Deletando mensagem:', message.id);
                                             deleteMessage(message.id);
                                             toast({
                                               title: "Mensagem deletada",
@@ -880,10 +905,11 @@ export function CommunityChat() {
                                             });
                                           }
                                         }}
-                                        className="ml-2 p-1 hover:bg-red-500/20 rounded transition-colors"
+                                        className="ml-2 p-1.5 hover:bg-red-500/20 rounded transition-colors flex-shrink-0"
                                         title="Deletar mensagem"
+                                        type="button"
                                       >
-                                        <Trash2 className="w-3 h-3 text-red-500" />
+                                        <Trash2 className="w-4 h-4 text-red-500" />
                                       </button>
                                     )}
                                   </div>
