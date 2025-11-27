@@ -422,6 +422,17 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     }
   }, [isSupport, currentConversation, user?.id, openConversation]);
 
+  // Debug: verificar se a conversa está aberta (ANTES de qualquer return)
+  useEffect(() => {
+    if (isSupport) {
+      console.log('🔍 Estado do suporte:', { 
+        hasConversation: !!currentConversation, 
+        conversationId: currentConversation?.id,
+        showList: showConversationList 
+      });
+    }
+  }, [isSupport, currentConversation, showConversationList]);
+
   // Se é suporte e está mostrando lista de conversas
   if (isSupport && showConversationList) {
     return (
@@ -504,17 +515,6 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
   const displayName = isSupport && currentConversation 
     ? currentConversation.userName 
     : (user?.name || currentUser.name);
-
-  // Debug: verificar se a conversa está aberta
-  useEffect(() => {
-    if (isSupport) {
-      console.log('🔍 Estado do suporte:', { 
-        hasConversation: !!currentConversation, 
-        conversationId: currentConversation?.id,
-        showList: showConversationList 
-      });
-    }
-  }, [isSupport, currentConversation, showConversationList]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background">
