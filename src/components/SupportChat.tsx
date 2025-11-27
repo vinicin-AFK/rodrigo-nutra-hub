@@ -81,40 +81,70 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
   };
 
   const handleSend = async () => {
-    if (!input.trim() && !selectedImage) return;
+    console.log('📤 handleSend chamado', { input: input.substring(0, 50), hasImage: !!selectedImage, isSupport, hasConversation: !!currentConversation });
+    
+    if (!input.trim() && !selectedImage) {
+      console.warn('⚠️ Nada para enviar - input vazio e sem imagem');
+      return;
+    }
 
     const messageContent = input || (selectedImage ? '📷' : '');
     const messageType = selectedImage ? 'image' : input.length <= 2 && /[\u{1F300}-\u{1F9FF}]/u.test(input) ? 'emoji' : 'text';
     const imageToSend = selectedImage || undefined;
     
+    // Salvar valores antes de limpar
+    const contentToSend = messageContent;
+    const typeToSend = messageType;
+    const imageToSendFinal = imageToSend;
+    
+    // Limpar campos imediatamente para feedback visual
     setInput('');
     setSelectedImage(null);
     setIsTyping(true);
 
     try {
+      console.log('💬 Enviando mensagem...', { content: contentToSend.substring(0, 50), type: typeToSend, isSupport, hasConversation: !!currentConversation });
+      
       if (isSupport) {
         // Suporte respondendo - precisa ter conversa aberta
         if (currentConversation) {
-          await sendMessage(messageContent, messageType, true, currentConversation.userId, imageToSend);
+          console.log('✅ Suporte enviando para conversa:', currentConversation.userId);
+          await sendMessage(contentToSend, typeToSend, true, currentConversation.userId, imageToSendFinal);
         } else {
           console.warn('⚠️ Nenhuma conversa aberta para o suporte responder');
           // Criar conversa se necessário
           if (conversations.length > 0) {
             openConversation(conversations[0].id);
-            await sendMessage(messageContent, messageType, true, conversations[0].userId, imageToSend);
+            await sendMessage(contentToSend, typeToSend, true, conversations[0].userId, imageToSendFinal);
+          } else {
+            console.error('❌ Nenhuma conversa disponível para o suporte');
+            // Restaurar campos se não conseguir enviar
+            setInput(contentToSend);
+            setSelectedImage(imageToSendFinal || null);
           }
         }
       } else {
         // Usuário enviando mensagem - sempre criar/enviar para própria conversa
         const userId = user?.id || 'current_user';
-        await sendMessage(messageContent, messageType, false, userId, imageToSend);
-        // Garantir que a conversa está aberta
+        console.log('✅ Usuário enviando mensagem:', { userId, content: contentToSend.substring(0, 50) });
+        
+        // Garantir que a conversa está aberta ANTES de enviar
         if (!currentConversation) {
+          console.log('📝 Abrindo conversa do usuário:', userId);
           openConversation(userId);
+          // Aguardar um pouco para a conversa ser criada
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
+        
+        await sendMessage(contentToSend, typeToSend, false, userId, imageToSendFinal);
+        console.log('✅ Mensagem enviada com sucesso');
       }
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
+    } catch (error: any) {
+      console.error('❌ Erro ao enviar mensagem:', error);
+      // Restaurar campos em caso de erro
+      setInput(contentToSend);
+      setSelectedImage(imageToSendFinal || null);
+      alert('Erro ao enviar mensagem: ' + (error?.message || 'Erro desconhecido'));
     } finally {
       setIsTyping(false);
     }
@@ -831,14 +861,20 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
 
               {/* Send Button */}
               <button
-                onClick={handleSend}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('🔘 Botão enviar clicado', { input: input.substring(0, 50), hasImage: !!selectedImage });
+                  handleSend();
+                }}
                 disabled={!input.trim() && !selectedImage}
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 min-w-[40px]",
                   input.trim() || selectedImage
-                    ? "bg-primary hover:bg-primary/90"
-                    : "bg-gray-300 dark:bg-secondary cursor-not-allowed"
+                    ? "bg-primary hover:bg-primary/90 cursor-pointer"
+                    : "bg-gray-300 dark:bg-secondary cursor-not-allowed opacity-50"
                 )}
+                type="button"
               >
                 <Send className="w-5 h-5 text-white" />
               </button>
