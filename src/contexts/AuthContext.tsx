@@ -235,19 +235,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     let isMounted = true;
+    let hasInitialized = false;
+
+    // Timeout de segurança - sempre para o loading após 10 segundos
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted && !hasInitialized) {
+        console.warn('⚠️ Timeout ao carregar sessão, parando loading');
+        setIsLoading(false);
+        hasInitialized = true;
+      }
+    }, 10000);
 
     const initializeSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
+          console.error('Erro ao buscar sessão:', error);
           throw error;
         }
 
         if (session?.user) {
           await Promise.all([
-            loadProfile(session.user.id),
-            loadStats(session.user.id),
-            loadAchievements(session.user.id),
+            loadProfile(session.user.id).catch(err => console.error('Erro ao carregar perfil:', err)),
+            loadStats(session.user.id).catch(err => console.error('Erro ao carregar stats:', err)),
+            loadAchievements(session.user.id).catch(err => console.error('Erro ao carregar conquistas:', err)),
           ]);
         } else {
           persistAuthData(null);
@@ -255,25 +266,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('Erro ao verificar sessão:', error);
+        // Mesmo com erro, parar o loading
+        persistAuthData(null);
+        setUser(null);
       } finally {
         if (isMounted) {
+          clearTimeout(safetyTimeout);
           setIsLoading(false);
+          hasInitialized = true;
         }
       }
     };
 
     initializeSession();
 
-    // Ouvir mudanças de autenticação
+    // Ouvir mudanças de autenticação (apenas após inicialização)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setIsLoading(true);
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Ignorar eventos durante a inicialização
+      if (!hasInitialized && event === 'INITIAL_SESSION') {
+        return;
+      }
+
       if (session?.user) {
         try {
-          await loadProfile(session.user.id);
-          await loadStats(session.user.id);
-          await loadAchievements(session.user.id);
+          await Promise.all([
+            loadProfile(session.user.id).catch(err => console.error('Erro ao carregar perfil:', err)),
+            loadStats(session.user.id).catch(err => console.error('Erro ao carregar stats:', err)),
+            loadAchievements(session.user.id).catch(err => console.error('Erro ao carregar conquistas:', err)),
+          ]);
         } catch (error) {
           console.error('Erro ao carregar dados do usuário:', error);
         }
@@ -283,11 +305,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
         setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
       }
-      setIsLoading(false);
     });
 
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
