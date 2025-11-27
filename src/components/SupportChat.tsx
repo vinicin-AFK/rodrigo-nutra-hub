@@ -776,7 +776,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
       {/* Input Bar */}
       <div 
         className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10 pb-safe"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 70px)' }}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 65px)' }}
       >
         <div className="flex items-end gap-2 w-full">
           {/* Icons */}
