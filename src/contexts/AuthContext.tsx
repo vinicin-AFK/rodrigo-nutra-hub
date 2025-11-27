@@ -105,15 +105,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Carregar perfil do Supabase
   const loadProfile = async (userId: string) => {
     try {
+      console.log('📥 Carregando perfil do usuário:', userId);
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao buscar perfil:', error);
+        // Se o perfil não existe (PGRST116), não é erro crítico
+        if (error.code === 'PGRST116') {
+          console.log('ℹ️ Perfil não encontrado, será criado automaticamente');
+          return null;
+        }
+        throw error;
+      }
 
       if (profile) {
+        console.log('✅ Perfil encontrado:', profile.name);
         const userData: User = {
           id: profile.id,
           name: profile.name,
@@ -125,9 +135,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setUser(userData);
         persistAuthData(userData);
+        return userData;
       }
-    } catch (error) {
-      console.error('Erro ao carregar perfil:', error);
+      
+      return null;
+    } catch (error: any) {
+      console.error('❌ Erro ao carregar perfil:', error?.message || error);
+      // Se for erro de perfil não encontrado, retornar null para criar
+      if (error?.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
     }
   };
 
@@ -412,56 +430,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Tentar carregar perfil - se não existir, criar automaticamente
         let profileLoaded = false;
+        let loadedProfile: User | null = null;
+        
         try {
-          await Promise.race([
+          const profileResult = await Promise.race([
             loadProfile(data.user.id),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout loadProfile')), 5000))
-          ]);
-          profileLoaded = true;
-          console.log('✅ Perfil carregado');
-        } catch (err: any) {
-          console.warn('⚠️ Perfil não encontrado, criando automaticamente...', err);
+            new Promise<User | null>((_, reject) => setTimeout(() => reject(new Error('Timeout loadProfile')), 5000))
+          ]) as User | null;
           
-          // Criar perfil automaticamente
+          if (profileResult) {
+            profileLoaded = true;
+            loadedProfile = profileResult;
+            console.log('✅ Perfil carregado com sucesso');
+          } else {
+            console.log('ℹ️ Perfil não encontrado, será criado');
+          }
+        } catch (err: any) {
+          console.warn('⚠️ Erro ao carregar perfil:', err?.message || err);
+          // Continuar para criar perfil
+        }
+        
+        // Se perfil não foi carregado, criar automaticamente
+        if (!profileLoaded) {
+          console.log('🔨 Criando perfil automaticamente...');
           try {
-            const { error: insertError } = await supabase
+            const userName = data.user.user_metadata?.name || email.split('@')[0];
+            const userEmail = data.user.email || email;
+            
+            const { data: newProfile, error: insertError } = await supabase
               .from('profiles')
               .insert({
                 id: data.user.id,
-                name: data.user.user_metadata?.name || email.split('@')[0],
-                email: data.user.email || email,
+                name: userName,
+                email: userEmail,
                 avatar: data.user.user_metadata?.avatar || null,
                 level: 'Bronze',
                 points: 0,
                 plan: 'bronze',
-              });
+              })
+              .select()
+              .single();
 
-            if (insertError && !insertError.message?.includes('duplicate')) {
-              console.error('Erro ao criar perfil:', insertError);
-            } else {
-              console.log('✅ Perfil criado automaticamente');
-              // Tentar carregar novamente
-              await loadProfile(data.user.id);
+            if (insertError) {
+              // Se já existe (duplicate), tentar carregar novamente
+              if (insertError.code === '23505' || insertError.message?.includes('duplicate')) {
+                console.log('ℹ️ Perfil já existe, carregando...');
+                const retryProfile = await loadProfile(data.user.id);
+                if (retryProfile) {
+                  profileLoaded = true;
+                  loadedProfile = retryProfile;
+                }
+              } else {
+                console.error('❌ Erro ao criar perfil:', insertError);
+              }
+            } else if (newProfile) {
+              console.log('✅ Perfil criado com sucesso');
+              const userData: User = {
+                id: newProfile.id,
+                name: newProfile.name,
+                email: newProfile.email,
+                avatar: newProfile.avatar || undefined,
+                level: newProfile.level || 'Bronze',
+                points: newProfile.points || 0,
+                plan: newProfile.plan || 'bronze',
+              };
+              setUser(userData);
+              persistAuthData(userData);
               profileLoaded = true;
+              loadedProfile = userData;
             }
-          } catch (createErr) {
-            console.error('Erro ao criar perfil:', createErr);
+          } catch (createErr: any) {
+            console.error('❌ Erro ao criar perfil:', createErr?.message || createErr);
           }
-          
-          // Se ainda não conseguiu, usar dados básicos
-          if (!profileLoaded) {
-            const basicUser: User = {
-              id: data.user.id,
-              name: data.user.user_metadata?.name || email.split('@')[0],
-              email: data.user.email || email,
-              level: 'Bronze',
-              points: 0,
-              plan: 'bronze',
-            };
-            setUser(basicUser);
-            persistAuthData(basicUser);
-            console.log('✅ Usando dados básicos do usuário');
-          }
+        }
+        
+        // Se ainda não conseguiu carregar/criar perfil, usar dados básicos
+        if (!profileLoaded || !loadedProfile) {
+          console.log('⚠️ Usando dados básicos do usuário (perfil não disponível)');
+          const basicUser: User = {
+            id: data.user.id,
+            name: data.user.user_metadata?.name || email.split('@')[0],
+            email: data.user.email || email,
+            level: 'Bronze',
+            points: 0,
+            plan: 'bronze',
+          };
+          setUser(basicUser);
+          persistAuthData(basicUser);
         }
         
         // Carregar stats e achievements (não críticos)
