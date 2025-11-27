@@ -203,6 +203,97 @@ export function CommunityChat() {
     return `${hours}:${minutes}`;
   };
 
+  const formatDate = (date: Date) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const messageDate = new Date(date);
+    messageDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    yesterday.setHours(0, 0, 0, 0);
+    
+    if (messageDate.getTime() === today.getTime()) {
+      return 'Hoje';
+    } else if (messageDate.getTime() === yesterday.getTime()) {
+      return 'Ontem';
+    } else {
+      return messageDate.toLocaleDateString('pt-BR', { 
+        day: 'numeric', 
+        month: 'long',
+        year: messageDate.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+      });
+    }
+  };
+
+  // Agrupar mensagens consecutivas do mesmo autor
+  const groupMessages = (messages: Message[]) => {
+    if (messages.length === 0) return [];
+    
+    const grouped: Array<{
+      messages: Message[];
+      author: Message['author'];
+      isCurrentUser: boolean;
+      date: Date;
+    }> = [];
+    
+    let currentGroup: {
+      messages: Message[];
+      author: Message['author'];
+      isCurrentUser: boolean;
+      date: Date;
+    } | null = null;
+    
+    let lastDate: string | null = null;
+    
+    messages.forEach((message, index) => {
+      const messageDate = new Date(message.timestamp);
+      const dateKey = messageDate.toDateString();
+      const isCurrentUser = message.isUser;
+      const authorId = isCurrentUser 
+        ? currentUser.id 
+        : (message.author?.id || message.author?.name || 'unknown');
+      
+      // Verificar se precisa de separador de data
+      if (dateKey !== lastDate) {
+        lastDate = dateKey;
+      }
+      
+      // Verificar se é uma nova mensagem do mesmo autor (dentro de 5 minutos)
+      const prevMessage = index > 0 ? messages[index - 1] : null;
+      const timeDiff = prevMessage 
+        ? Math.abs(message.timestamp.getTime() - prevMessage.timestamp.getTime()) / 1000 / 60
+        : Infinity;
+      
+      const sameAuthor = prevMessage && 
+        ((isCurrentUser && prevMessage.isUser) || 
+         (!isCurrentUser && !prevMessage.isUser && 
+          (message.author?.id || message.author?.name) === (prevMessage.author?.id || prevMessage.author?.name)));
+      
+      if (currentGroup && sameAuthor && timeDiff < 5) {
+        // Adicionar à mensagem atual
+        currentGroup.messages.push(message);
+      } else {
+        // Nova mensagem ou novo autor
+        if (currentGroup) {
+          grouped.push(currentGroup);
+        }
+        currentGroup = {
+          messages: [message],
+          author: message.author || { name: currentUser.name, avatar: currentUser.avatar },
+          isCurrentUser,
+          date: messageDate,
+        };
+      }
+    });
+    
+    if (currentGroup) {
+      grouped.push(currentGroup);
+    }
+    
+    return grouped;
+  };
+
   const formatRecordingTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -585,126 +676,200 @@ export function CommunityChat() {
       />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-1 p-4 relative z-10">
-        {messages.map((message) => {
-          const isCurrentUser = message.isUser;
-          return (
-            <div
-              key={message.id}
-              className={cn(
-                "flex gap-2 animate-fade-in",
-                isCurrentUser ? "flex-row-reverse" : "flex-row"
-              )}
-            >
-              {/* Avatar */}
-              {!isCurrentUser && message.author && (
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold overflow-hidden">
-                    {message.author.avatar ? (
-                      <img
-                        src={message.author.avatar}
-                        alt={message.author.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span>{message.author.name.charAt(0)}</span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Message Content */}
-              <div className={cn(
-                "flex flex-col max-w-[75%]",
-                isCurrentUser ? "items-end" : "items-start"
-              )}>
-                {/* Author info */}
-                {!isCurrentUser && message.author && (
-                  <div className="flex items-center gap-2 mb-0.5 px-1">
-                    <span className="text-[11px] font-semibold text-[#667781] dark:text-[#8696a0]">
-                      {message.author.name}
-                    </span>
-                    {message.author.role && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
-                        {message.author.role}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Message Bubble */}
-                <div className={cn(
-                  "rounded-lg px-2 py-1.5 shadow-sm",
-                  isCurrentUser
-                    ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-white rounded-tr-none"
-                    : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-tl-none"
-                )}>
-                  {message.type === 'audio' ? (
-                    message.audioUrl ? (
-                      <AudioPlayer
-                        message={message}
-                        isPlaying={playingAudio === message.id}
-                        onToggle={() => toggleAudio(message)}
-                        formatTime={formatRecordingTime}
-                      />
-                    ) : (
-                      <div className="flex items-center gap-3 min-w-[200px]">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#00a884]/40 flex items-center justify-center">
-                          <Play className="w-4 h-4 text-[#00a884] ml-0.5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-1 h-4">
-                            {[...Array(20)].map((_, i) => (
-                              <div
-                                key={i}
-                                className="w-0.5 rounded-full bg-[#00a884]/40 h-2"
-                              />
-                            ))}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1 text-[11px] text-[#667781] dark:text-[#8696a0]">
-                            <span>0:00</span>
-                            <span>/</span>
-                            <span>{formatRecordingTime(message.audioDuration || 0)}</span>
-                          </div>
+      <div className="flex-1 overflow-y-auto p-2 relative z-10">
+        {messagesLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#00a884] border-r-transparent"></div>
+              <p className="mt-4 text-[#667781] dark:text-[#8696a0]">Carregando mensagens...</p>
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-[#667781] dark:text-[#8696a0]">
+              <p className="text-lg font-medium mb-2">Nenhuma mensagem ainda</p>
+              <p className="text-sm">Seja o primeiro a enviar uma mensagem!</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {(() => {
+              const grouped = groupMessages(messages);
+              let lastDateKey: string | null = null;
+              
+              return grouped.map((group, groupIndex) => {
+                const dateKey = group.date.toDateString();
+                const showDateSeparator = dateKey !== lastDateKey;
+                lastDateKey = dateKey;
+                
+                return (
+                  <div key={`group-${groupIndex}`}>
+                    {/* Date Separator */}
+                    {showDateSeparator && (
+                      <div className="flex items-center justify-center my-4">
+                        <div className="bg-[#ffffff]/80 dark:bg-[#202c33]/80 backdrop-blur-sm px-3 py-1 rounded-full">
+                          <span className="text-[12px] text-[#667781] dark:text-[#8696a0] font-medium">
+                            {formatDate(group.date)}
+                          </span>
                         </div>
                       </div>
-                    )
-                  ) : message.type === 'image' && message.image ? (
-                    <div className="max-w-[250px]">
-                      <img
-                        src={message.image}
-                        alt="Imagem"
-                        className="rounded-lg w-full"
-                      />
-                      {message.content && message.content !== '📷' && (
-                        <p className="text-sm mt-2 whitespace-pre-wrap break-words">
-                          {message.content}
-                        </p>
+                    )}
+                    
+                    {/* Message Group */}
+                    <div className={cn(
+                      "flex gap-2 mb-1 animate-fade-in",
+                      group.isCurrentUser ? "flex-row-reverse" : "flex-row"
+                    )}>
+                      {/* Avatar - apenas na primeira mensagem do grupo */}
+                      {!group.isCurrentUser && (
+                        <div className="flex-shrink-0 w-8 h-8">
+                          {groupIndex === 0 || grouped[groupIndex - 1]?.isCurrentUser !== group.isCurrentUser || 
+                           grouped[groupIndex - 1]?.author?.name !== group.author?.name ? (
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+                              {group.author?.avatar ? (
+                                <img
+                                  src={group.author.avatar}
+                                  alt={group.author.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span>{group.author?.name?.charAt(0) || 'U'}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="w-8" /> // Espaço reservado para alinhamento
+                          )}
+                        </div>
                       )}
+
+                      {/* Messages in group */}
+                      <div className={cn(
+                        "flex flex-col max-w-[75%]",
+                        group.isCurrentUser ? "items-end" : "items-start"
+                      )}>
+                        {/* Author name - apenas na primeira mensagem do grupo */}
+                        {!group.isCurrentUser && (
+                          <div className="mb-0.5 px-1">
+                            {(groupIndex === 0 || grouped[groupIndex - 1]?.isCurrentUser !== group.isCurrentUser || 
+                              grouped[groupIndex - 1]?.author?.name !== group.author?.name) && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[12px] font-semibold text-[#667781] dark:text-[#8696a0]">
+                                  {group.author?.name}
+                                </span>
+                                {group.author?.role && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
+                                    {group.author.role}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Message bubbles */}
+                        <div className="flex flex-col gap-0.5">
+                          {group.messages.map((message, msgIndex) => {
+                            const isLastInGroup = msgIndex === group.messages.length - 1;
+                            
+                            return (
+                              <div
+                                key={message.id}
+                                className={cn(
+                                  "rounded-lg px-3 py-1.5 shadow-sm max-w-full",
+                                  group.isCurrentUser
+                                    ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-white"
+                                    : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef]",
+                                  // Bordas arredondadas apenas nas extremidades
+                                  group.isCurrentUser
+                                    ? isLastInGroup 
+                                      ? "rounded-br-none" 
+                                      : msgIndex === 0 
+                                        ? "rounded-tr-none" 
+                                        : "rounded-r-none"
+                                    : isLastInGroup 
+                                      ? "rounded-bl-none" 
+                                      : msgIndex === 0 
+                                        ? "rounded-tl-none" 
+                                        : "rounded-l-none"
+                                )}
+                              >
+                                {message.type === 'audio' ? (
+                                  message.audioUrl ? (
+                                    <AudioPlayer
+                                      message={message}
+                                      isPlaying={playingAudio === message.id}
+                                      onToggle={() => toggleAudio(message)}
+                                      formatTime={formatRecordingTime}
+                                    />
+                                  ) : (
+                                    <div className="flex items-center gap-3 min-w-[200px]">
+                                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#00a884]/40 flex items-center justify-center">
+                                        <Play className="w-4 h-4 text-[#00a884] ml-0.5" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-1 h-4">
+                                          {[...Array(20)].map((_, i) => (
+                                            <div
+                                              key={i}
+                                              className="w-0.5 rounded-full bg-[#00a884]/40 h-2"
+                                            />
+                                          ))}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1 text-[11px] text-[#667781] dark:text-[#8696a0]">
+                                          <span>0:00</span>
+                                          <span>/</span>
+                                          <span>{formatRecordingTime(message.audioDuration || 0)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                ) : message.type === 'image' && message.image ? (
+                                  <div className="max-w-[250px]">
+                                    <img
+                                      src={message.image}
+                                      alt="Imagem"
+                                      className="rounded-lg w-full"
+                                    />
+                                    {message.content && message.content !== '📷' && (
+                                      <p className="text-sm mt-2 whitespace-pre-wrap break-words">
+                                        {message.content}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                                    {message.content}
+                                  </p>
+                                )}
+                                
+                                {/* Timestamp and status - apenas na última mensagem do grupo */}
+                                {isLastInGroup && (
+                                  <div className={cn(
+                                    "flex items-center gap-1 mt-1",
+                                    group.isCurrentUser ? "flex-row-reverse" : "flex-row"
+                                  )}>
+                                    <span className="text-[11px] text-[#667781]/80 dark:text-[#8696a0]/80">
+                                      {formatTime(message.timestamp)}
+                                    </span>
+                                    {group.isCurrentUser && (
+                                      <span className="text-[#53bdeb] text-xs">✓✓</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm whitespace-pre-wrap break-words">
-                      {message.content}
-                    </p>
-                  )}
-                </div>
-
-                {/* Timestamp and status */}
-                <div className={cn(
-                  "flex items-center gap-1 mt-0.5 px-1 text-[11px] text-[#667781] dark:text-[#8696a0]",
-                  isCurrentUser ? "flex-row-reverse" : "flex-row"
-                )}>
-                  <span>{formatTime(message.timestamp)}</span>
-                  {isCurrentUser && (
-                    <span className="text-[#53bdeb]">✓✓</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        <div ref={messagesEndRef} />
+                  </div>
+                );
+              });
+            })()}
+            
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
 
       {/* Recording indicator */}
