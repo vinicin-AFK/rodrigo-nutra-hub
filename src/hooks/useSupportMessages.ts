@@ -216,7 +216,11 @@ export function useSupportMessages(userId?: string) {
   };
 
   // Abrir conversa
-  const openConversation = (conversationId: string) => {
+  const openConversation = (conversationId: string | null) => {
+    if (!conversationId) {
+      setCurrentConversation(null);
+      return;
+    }
     const conv = conversations.find(c => c.id === conversationId);
     if (conv) {
       setCurrentConversation({
