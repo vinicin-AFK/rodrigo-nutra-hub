@@ -22,9 +22,15 @@ export function UserHeader() {
   const userTotalSales = (user as any)?.totalSales || fallbackUser.totalSales || 0;
   const userLevel = userPlan?.name || user?.level || fallbackUser.level || 'Iniciante';
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      // Mesmo com erro, tentar navegar para login
+      navigate('/login');
+    }
   };
 
   return (

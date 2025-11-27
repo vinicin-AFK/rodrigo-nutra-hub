@@ -1011,15 +1011,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    if (isSupabaseConfigured) {
-      await supabase.auth.signOut();
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
+    console.log('🚪 Iniciando logout...');
+    
+    try {
+      // Limpar dados do Supabase primeiro (se configurado)
+      if (isSupabaseConfigured) {
+        try {
+          await supabase.auth.signOut();
+          console.log('✅ Logout do Supabase realizado');
+        } catch (error) {
+          console.warn('⚠️ Erro ao fazer logout do Supabase (continuando):', error);
+        }
+      }
+      
+      // Limpar localStorage
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STATS_KEY);
+        localStorage.removeItem(ACHIEVEMENTS_KEY);
+        console.log('✅ Dados do localStorage removidos');
+      } catch (error) {
+        console.warn('⚠️ Erro ao limpar localStorage:', error);
+      }
+      
+      // Limpar estado
+      setUser(null);
+      persistAuthData(null);
+      setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
+      setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
+      
+      console.log('✅ Logout concluído');
+    } catch (error) {
+      console.error('❌ Erro durante logout:', error);
+      // Mesmo com erro, limpar estado local
+      setUser(null);
+      persistAuthData(null);
+      setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
+      setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
+      throw error;
     }
-    setUser(null);
-    persistAuthData(null);
-    setStats({ postsCount: 0, likesReceived: 0, prizesRedeemed: 0 });
-    setAchievements(ACHIEVEMENTS.map(a => ({ ...a, progress: a.target ? 0 : undefined })));
   };
 
   const addPoints = async (points: number) => {
