@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Message } from '@/types';
 
 export function useCommunityMessages() {
@@ -7,6 +7,12 @@ export function useCommunityMessages() {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadMessages = async () => {
+    if (!isSupabaseConfigured) {
+      setIsLoading(false);
+      setMessages([]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('community_messages')
@@ -49,6 +55,8 @@ export function useCommunityMessages() {
   useEffect(() => {
     loadMessages();
 
+    if (!isSupabaseConfigured) return;
+
     // Ouvir novas mensagens em tempo real
     const subscription = supabase
       .channel('community_messages_changes')
@@ -66,6 +74,10 @@ export function useCommunityMessages() {
   }, []);
 
   const sendMessage = async (content: string, type: string = 'text', image?: string, audioUrl?: string, audioDuration?: number) => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase não configurado. Configure as variáveis de ambiente.');
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuário não autenticado');
 

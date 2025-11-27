@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Post, Comment } from '@/types';
 
 export function usePosts() {
@@ -7,6 +7,12 @@ export function usePosts() {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadPosts = async () => {
+    if (!isSupabaseConfigured) {
+      setIsLoading(false);
+      setPosts([]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('posts')
@@ -71,6 +77,8 @@ export function usePosts() {
   useEffect(() => {
     loadPosts();
 
+    if (!isSupabaseConfigured) return;
+
     // Ouvir novas postagens em tempo real
     const subscription = supabase
       .channel('posts_changes')
@@ -100,6 +108,10 @@ export function usePosts() {
   }, []);
 
   const createPost = async (content: string, resultValue?: number, image?: string) => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase não configurado. Configure as variáveis de ambiente.');
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuário não autenticado');
 
@@ -127,6 +139,10 @@ export function usePosts() {
   };
 
   const likePost = async (postId: string) => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase não configurado. Configure as variáveis de ambiente.');
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuário não autenticado');
 
@@ -164,6 +180,10 @@ export function usePosts() {
   };
 
   const addComment = async (postId: string, content: string) => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase não configurado. Configure as variáveis de ambiente.');
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuário não autenticado');
 
