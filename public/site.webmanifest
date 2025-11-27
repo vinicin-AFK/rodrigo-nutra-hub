@@ -1,0 +1,23 @@
+{
+  "name": "NutraElite - Comunidade de Vendedores",
+  "short_name": "NutraElite",
+  "description": "A comunidade exclusiva do Rodrigo Nutra para vendedores de encapsulados",
+  "icons": [
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#FF6B35",
+  "background_color": "#0f1419",
+  "display": "standalone",
+  "start_url": "/",
+  "orientation": "portrait"
+}
+
