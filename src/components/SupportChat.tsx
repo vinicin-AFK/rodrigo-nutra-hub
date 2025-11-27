@@ -529,7 +529,10 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-2 p-4">
+      <div className="flex-1 overflow-y-auto space-y-2 p-4" style={{ 
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 100px)',
+        maxHeight: 'calc(100vh - 300px)'
+      }}>
         {messages.length === 0 && !isSupport ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
             <MessageSquare className="w-16 h-16 mb-4 opacity-50" />
@@ -809,7 +812,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
       {/* Se não é suporte: sempre mostrar */}
       {(!isSupport || (isSupport && !!currentConversation)) && (
       <div 
-        className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10 pb-safe"
+        className="p-3 border-t border-border/50 bg-white dark:bg-background fixed bottom-0 left-0 right-0 z-50 pb-safe"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 65px)' }}
       >
         <div className="flex items-end gap-2 w-full">
