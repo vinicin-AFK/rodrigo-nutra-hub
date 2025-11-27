@@ -40,15 +40,30 @@ export function CommentsModal({ isOpen, onClose, post, onAddComment, onDeleteCom
     if (isOpen) {
       scrollToBottom();
     }
-  }, [isOpen, post.commentsList]);
+  }, [isOpen, post.commentsList?.length]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!comment.trim()) return;
+    if (!comment.trim()) {
+      console.warn('⚠️ Tentativa de enviar comentário vazio');
+      return;
+    }
     
-    onAddComment(post.id, comment.trim());
-    setComment('');
-    scrollToBottom();
+    console.log('📝 handleSubmit chamado:', { postId: post.id, comment: comment.trim().substring(0, 50) });
+    
+    try {
+      await onAddComment(post.id, comment.trim());
+      console.log('✅ onAddComment concluído');
+      setComment('');
+      scrollToBottom();
+    } catch (error) {
+      console.error('❌ Erro ao enviar comentário:', error);
+      toast({
+        title: "Erro ao comentar",
+        description: "Não foi possível enviar o comentário. Tente novamente.",
+        variant: 'destructive',
+      });
+    }
   };
 
   const formatTime = (date: Date) => {

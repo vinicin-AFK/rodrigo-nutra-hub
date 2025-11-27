@@ -104,25 +104,41 @@ const Index = () => {
   const handleAddComment = async (postId: string, content: string) => {
     try {
       console.log('💬 handleAddComment chamado:', { postId, content: content.substring(0, 50) });
-      await addComment(postId, content);
-      console.log('✅ Comentário adicionado com sucesso');
+      const newComment = await addComment(postId, content);
+      console.log('✅ Comentário adicionado com sucesso:', newComment?.id);
       
-      // Aguardar um pouco para garantir que o estado foi atualizado
+      // Forçar atualização do post selecionado
+      // Usar uma função de atualização que busca o post mais recente
       setTimeout(() => {
-        // Atualizar post selecionado para mostrar o novo comentário
-        const updatedPost = allPosts.find(p => p.id === postId);
-        if (updatedPost) {
-          console.log('🔄 Atualizando post selecionado:', updatedPost.id);
-          setSelectedPostForComments({ ...updatedPost });
-        } else {
-          console.warn('⚠️ Post não encontrado após adicionar comentário');
-        }
-      }, 100);
+        // Recarregar posts para pegar a versão mais atualizada
+        const refreshPosts = async () => {
+          // Buscar o post atualizado diretamente do hook
+          const updatedPost = allPosts.find(p => p.id === postId);
+          if (updatedPost) {
+            console.log('🔄 Atualizando post selecionado:', updatedPost.id, 'comentários:', updatedPost.commentsList?.length);
+            // Criar uma nova referência do objeto para forçar re-render
+            setSelectedPostForComments({
+              ...updatedPost,
+              commentsList: [...(updatedPost.commentsList || [])],
+            });
+          } else {
+            console.warn('⚠️ Post não encontrado após adicionar comentário');
+            // Tentar buscar novamente após um delay maior
+            setTimeout(() => {
+              const retryPost = allPosts.find(p => p.id === postId);
+              if (retryPost) {
+                setSelectedPostForComments({ ...retryPost });
+              }
+            }, 500);
+          }
+        };
+        refreshPosts();
+      }, 200);
     } catch (error) {
       console.error('❌ Erro ao adicionar comentário:', error);
       toast({
         title: "Erro ao comentar",
-        description: "Não foi possível adicionar o comentário. Tente novamente.",
+        description: error instanceof Error ? error.message : "Não foi possível adicionar o comentário. Tente novamente.",
         variant: 'destructive',
       });
     }
