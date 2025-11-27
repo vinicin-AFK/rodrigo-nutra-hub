@@ -43,7 +43,16 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
   const recordingTimeRef = useRef<number>(0);
 
   // Se é suporte e não há conversa aberta, mostrar lista de conversas
-  const [showConversationList, setShowConversationList] = useState(isSupport && !currentConversation);
+  const [showConversationList, setShowConversationList] = useState(false);
+  
+  useEffect(() => {
+    // Se é suporte e não há conversa aberta, mostrar lista
+    if (isSupport && !currentConversation) {
+      setShowConversationList(true);
+    } else {
+      setShowConversationList(false);
+    }
+  }, [isSupport, currentConversation]);
 
   useEffect(() => {
     if (initialMessage && !isSupport) {
@@ -435,6 +444,14 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
   const displayName = isSupport && currentConversation 
     ? currentConversation.userName 
     : (user?.name || currentUser.name);
+
+  // Se não há conversa aberta e não é suporte, criar uma conversa automaticamente
+  useEffect(() => {
+    if (!isSupport && !currentConversation && user?.id) {
+      // Abrir conversa do usuário atual
+      openConversation(user.id);
+    }
+  }, [isSupport, currentConversation, user?.id]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background">
