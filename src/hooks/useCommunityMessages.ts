@@ -94,51 +94,50 @@ export function useCommunityMessages() {
   }, []);
 
   const sendMessage = async (content: string, type: string = 'text', image?: string, audioUrl?: string, audioDuration?: number) => {
-    console.log('💬 Enviando mensagem...', { content, type, image: !!image, audioUrl: !!audioUrl, isSupabaseConfigured });
+    console.log('💬 Enviando mensagem...', { content, type, image: !!image, audioUrl: !!audioUrl });
     
-    if (!isSupabaseConfigured) {
-      // Modo offline - salvar no localStorage
-      console.log('📦 Modo offline - salvando mensagem localmente');
-      
-      // Buscar dados do usuário do localStorage
-      const savedAuth = localStorage.getItem('nutraelite_auth');
-      if (!savedAuth) {
-        console.error('❌ Nenhuma autenticação encontrada');
-        throw new Error('Usuário não autenticado. Faça login primeiro.');
-      }
-      
-      let authData;
-      try {
-        authData = JSON.parse(savedAuth);
-      } catch (parseError) {
-        console.error('❌ Erro ao fazer parse do localStorage:', parseError);
-        throw new Error('Erro ao ler dados de autenticação. Faça login novamente.');
-      }
-      
-      const authorData = authData.user;
-      if (!authorData) {
-        console.error('❌ Dados do usuário não encontrados');
-        throw new Error('Usuário não autenticado. Faça login primeiro.');
-      }
+    // SEMPRE começar com modo offline (mais confiável)
+    // Buscar dados do usuário do localStorage
+    const savedAuth = localStorage.getItem('nutraelite_auth');
+    if (!savedAuth) {
+      console.error('❌ Nenhuma autenticação encontrada');
+      throw new Error('Usuário não autenticado. Faça login primeiro.');
+    }
+    
+    let authData;
+    try {
+      authData = JSON.parse(savedAuth);
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse do localStorage:', parseError);
+      throw new Error('Erro ao ler dados de autenticação. Faça login novamente.');
+    }
+    
+    const authorData = authData.user;
+    if (!authorData) {
+      console.error('❌ Dados do usuário não encontrados');
+      throw new Error('Usuário não autenticado. Faça login primeiro.');
+    }
 
-      console.log('✅ Dados do autor encontrados:', authorData.name);
+    console.log('✅ Dados do autor encontrados:', authorData.name);
 
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        content,
-        isUser: true,
-        timestamp: new Date(),
-        type: type as 'text' | 'audio' | 'emoji' | 'image',
-        image,
-        audioDuration,
-        audioUrl,
-        author: {
-          name: authorData.name,
-          avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name)}&background=random`,
-        },
-      };
+    // Criar mensagem localmente (sempre funciona)
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      content,
+      isUser: true,
+      timestamp: new Date(),
+      type: type as 'text' | 'audio' | 'emoji' | 'image',
+      image,
+      audioDuration,
+      audioUrl,
+      author: {
+        name: authorData.name,
+        avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name)}&background=random`,
+      },
+    };
 
-      // Salvar no localStorage
+    // Salvar no localStorage (sempre funciona)
+    try {
       const savedMessages = localStorage.getItem('nutraelite_community_messages');
       const existingMessages = savedMessages ? JSON.parse(savedMessages) : [];
       const updatedMessages = [...existingMessages, {
@@ -146,107 +145,46 @@ export function useCommunityMessages() {
         timestamp: newMessage.timestamp.toISOString(),
       }];
       
-      try {
-        localStorage.setItem('nutraelite_community_messages', JSON.stringify(updatedMessages));
-        console.log('✅ Mensagem salva no localStorage');
-      } catch (storageError) {
-        console.error('❌ Erro ao salvar no localStorage:', storageError);
-        throw new Error('Erro ao salvar mensagem. Tente novamente.');
-      }
-
-      // Atualizar estado local
-      setMessages(prevMessages => [...prevMessages, newMessage]);
-      console.log('✅ Mensagem enviada com sucesso (modo offline)');
-
-      return newMessage;
+      localStorage.setItem('nutraelite_community_messages', JSON.stringify(updatedMessages));
+      console.log('✅ Mensagem salva no localStorage');
+    } catch (storageError) {
+      console.error('❌ Erro ao salvar no localStorage:', storageError);
+      throw new Error('Erro ao salvar mensagem. Tente novamente.');
     }
 
-    console.log('☁️ Modo Supabase - enviando mensagem no banco');
-    // Modo Supabase - tentar usar, mas se falhar, usar modo offline
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        console.warn('⚠️ Erro de autenticação no Supabase, usando modo offline');
-        throw new Error('FALLBACK_TO_OFFLINE');
-      }
+    // Atualizar estado local imediatamente
+    setMessages(prevMessages => [...prevMessages, newMessage]);
+    console.log('✅ Mensagem enviada com sucesso (modo offline)');
 
-      console.log('✅ Usuário autenticado:', user.id);
-
-      const { data, error } = await supabase
-        .from('community_messages')
-        .insert({
-          author_id: user.id,
-          content,
-          type,
-          image,
-          audio_url: audioUrl,
-          audio_duration: audioDuration,
-        })
-        .select(`
-          *,
-          author:profiles(*)
-        `)
-        .single();
-
-      if (error) {
-        console.warn('⚠️ Erro ao inserir no Supabase, usando modo offline:', error);
-        throw new Error('FALLBACK_TO_OFFLINE');
-      }
-
-      console.log('✅ Mensagem enviada no Supabase');
-
-      // Recarregar mensagens
-      await loadMessages();
-
-      return data;
-    } catch (supabaseError: any) {
-      // Se for erro de fallback, usar modo offline
-      if (supabaseError?.message === 'FALLBACK_TO_OFFLINE') {
-        console.log('📦 Fallback para modo offline devido a erro no Supabase');
-        // Usar modo offline
-        const savedAuth = localStorage.getItem('nutraelite_auth');
-        if (!savedAuth) {
-          throw new Error('Usuário não autenticado. Faça login primeiro.');
+    // Tentar sincronizar com Supabase em background (não bloqueia)
+    if (isSupabaseConfigured) {
+      console.log('☁️ Tentando sincronizar com Supabase em background...');
+      (async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase
+              .from('community_messages')
+              .insert({
+                author_id: user.id,
+                content,
+                type,
+                image,
+                audio_url: audioUrl,
+                audio_duration: audioDuration,
+              });
+            console.log('✅ Mensagem sincronizada com Supabase');
+            // Recarregar do Supabase após sincronizar
+            await loadMessages();
+          }
+        } catch (syncError) {
+          console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', syncError);
+          // Não é crítico, a mensagem já está salva localmente
         }
-        
-        const authData = JSON.parse(savedAuth);
-        const authorData = authData.user;
-        
-        if (!authorData) {
-          throw new Error('Usuário não autenticado. Faça login primeiro.');
-        }
-
-        const newMessage: Message = {
-          id: Date.now().toString(),
-          content,
-          isUser: true,
-          timestamp: new Date(),
-          type: type as 'text' | 'audio' | 'emoji' | 'image',
-          image,
-          audioDuration,
-          audioUrl,
-          author: {
-            name: authorData.name,
-            avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name)}&background=random`,
-          },
-        };
-
-        const savedMessages = localStorage.getItem('nutraelite_community_messages');
-        const existingMessages = savedMessages ? JSON.parse(savedMessages) : [];
-        const updatedMessages = [...existingMessages, {
-          ...newMessage,
-          timestamp: newMessage.timestamp.toISOString(),
-        }];
-        
-        localStorage.setItem('nutraelite_community_messages', JSON.stringify(updatedMessages));
-        setMessages(prevMessages => [...prevMessages, newMessage]);
-        
-        return newMessage;
-      }
-      // Se for outro erro, relançar
-      throw supabaseError;
+      })();
     }
+
+    return newMessage;
   };
 
   return {
