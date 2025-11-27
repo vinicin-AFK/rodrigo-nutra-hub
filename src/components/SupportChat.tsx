@@ -45,17 +45,8 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
   // Se é suporte e não há conversa aberta, mostrar lista de conversas
   const [showConversationList, setShowConversationList] = useState(false);
   
-  useEffect(() => {
-    // Se é suporte e não há conversa aberta, mostrar lista
-    if (isSupport && !currentConversation) {
-      setShowConversationList(true);
-    } else if (isSupport && currentConversation) {
-      // Se tem conversa aberta, garantir que a lista não está sendo mostrada
-      setShowConversationList(false);
-    } else {
-      setShowConversationList(false);
-    }
-  }, [isSupport, currentConversation]);
+  // Não precisamos mais do showConversationList - usamos currentConversation diretamente
+  // useEffect removido - a lógica agora é direta no return
 
   useEffect(() => {
     if (initialMessage && !isSupport) {
@@ -433,8 +424,8 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     }
   }, [isSupport, currentConversation, showConversationList]);
 
-  // Se é suporte e está mostrando lista de conversas
-  if (isSupport && showConversationList) {
+  // Se é suporte e NÃO tem conversa aberta, mostrar lista
+  if (isSupport && !currentConversation) {
     return (
       <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background">
         <div className="p-4 border-b border-border/50">
@@ -469,13 +460,9 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
                   key={conv.id}
                   onClick={() => {
                     console.log('📂 Abrindo conversa:', conv.id);
-                    // IMPORTANTE: Fechar lista PRIMEIRO, depois abrir conversa
-                    setShowConversationList(false);
-                    // Usar setTimeout para garantir que o estado seja atualizado
-                    setTimeout(() => {
-                      openConversation(conv.id);
-                      console.log('✅ Conversa aberta:', conv.id);
-                    }, 50);
+                    // Abrir conversa diretamente - o return vai mudar automaticamente
+                    openConversation(conv.id);
+                    console.log('✅ Conversa aberta:', conv.id);
                   }}
                   className="w-full p-4 hover:bg-gray-50 dark:hover:bg-secondary/50 transition-colors text-left"
                 >
@@ -524,8 +511,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
         <div className="p-3 border-b border-border/50 flex items-center gap-3 bg-white dark:bg-background">
           <button
             onClick={() => {
-              setShowConversationList(true);
-              openConversation(null);
+              openConversation(null); // Voltar para lista (sem conversa aberta)
             }}
             className="p-2 hover:bg-gray-100 dark:hover:bg-secondary rounded-lg transition-colors"
           >
