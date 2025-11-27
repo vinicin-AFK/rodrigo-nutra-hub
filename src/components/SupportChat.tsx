@@ -635,7 +635,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
                         className="rounded-lg w-full"
                       />
                       {message.content && message.content !== '📷' && (
-                        <p className="text-sm mt-2 whitespace-pre-wrap break-words">
+                        <p className="text-sm mt-2 whitespace-pre-wrap break-words text-gray-900 dark:text-gray-100">
                           {message.content}
                         </p>
                       )}
