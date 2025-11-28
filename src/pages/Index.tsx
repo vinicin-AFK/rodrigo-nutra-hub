@@ -42,9 +42,22 @@ const Index = () => {
     if (selectedPostIdRef.current) {
       const updatedPost = allPosts.find(p => p.id === selectedPostIdRef.current);
       if (updatedPost) {
-        setSelectedPostForComments({
-          ...updatedPost,
-          commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
+        // Só atualizar se realmente mudou (evitar loops)
+        setSelectedPostForComments(prev => {
+          if (!prev || prev.id !== updatedPost.id) {
+            return {
+              ...updatedPost,
+              commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
+            };
+          }
+          // Se o número de comentários mudou, atualizar
+          if ((prev.commentsList?.length || 0) !== (updatedPost.commentsList?.length || 0)) {
+            return {
+              ...updatedPost,
+              commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
+            };
+          }
+          return prev; // Não mudou, manter como está
         });
       }
     }
