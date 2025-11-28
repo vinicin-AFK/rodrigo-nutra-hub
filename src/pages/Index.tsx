@@ -72,13 +72,25 @@ const Index = () => {
       
       // Se não for community, fazer scroll ao topo
       if (activeTab !== 'community') {
-        setTimeout(() => {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          // Também tentar scroll no container principal
-          if (mainContentRef.current) {
-            mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-          }
-        }, 100);
+        // Usar requestAnimationFrame para garantir que o DOM está pronto
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            // Scroll da janela (funciona melhor no mobile)
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Também tentar scroll no container principal se existir
+            if (mainContentRef.current) {
+              try {
+                mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+              } catch (e) {
+                // Se scrollTo não funcionar, tentar scrollTop direto
+                mainContentRef.current.scrollTop = 0;
+              }
+            }
+            // Scroll do documento também (para garantir)
+            document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+            document.body.scrollTo({ top: 0, behavior: 'smooth' });
+          }, 150);
+        });
       }
       // Se for community, o CommunityChat já faz scroll para última mensagem
     }
