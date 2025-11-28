@@ -130,6 +130,13 @@ const Index = () => {
 
   const handleNewPost = async (content: string, resultValue?: number, image?: string) => {
     try {
+      // Mostrar notificação imediata
+      toast({
+        title: "📝 Criando publicação...",
+        description: "Aguarde enquanto sua publicação é processada.",
+        duration: 2000,
+      });
+      
       // Criar postagem - SEMPRE funciona, mesmo sem usuário autenticado
       await createPost(content, resultValue, image);
       
@@ -143,12 +150,16 @@ const Index = () => {
         console.warn('Erro ao adicionar pontos (não crítico):', pointsError);
       }
       
-      toast({
-        title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
-        description: resultValue 
-          ? `+${Math.floor(resultValue / 100)} pontos ganhos!` 
-          : "Seu post foi compartilhado com a comunidade. +2 pontos!",
-      });
+      // Notificação de sucesso (será substituída pela do usePosts se houver erro)
+      setTimeout(() => {
+        toast({
+          title: resultValue ? "🔥 Resultado publicado!" : "✅ Post publicado!",
+          description: resultValue 
+            ? `+${Math.floor(resultValue / 100)} pontos ganhos!` 
+            : "Seu post foi compartilhado com a comunidade. +2 pontos!",
+          duration: 3000,
+        });
+      }, 500);
     } catch (error: any) {
       console.error('❌ Erro ao publicar:', error);
       toast({
