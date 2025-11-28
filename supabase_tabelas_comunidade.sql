@@ -4,6 +4,23 @@
 -- ============================================
 
 -- ============================================
+-- 0. PREPARAR TABELA PROFILES (adicionar coluna role se não existir)
+-- ============================================
+
+-- Adicionar coluna role na tabela profiles (se não existir)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'profiles' AND column_name = 'role'
+  ) THEN
+    ALTER TABLE profiles ADD COLUMN role TEXT DEFAULT 'user' CHECK (role IN ('user', 'support', 'admin'));
+    -- Atualizar registros existentes para 'user'
+    UPDATE profiles SET role = 'user' WHERE role IS NULL;
+  END IF;
+END $$;
+
+-- ============================================
 -- 1. TABELA DE PUBLICAÇÕES DA COMUNIDADE
 -- ============================================
 
