@@ -580,6 +580,7 @@ export function usePosts() {
                 image: image || null,
                 result_value: resultValue || null,
                 type: resultValue ? 'result' : 'post',
+                status: 'active', // Garantir que o status seja 'active'
               })
               .select(`
                 id,
@@ -590,6 +591,7 @@ export function usePosts() {
 
             if (!error && insertedPost) {
               console.log('✅ Postagem sincronizada com Supabase:', insertedPost.id);
+              console.log('📊 Dados inseridos:', { id: insertedPost.id, author_id: user.id, content: content.substring(0, 50) });
               
               // Atualizar o post local com o ID do Supabase e dados atualizados
               setPosts(prevPosts => {
@@ -626,6 +628,14 @@ export function usePosts() {
               }, 1000);
             } else {
               console.error('❌ Erro ao sincronizar com Supabase:', error);
+              console.error('📋 Detalhes do erro:', {
+                message: error?.message,
+                code: error?.code,
+                details: error?.details,
+                hint: error?.hint,
+                userId: user.id,
+                content: content.substring(0, 50),
+              });
               // Não é crítico - já está salvo localmente
             }
           } else {
