@@ -759,7 +759,7 @@ export function usePosts() {
             if (!error && insertedPost) {
               console.log('✅ Postagem sincronizada com Supabase:', insertedPost.id);
               
-              // Atualizar o post local com o ID do Supabase
+              // Atualizar o post local com o ID do Supabase e dados atualizados
               setPosts(prevPosts => {
                 return prevPosts.map(p => {
                   if (p.id === newPost.id) {
@@ -767,18 +767,31 @@ export function usePosts() {
                       ...p,
                       id: insertedPost.id,
                       createdAt: new Date(insertedPost.created_at),
+                      author: {
+                        ...p.author,
+                        ...(insertedPost.author ? {
+                          id: insertedPost.author.id,
+                          name: insertedPost.author.name || p.author.name,
+                          avatar: insertedPost.author.avatar || p.author.avatar,
+                          level: insertedPost.author.level || p.author.level,
+                          points: insertedPost.author.points || p.author.points,
+                          rank: insertedPost.author.rank || p.author.rank,
+                          totalSales: insertedPost.author.total_sales || p.author.totalSales,
+                          role: insertedPost.author.role || p.author.role,
+                        } : {}),
+                      },
                     };
                   }
                   return p;
                 });
               });
               
-              // Recarregar do Supabase para ter dados atualizados (em background)
+              // Recarregar do Supabase para ter dados atualizados (em background, sem bloquear)
               setTimeout(() => {
                 loadPosts().catch(err => {
                   console.warn('⚠️ Erro ao recarregar posts após criar:', err);
                 });
-              }, 500);
+              }, 1000);
             } else {
               console.error('❌ Erro ao sincronizar com Supabase:', error);
               // Não é crítico - já está salvo localmente
