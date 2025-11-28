@@ -235,10 +235,15 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
           </button>
         </div>
 
-        {/* Likes count */}
-        <div className="mb-2">
-          <span className="text-sm font-semibold text-foreground">{likes.toLocaleString()} curtidas</span>
-        </div>
+        {/* Likes count - sempre mostrar se houver curtidas */}
+        {likes > 0 && (
+          <div className="mb-2">
+            <span className="text-sm font-semibold text-foreground flex items-center gap-1">
+              <Flame className="w-4 h-4 text-primary" />
+              {likes.toLocaleString()} {likes === 1 ? 'curtida' : 'curtidas'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Content */}
