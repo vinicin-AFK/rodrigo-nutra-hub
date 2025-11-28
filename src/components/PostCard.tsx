@@ -195,7 +195,8 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
         <div className="flex items-center gap-4 mb-2">
           <button
             onClick={handleLike}
-            className="flex items-center gap-2 group relative"
+            className="flex items-center gap-2 group relative touch-manipulation"
+            style={{ touchAction: 'manipulation' }}
           >
             {/* Particles */}
             {particles.map((p) => (
@@ -218,9 +219,10 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
             )}
           </button>
 
-          <button 
+          <button
             onClick={() => onComment && onComment(post.id)}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground active:text-foreground transition-colors touch-manipulation"
+            style={{ touchAction: 'manipulation' }}
           >
             <MessageCircle className="w-6 h-6" />
           </button>
@@ -252,7 +254,8 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
         {(post.comments > 0 || (post.commentsList && post.commentsList.length > 0)) && (
           <button 
             onClick={() => onComment && onComment(post.id)}
-            className="text-muted-foreground text-sm hover:text-foreground transition-colors"
+            className="text-muted-foreground text-sm hover:text-foreground active:text-foreground transition-colors touch-manipulation"
+            style={{ touchAction: 'manipulation' }}
           >
             Ver todos os {post.commentsList?.length || post.comments} comentários
           </button>
