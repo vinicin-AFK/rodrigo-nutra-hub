@@ -272,7 +272,7 @@ export function usePosts() {
 
     // Listener para atualizar posts quando o perfil mudar
     const handleProfileUpdate = (event: CustomEvent) => {
-          const { data: { user } } = await supabase.auth.getUser();
+      const updatedUser = event.detail;
           const currentUserId = user?.id;
 
           // Carregar curtidas e comentários em batch separado (mais rápido)
