@@ -15,15 +15,27 @@ CREATE TABLE IF NOT EXISTS posts (
   image TEXT,
   result_value INTEGER,
   type TEXT DEFAULT 'post' CHECK (type IN ('post', 'result')),
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'hidden')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Adicionar coluna status se não existir (ANTES das políticas RLS)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'posts' AND column_name = 'status'
+  ) THEN
+    ALTER TABLE posts ADD COLUMN status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'hidden'));
+    -- Atualizar registros existentes para 'active'
+    UPDATE posts SET status = 'active' WHERE status IS NULL;
+  END IF;
+END $$;
+
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS posts_author_id_idx ON posts(author_id);
 CREATE INDEX IF NOT EXISTS posts_created_at_idx ON posts(created_at DESC);
--- Índice de status será criado após adicionar a coluna (seção 6)
+CREATE INDEX IF NOT EXISTS posts_status_idx ON posts(status) WHERE status = 'active';
 
 -- Habilitar RLS (Row Level Security)
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
@@ -72,15 +84,27 @@ CREATE TABLE IF NOT EXISTS community_messages (
   image TEXT,
   audio_duration INTEGER,
   audio_url TEXT,
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'hidden')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Adicionar coluna status se não existir (ANTES das políticas RLS)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'community_messages' AND column_name = 'status'
+  ) THEN
+    ALTER TABLE community_messages ADD COLUMN status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'hidden'));
+    -- Atualizar registros existentes para 'active'
+    UPDATE community_messages SET status = 'active' WHERE status IS NULL;
+  END IF;
+END $$;
+
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS community_messages_author_id_idx ON community_messages(author_id);
 CREATE INDEX IF NOT EXISTS community_messages_created_at_idx ON community_messages(created_at DESC);
--- Índice de status será criado após adicionar a coluna (seção 6)
+CREATE INDEX IF NOT EXISTS community_messages_status_idx ON community_messages(status) WHERE status = 'active';
 
 -- Habilitar RLS (Row Level Security)
 ALTER TABLE community_messages ENABLE ROW LEVEL SECURITY;
@@ -154,10 +178,22 @@ CREATE TABLE IF NOT EXISTS comments (
   post_id UUID REFERENCES posts(id) ON DELETE CASCADE NOT NULL,
   author_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   content TEXT NOT NULL,
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'hidden')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Adicionar coluna status se não existir (ANTES das políticas RLS)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'comments' AND column_name = 'status'
+  ) THEN
+    ALTER TABLE comments ADD COLUMN status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'hidden'));
+    -- Atualizar registros existentes para 'active'
+    UPDATE comments SET status = 'active' WHERE status IS NULL;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS comments_post_id_idx ON comments(post_id);
 CREATE INDEX IF NOT EXISTS comments_author_id_idx ON comments(author_id);
@@ -257,50 +293,10 @@ CREATE TRIGGER update_community_messages_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
--- 6. ADICIONAR COLUNAS SE NÃO EXISTIREM
+-- 6. ADICIONAR COLUNAS ADICIONAIS SE NÃO EXISTIREM
 -- ============================================
-
--- Adicionar coluna status na tabela posts (se não existir)
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'posts' AND column_name = 'status'
-  ) THEN
-    ALTER TABLE posts ADD COLUMN status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'hidden'));
-  END IF;
-END $$;
-
--- Criar índice de status para posts (após garantir que a coluna existe)
-CREATE INDEX IF NOT EXISTS posts_status_idx ON posts(status) WHERE status = 'active';
-
--- Adicionar coluna status na tabela community_messages (se não existir)
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'community_messages' AND column_name = 'status'
-  ) THEN
-    ALTER TABLE community_messages ADD COLUMN status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'hidden'));
-  END IF;
-END $$;
-
--- Criar índice de status para community_messages (após garantir que a coluna existe)
-CREATE INDEX IF NOT EXISTS community_messages_status_idx ON community_messages(status) WHERE status = 'active';
-
--- Adicionar coluna status na tabela comments (se não existir)
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'comments' AND column_name = 'status'
-  ) THEN
-    ALTER TABLE comments ADD COLUMN status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deleted', 'hidden'));
-  END IF;
-END $$;
-
--- Criar índice de status para comments (após garantir que a coluna existe)
-CREATE INDEX IF NOT EXISTS comments_status_idx ON comments(status) WHERE status = 'active';
+-- Nota: As colunas 'status' já foram adicionadas nas seções 1, 2 e 4
+-- Esta seção é apenas para outras colunas que possam ser necessárias no futuro
 
 -- Adicionar coluna updated_at na tabela community_messages (se não existir)
 DO $$ 
