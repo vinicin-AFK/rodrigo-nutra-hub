@@ -493,7 +493,12 @@ export function usePosts() {
       },
     };
 
-    console.log('📝 Criando postagem...', { isSupabaseConfigured, content: content.substring(0, 50) });
+    console.log('📝 Criando postagem...', { 
+      isSupabaseConfigured, 
+      content: content.substring(0, 50),
+      authorId: authorData.id,
+      authorName: authorData.name,
+    });
     
     // SEMPRE salvar no localStorage PRIMEIRO (para feedback imediato)
     ensureStorageSpace();
@@ -535,18 +540,40 @@ export function usePosts() {
     console.log('✅ Postagem salva localmente (feedback imediato)');
     
     // Depois tentar sincronizar com Supabase (em background, não bloqueia)
+    console.log('🔍 Verificando Supabase...', { 
+      isSupabaseConfigured,
+      willSync: isSupabaseConfigured,
+    });
+    
     if (isSupabaseConfigured) {
       (async () => {
         try {
+          console.log('🔐 Buscando usuário autenticado...');
           const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          console.log('👤 Resultado da autenticação:', { 
+            hasUser: !!user, 
+            userId: user?.id,
+            error: userError?.message,
+          });
           
           if (userError) {
             console.warn('⚠️ Erro ao buscar usuário do Supabase:', userError);
+            console.warn('📋 Detalhes:', {
+              message: userError.message,
+              code: userError.code,
+              status: userError.status,
+            });
             return;
           }
           
           if (user) {
-            console.log('💾 Sincronizando com Supabase...', { userId: user.id, content: content.substring(0, 30) });
+            console.log('💾 Sincronizando com Supabase...', { 
+              userId: user.id, 
+              content: content.substring(0, 30),
+              hasImage: !!image,
+              resultValue,
+            });
             
             // Verificar se o perfil existe no Supabase
             const { data: profile, error: profileError } = await supabase
@@ -572,6 +599,13 @@ export function usePosts() {
               }
             }
             
+            console.log('📤 Tentando inserir no Supabase...', {
+              author_id: user.id,
+              content_length: content.length,
+              has_image: !!image,
+              type: resultValue ? 'result' : 'post',
+            });
+            
             const { data: insertedPost, error } = await supabase
               .from('posts')
               .insert({
@@ -589,9 +623,24 @@ export function usePosts() {
               `)
               .single();
 
+            console.log('📥 Resposta do Supabase:', {
+              hasData: !!insertedPost,
+              hasError: !!error,
+              postId: insertedPost?.id,
+              errorMessage: error?.message,
+              errorCode: error?.code,
+              errorDetails: error?.details,
+              errorHint: error?.hint,
+            });
+
             if (!error && insertedPost) {
               console.log('✅ Postagem sincronizada com Supabase:', insertedPost.id);
-              console.log('📊 Dados inseridos:', { id: insertedPost.id, author_id: user.id, content: content.substring(0, 50) });
+              console.log('📊 Dados inseridos:', { 
+                id: insertedPost.id, 
+                author_id: user.id, 
+                content: content.substring(0, 50),
+                created_at: insertedPost.created_at,
+              });
               
               // Atualizar o post local com o ID do Supabase e dados atualizados
               setPosts(prevPosts => {
@@ -639,7 +688,9 @@ export function usePosts() {
               // Não é crítico - já está salvo localmente
             }
           } else {
-            console.log('ℹ️ Usuário não autenticado no Supabase, mantendo apenas local');
+            console.warn('⚠️ Usuário não autenticado no Supabase!');
+            console.warn('📋 Isso significa que a publicação será salva apenas localmente.');
+            console.warn('💡 Solução: Faça login novamente no aplicativo.');
           }
         } catch (error: any) {
           console.error('❌ Erro ao sincronizar com Supabase:', error?.message || error);
