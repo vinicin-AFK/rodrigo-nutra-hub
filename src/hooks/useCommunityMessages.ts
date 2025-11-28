@@ -490,10 +490,10 @@ export function useCommunityMessages() {
 
             if (!error && insertedMessage) {
               console.log('✅ Mensagem sincronizada com Supabase:', insertedMessage.id);
-              // Aguardar um pouco para garantir que o Supabase processou
-              await new Promise(resolve => setTimeout(resolve, 500));
-              // Recarregar do Supabase para ter dados atualizados (sem mostrar loading)
+              // Recarregar do Supabase IMEDIATAMENTE para garantir que todos veem a nova mensagem
+              console.log('🔄 Recarregando chat global após enviar mensagem...');
               await loadMessages(false);
+              console.log('✅ Chat global atualizado - mensagem visível para TODOS os usuários');
             } else {
               console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', error);
               // Mesmo com erro, tentar recarregar para pegar outras mensagens
