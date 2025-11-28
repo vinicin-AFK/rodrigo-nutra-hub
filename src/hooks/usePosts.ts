@@ -711,12 +711,10 @@ export function usePosts() {
                 });
               });
               
-              // Recarregar do Supabase para ter dados atualizados (em background, sem bloquear)
-              setTimeout(() => {
-                loadPosts().catch(err => {
-                  console.warn('⚠️ Erro ao recarregar posts após criar:', err);
-                });
-              }, 1000);
+              // Recarregar do Supabase IMEDIATAMENTE para garantir que todos veem a nova publicação
+              console.log('🔄 Recarregando feed global após criar publicação...');
+              await loadPosts(false);
+              console.log('✅ Feed global atualizado - publicação visível para TODOS os usuários');
             } else {
               console.error('❌ Erro ao sincronizar com Supabase:', error);
               console.error('📋 Detalhes do erro:', {
