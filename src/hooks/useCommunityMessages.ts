@@ -210,64 +210,6 @@ export function useCommunityMessages() {
       }
     }
   };
-    
-    // FALLBACK: Carregar do localStorage se Supabase não funcionou ou não está configurado
-    try {
-      const savedMessages = safeGetItem('nutraelite_community_messages');
-      if (savedMessages) {
-        const parsed = JSON.parse(savedMessages);
-        const loadedMessages: Message[] = parsed.map((msg: any) => {
-          const authorId = msg.author?.id || null;
-          const isUser = currentUserId && authorId ? authorId === currentUserId : msg.isUser;
-          
-          // Se a mensagem é do usuário atual e temos perfil atualizado, usar o perfil atualizado
-          let author = msg.author || {
-            name: 'Usuário',
-            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-            id: authorId,
-          };
-          
-          if (currentUser && authorId === currentUserId) {
-            author = {
-              ...author,
-              name: currentUser.name || author.name,
-              avatar: currentUser.avatar || author.avatar,
-              id: authorId || author.id,
-            };
-          } else {
-            author = {
-              ...author,
-              id: authorId || author.id,
-            };
-          }
-          
-          return {
-            ...msg,
-            timestamp: new Date(msg.timestamp),
-            isUser,
-            author,
-          };
-        });
-        setMessages(loadedMessages);
-        if (showLoading) {
-          setIsLoading(false);
-        }
-        console.log('✅ Mensagens carregadas do localStorage:', loadedMessages.length);
-      } else {
-        setMessages([]);
-        if (showLoading) {
-          setIsLoading(false);
-        }
-        console.log('ℹ️ Nenhuma mensagem encontrada (nem Supabase nem localStorage)');
-      }
-    } catch (error) {
-      console.error('Erro ao carregar mensagens do localStorage:', error);
-      setMessages([]);
-      if (showLoading) {
-        setIsLoading(false);
-      }
-    }
-  };
 
   useEffect(() => {
     // Carregar inicialmente (com loading)
