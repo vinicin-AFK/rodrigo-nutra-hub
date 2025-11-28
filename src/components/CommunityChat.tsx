@@ -253,7 +253,10 @@ export function CommunityChat() {
       const dateKey = messageDate.toDateString();
       // Recalcular isCurrentUser comparando ID do autor com ID do usuário atual
       const authorId = message.author?.id || null;
-      const isCurrentUser = authorId && currentUser.id ? authorId === currentUser.id : message.isUser;
+      // Usar message.isUser como fallback se não tiver IDs para comparar
+      const isCurrentUser = currentUser.id && authorId 
+        ? authorId === currentUser.id 
+        : (message.isUser !== undefined ? message.isUser : false);
       
       // Verificar se precisa de separador de data
       if (dateKey !== lastDate) {
