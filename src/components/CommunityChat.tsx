@@ -142,13 +142,18 @@ export function CommunityChat() {
   const isSupport = user?.role === 'support' || user?.role === 'admin';
   
   const currentUser = user ? {
-    ...fallbackUser,
-    id: user.id, // Garantir que o ID está presente
-    name: user.name,
+    id: user.id,
+    name: user.name || 'Usuário',
     email: user.email,
-    avatar: user.avatar || fallbackUser.avatar,
-    level: user.level || fallbackUser.level,
-  } : fallbackUser;
+    avatar: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Usuario')}&background=random`,
+    level: user.level || 'Bronze',
+  } : {
+    id: 'anonymous',
+    name: 'Usuário',
+    email: '',
+    avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+    level: 'Bronze',
+  };
 
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);

@@ -23,12 +23,18 @@ export function CommentsModal({ isOpen, onClose, post, onAddComment, onDeleteCom
   const isSupport = user?.role === 'support' || user?.role === 'admin';
 
   const currentUser = user ? {
-    ...fallbackUser,
-    name: user.name,
+    id: user.id,
+    name: user.name || 'Usuário',
     email: user.email,
-    avatar: user.avatar || fallbackUser.avatar,
-    level: user.level || fallbackUser.level,
-  } : fallbackUser;
+    avatar: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Usuario')}&background=random`,
+    level: user.level || 'Bronze',
+  } : {
+    id: 'anonymous',
+    name: 'Usuário',
+    email: '',
+    avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+    level: 'Bronze',
+  };
 
   const scrollToBottom = () => {
     setTimeout(() => {
