@@ -475,11 +475,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
           
-          // Se temos dados locais, NÃO sobrescrever com Supabase durante carregamento inicial
-          // Apenas sincronizar em background (sem atualizar o estado se já temos dados locais)
+          // Se temos dados locais, NÃO chamar loadProfile - manter dados locais como fonte de verdade
           if (hasLocalData && localUser) {
-            console.log('✅ Usando dados locais como fonte de verdade');
-            // Carregar stats e achievements em background, mas não sobrescrever perfil
+            console.log('✅ Usando dados locais como fonte de verdade - NÃO carregando do Supabase');
+            // Garantir que o estado está atualizado com dados locais
+            setUser(localUser);
+            persistAuthData(localUser); // Garantir que está salvo
+            
+            // Carregar apenas stats e achievements em background (sem tocar no perfil)
             Promise.all([
               loadStats(session.user.id).catch(err => {
                 console.error('Erro ao carregar stats:', err);
@@ -491,11 +494,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               console.log('✅ Stats e achievements carregados em background');
             });
             
-            // Tentar sincronizar perfil com Supabase em background (sem sobrescrever)
-            loadProfile(session.user.id).catch(err => {
-              console.error('Erro ao sincronizar perfil:', err);
-              // Manter dados locais mesmo se falhar
-            });
+            // NÃO chamar loadProfile - manter dados locais intactos
+            console.log('🔒 Perfil local protegido - não será sobrescrito pelo Supabase');
           } else {
             // Se não temos dados locais, carregar do Supabase normalmente
             console.log('📥 Carregando dados do Supabase (sem dados locais)');
@@ -1322,12 +1322,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ...(data.name !== undefined && { name: data.name }),
       ...(data.avatar !== undefined && { avatar: data.avatar || undefined }),
     };
+    
+    // CRÍTICO: Atualizar estado ANTES de salvar
     setUser(updatedUser);
     
-    // Salvar no localStorage IMEDIATAMENTE usando persistAuthData para garantir consistência
+    // Salvar no localStorage IMEDIATAMENTE - MÚLTIPLAS VEZES para garantir
     persistAuthData(updatedUser);
     
-    // Também salvar diretamente para garantir (dupla verificação)
+    // Salvar diretamente também (dupla verificação)
     try {
       const dataToSave = {
         user: {
@@ -1343,13 +1345,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         timestamp: Date.now(),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-      console.log('✅ Perfil salvo no localStorage (dupla verificação):', {
-        name: updatedUser.name,
-        avatar: updatedUser.avatar ? 'sim' : 'não',
-        id: updatedUser.id
-      });
+      
+      // Verificar se foi salvo corretamente
+      const verify = localStorage.getItem(STORAGE_KEY);
+      if (verify) {
+        const parsed = JSON.parse(verify);
+        console.log('✅ Perfil salvo e verificado no localStorage:', {
+          name: parsed.user?.name,
+          avatar: parsed.user?.avatar ? 'sim' : 'não',
+          id: parsed.user?.id,
+          timestamp: new Date(parsed.timestamp).toISOString()
+        });
+      } else {
+        console.error('❌ ERRO: Perfil não foi salvo corretamente!');
+      }
     } catch (error) {
-      console.error('Erro ao salvar perfil no localStorage:', error);
+      console.error('❌ Erro ao salvar perfil no localStorage:', error);
+      // Tentar novamente
+      try {
+        persistAuthData(updatedUser);
+      } catch (retryError) {
+        console.error('❌ Erro ao tentar salvar novamente:', retryError);
+      }
     }
     
     // Atualizar posts existentes no localStorage com o novo perfil
