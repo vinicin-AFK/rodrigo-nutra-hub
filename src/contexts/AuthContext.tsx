@@ -116,12 +116,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return;
     try {
       if (userData) {
+        // Garantir que avatar seja null (não undefined) para preservar
         const dataToSave = {
-          user: userData,
+          user: {
+            ...userData,
+            avatar: userData.avatar || null, // Sempre salvar null se não houver (não undefined)
+          },
           timestamp: Date.now(),
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-        console.log('💾 Perfil persistido no localStorage:', { name: userData.name, avatar: userData.avatar ? 'sim' : 'não' });
+        console.log('💾 Perfil persistido no localStorage:', { 
+          name: userData.name, 
+          avatar: userData.avatar ? 'sim' : 'não',
+          avatarValue: userData.avatar || null
+        });
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }
