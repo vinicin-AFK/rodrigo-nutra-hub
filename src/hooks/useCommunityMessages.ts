@@ -262,6 +262,7 @@ export function useCommunityMessages() {
       return () => {
         clearTimeout(safetyTimeout);
         window.removeEventListener('profile-updated', handleProfileUpdate as EventListener);
+        window.removeEventListener('messages-need-reload', handleMessagesReload);
       };
     }
 
