@@ -540,6 +540,13 @@ export function usePosts() {
     });
     console.log('✅ Postagem salva localmente (feedback imediato)');
     
+    // Mostrar notificação imediata de sucesso local
+    toast({
+      title: '📝 Publicação criada!',
+      description: 'Sua publicação foi criada. Sincronizando com o servidor...',
+      duration: 3000,
+    });
+    
     // Depois tentar sincronizar com Supabase (em background, não bloqueia)
     console.log('🔍 Verificando Supabase...', { 
       isSupabaseConfigured,
