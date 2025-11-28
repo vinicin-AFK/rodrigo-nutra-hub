@@ -271,18 +271,17 @@ const Index = () => {
                   </Button>
                 </div>
               ) : (
-                allPosts
-                  .filter(post => post && post.author && post.status !== 'deleted' && post.status !== 'hidden')
-                  .map((post) => (
-                    <PostCard 
-                      key={post.id} 
-                      post={post} 
-                      onLike={handleLike}
-                      onComment={handleOpenComments}
-                      onDelete={deletePost}
-                    />
-                  ))
-              )}
+                validPosts.map((post) => (
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                    onLike={handleLike}
+                    onComment={handleOpenComments}
+                    onDelete={deletePost}
+                  />
+                ))
+              );
+              })()}
             </div>
           </div>
         );

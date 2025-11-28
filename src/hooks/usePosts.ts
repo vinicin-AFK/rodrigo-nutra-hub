@@ -87,10 +87,16 @@ export function usePosts() {
           };
         });
         setPosts(loadedPosts);
+        setIsLoading(false); // Parar loading imediatamente após carregar do localStorage
         console.log('✅ Postagens carregadas do localStorage (inicial):', loadedPosts.length);
+      } else {
+        // Se não há posts no localStorage, parar loading também
+        setIsLoading(false);
+        console.log('ℹ️ Nenhuma postagem no localStorage');
       }
     } catch (error) {
       console.error('Erro ao carregar postagens do localStorage:', error);
+      setIsLoading(false); // Parar loading mesmo em caso de erro
     }
     
     // Depois tentar sincronizar com Supabase (se configurado)
