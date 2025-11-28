@@ -384,10 +384,14 @@ export function useCommunityMessages() {
 
             if (!error && insertedMessage) {
               console.log('✅ Mensagem sincronizada com Supabase:', insertedMessage.id);
-              // Recarregar do Supabase para ter dados atualizados
-              await loadMessages();
+              // Aguardar um pouco para garantir que o Supabase processou
+              await new Promise(resolve => setTimeout(resolve, 500));
+              // Recarregar do Supabase para ter dados atualizados (sem mostrar loading)
+              await loadMessages(false);
             } else {
               console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', error);
+              // Mesmo com erro, tentar recarregar para pegar outras mensagens
+              setTimeout(() => loadMessages(false), 1000);
             }
           } else {
             console.log('ℹ️ Usuário não autenticado no Supabase, mantendo apenas local');
