@@ -245,23 +245,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           // Carregar usuário IMEDIATAMENTE para manter sessão
           setUser(authData.user);
+          setIsLoading(false); // IMPORTANTE: Parar loading imediatamente após carregar do localStorage
           console.log('✅ Usuário carregado do localStorage (inicial):', authData.user.email);
           
           // Se há timestamp, verificar se não expirou (opcional - manter sessão indefinidamente por padrão)
           // Por enquanto, manter sessão sempre ativa se houver dados no localStorage
+        } else {
+          setIsLoading(false); // Se não há user, também parar loading
         }
       } catch (error) {
         console.error('Erro ao carregar sessão do localStorage:', error);
+        setIsLoading(false); // Em caso de erro, parar loading
       }
     } else {
       console.log('ℹ️ Nenhum dado de autenticação encontrado no localStorage');
+      setIsLoading(false); // Se não há dados salvos, parar loading
     }
     
     // Carregar stats do localStorage
     const savedStats = localStorage.getItem(STATS_KEY);
     if (savedStats) {
       try {
-        setStats(JSON.parse(savedStats));
+        const parsedStats = JSON.parse(savedStats);
+        setStats(parsedStats);
+        console.log('✅ Stats carregados do localStorage:', parsedStats);
       } catch (error) {
         console.error('Erro ao carregar stats:', error);
       }
