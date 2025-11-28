@@ -35,7 +35,9 @@ export function usePosts() {
     if (isSupabaseConfigured) {
       try {
         console.log('🔍 Buscando postagens no Supabase (prioridade)...');
-        const { data, error } = await supabase
+        
+        // Timeout de 10 segundos para mobile
+        const supabasePromise = supabase
           .from('posts')
           .select(`
             *,
@@ -45,6 +47,15 @@ export function usePosts() {
           `)
           .order('created_at', { ascending: false })
           .limit(100); // Limitar para performance
+
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout ao carregar posts')), 10000)
+        );
+
+        const { data, error } = await Promise.race([
+          supabasePromise,
+          timeoutPromise,
+        ]) as any;
 
         console.log('📊 Resultado Supabase:', { data: data?.length || 0, error });
 
