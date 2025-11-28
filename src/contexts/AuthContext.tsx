@@ -197,31 +197,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profile) {
         console.log('✅ Perfil encontrado no Supabase:', profile.name);
         
-        // Se temos dados locais, NÃO sobrescrever - apenas usar Supabase para campos que faltam
+        // Se temos dados locais, NÃO sobrescrever - manter dados locais intactos
         if (localUser) {
-          console.log('📦 Mantendo dados locais como prioridade, mesclando apenas campos faltantes');
-          const userData: User = {
-            id: localUser.id,
-            name: localUser.name || profile.name, // SEMPRE priorizar localStorage
-            email: profile.email || localUser.email,
-            avatar: localUser.avatar || profile.avatar || undefined, // SEMPRE priorizar localStorage
-            level: localUser.level || profile.level || 'Bronze',
-            points: localUser.points ?? profile.points ?? 0,
-            plan: localUser.plan || profile.plan || 'bronze',
-            role: localUser.role || profile.role || undefined,
-          };
-          
-          // Só atualizar se realmente mudou algo (evitar re-renders desnecessários)
-          if (JSON.stringify(userData) !== JSON.stringify(localUser)) {
-            console.log('🔄 Atualizando perfil com dados mesclados');
-            setUser(userData);
-            persistAuthData(userData);
-          } else {
-            console.log('✅ Perfil local já está atualizado, mantendo como está');
-            // Garantir que está salvo
-            persistAuthData(localUser);
-          }
-          return userData;
+          console.log('📦 Mantendo dados locais como prioridade - NÃO mesclando com Supabase');
+          // NÃO atualizar estado - manter dados locais como estão
+          // NÃO chamar persistAuthData - pode sobrescrever dados mais recentes
+          console.log('✅ Perfil local preservado - não será alterado pelo Supabase');
+          return localUser;
         }
         
         // Se não temos dados locais, usar dados do Supabase
