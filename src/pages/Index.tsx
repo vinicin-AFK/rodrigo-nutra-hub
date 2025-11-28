@@ -131,11 +131,13 @@ const Index = () => {
   const handleNewPost = async (content: string, resultValue?: number, image?: string) => {
     try {
       // Mostrar notificação imediata
-      toast({
+      console.log('🔔 Chamando toast de criação...');
+      const toastResult = toast({
         title: "📝 Criando publicação...",
         description: "Aguarde enquanto sua publicação é processada.",
         duration: 2000,
       });
+      console.log('🔔 Toast chamado:', toastResult);
       
       // Criar postagem - SEMPRE funciona, mesmo sem usuário autenticado
       await createPost(content, resultValue, image);
