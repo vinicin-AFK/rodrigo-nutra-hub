@@ -246,9 +246,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             authData.user.points = 0;
           }
           // Carregar usuário IMEDIATAMENTE para manter sessão
-          setUser(authData.user);
+          // Garantir que todos os campos do perfil estão presentes
+          const loadedUser: User = {
+            id: authData.user.id,
+            name: authData.user.name || 'Usuário',
+            email: authData.user.email || '',
+            avatar: authData.user.avatar || undefined,
+            level: authData.user.level || 'Bronze',
+            points: authData.user.points || 0,
+            plan: authData.user.plan || 'bronze',
+            role: authData.user.role || undefined,
+          };
+          setUser(loadedUser);
+          // Garantir que está salvo corretamente (pode ter sido salvo de forma incompleta antes)
+          persistAuthData(loadedUser);
           setIsLoading(false); // IMPORTANTE: Parar loading imediatamente após carregar do localStorage
-          console.log('✅ Usuário carregado do localStorage (inicial):', authData.user.email);
+          console.log('✅ Usuário carregado do localStorage (inicial):', {
+            email: loadedUser.email,
+            name: loadedUser.name,
+            avatar: loadedUser.avatar ? 'sim' : 'não',
+            id: loadedUser.id
+          });
           
           // Se há timestamp, verificar se não expirou (opcional - manter sessão indefinidamente por padrão)
           // Por enquanto, manter sessão sempre ativa se houver dados no localStorage
