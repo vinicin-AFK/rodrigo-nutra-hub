@@ -1367,6 +1367,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let attempts = 0;
     const maxAttempts = 5;
     
+    // Função helper para aguardar
+    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    
     while (!saved && attempts < maxAttempts) {
       try {
         saveToStorage();
@@ -1395,19 +1398,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             attempts++;
             if (attempts < maxAttempts) {
               // Aguardar um pouco antes de tentar novamente
-              await new Promise(resolve => setTimeout(resolve, 100));
+              await wait(100);
             }
           }
         } else {
           attempts++;
           if (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await wait(100);
           }
         }
       } catch (error) {
         attempts++;
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await wait(100);
         } else {
           window.dispatchEvent(new CustomEvent('profile-saved', {
             detail: { success: false, error: error }
@@ -1421,9 +1424,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         saveToStorage();
         persistAuthData(updatedUser);
+        // Verificar uma última vez
+        const finalVerify = localStorage.getItem(STORAGE_KEY);
+        if (finalVerify) {
+          const parsed = JSON.parse(finalVerify);
+          if (parsed.user?.name === updatedUser.name && parsed.user?.id === updatedUser.id) {
+            saved = true;
+          }
+        }
       } catch (finalError) {
+        // Se ainda falhar, lançar erro
         throw new Error('Não foi possível salvar o perfil após múltiplas tentativas');
       }
+    }
+    
+    if (!saved) {
+      throw new Error('Não foi possível salvar o perfil após múltiplas tentativas');
     }
     
     // Atualizar posts existentes no localStorage com o novo perfil
