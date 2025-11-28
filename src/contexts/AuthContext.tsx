@@ -1185,19 +1185,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ...(data.avatar !== undefined && { avatar: data.avatar || undefined }),
     };
     setUser(updatedUser);
-    persistAuthData(updatedUser);
     
     // Salvar no localStorage IMEDIATAMENTE usando persistAuthData para garantir consistência
     persistAuthData(updatedUser);
     
-    // Também salvar diretamente para garantir
+    // Também salvar diretamente para garantir (dupla verificação)
     try {
       const dataToSave = {
-        user: updatedUser,
+        user: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          avatar: updatedUser.avatar || null, // Salvar null se não houver avatar
+          level: updatedUser.level || 'Bronze',
+          points: updatedUser.points || 0,
+          plan: updatedUser.plan || 'bronze',
+          role: updatedUser.role || undefined,
+        },
         timestamp: Date.now(),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-      console.log('✅ Perfil salvo no localStorage:', {
+      console.log('✅ Perfil salvo no localStorage (dupla verificação):', {
         name: updatedUser.name,
         avatar: updatedUser.avatar ? 'sim' : 'não',
         id: updatedUser.id
