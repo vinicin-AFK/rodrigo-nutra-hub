@@ -1056,7 +1056,10 @@ export function CommunityChat() {
 
       {/* Emoji picker */}
       {showEmojiPicker && (
-        <div className="absolute bottom-20 left-0 right-0 bg-white dark:bg-[#202c33] border-t border-border p-4 z-30" style={{ touchAction: 'none' }}>
+        <div className="absolute left-0 right-0 bg-white dark:bg-[#202c33] border-t border-border p-4 z-40" style={{ 
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          touchAction: 'none' 
+        }}>
           <div className="grid grid-cols-10 gap-2">
             {commonEmojis.map((emoji) => (
               <button
@@ -1076,11 +1079,12 @@ export function CommunityChat() {
 
       {/* Input Bar */}
       <div
-        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-30"
+        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative"
         style={{ 
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)',
           marginBottom: '0',
-          touchAction: 'none'
+          touchAction: 'none',
+          zIndex: 60
         }}
       >
         <div className="flex items-end gap-2 w-full">
