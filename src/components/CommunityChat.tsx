@@ -761,9 +761,9 @@ export function CommunityChat() {
 
                       {/* Messages in group */}
                       <div className={cn(
-                        "flex flex-col max-w-[75%]",
+                        "flex flex-col",
                         group.isCurrentUser ? "items-end" : "items-start"
-                      )}>
+                      )} style={{ maxWidth: '75%', width: 'fit-content' }}>
                         {/* Author name - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                         {!group.isCurrentUser && (
                           <div className="mb-1 px-1">
@@ -796,7 +796,7 @@ export function CommunityChat() {
                         )}
 
                         {/* Message bubbles */}
-                        <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col" style={{ gap: '2px' }}>
                           {group.messages.map((message, msgIndex) => {
                             const isLastInGroup = msgIndex === group.messages.length - 1;
                             
@@ -804,7 +804,7 @@ export function CommunityChat() {
                               <div
                                 key={message.id}
                                 className={cn(
-                                  "rounded-lg px-3 py-2 shadow-sm max-w-[75%] relative group/message",
+                                  "rounded-lg px-3 py-2 shadow-sm relative group/message",
                                   group.isCurrentUser
                                     ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-white"
                                     : group.author?.role === 'support'
@@ -823,6 +823,11 @@ export function CommunityChat() {
                                         ? "rounded-tl-none" 
                                         : "rounded-l-none"
                                 )}
+                                style={{ 
+                                  maxWidth: '75%',
+                                  wordWrap: 'break-word',
+                                  overflowWrap: 'break-word'
+                                }}
                               >
                                 {/* Botão de deletar - aparece no hover para suporte */}
                                 {isSupport && (
@@ -890,7 +895,12 @@ export function CommunityChat() {
                                     )}
                                   </div>
                                 ) : (
-                                  <p className="text-sm break-words leading-relaxed" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                                  <p className="text-sm leading-relaxed" style={{ 
+                                    wordBreak: 'break-word', 
+                                    overflowWrap: 'break-word',
+                                    whiteSpace: 'pre-wrap',
+                                    hyphens: 'auto'
+                                  }}>
                                     {message.content}
                                   </p>
                                 )}
