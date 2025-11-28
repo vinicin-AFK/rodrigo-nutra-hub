@@ -344,11 +344,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           // Carregar usuário IMEDIATAMENTE para manter sessão
           // Garantir que todos os campos do perfil estão presentes
+          // CRÍTICO: Preservar avatar exatamente como está salvo (null, string ou undefined)
           const loadedUser: User = {
             id: authData.user.id,
             name: authData.user.name || 'Usuário',
             email: authData.user.email || '',
-            avatar: authData.user.avatar || undefined, // Preservar avatar mesmo se for null/undefined
+            avatar: authData.user.avatar !== undefined ? authData.user.avatar : undefined, // Preservar null, string ou undefined
             level: authData.user.level || 'Bronze',
             points: authData.user.points || 0,
             plan: authData.user.plan || 'bronze',
@@ -365,10 +366,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log('✅ Usuário carregado do localStorage:', {
             email: loadedUser.email,
             name: loadedUser.name,
-            avatar: loadedUser.avatar ? 'sim' : 'não',
+            avatar: loadedUser.avatar ? 'sim' : (loadedUser.avatar === null ? 'null' : 'undefined'),
             id: loadedUser.id,
             hasAvatar: !!loadedUser.avatar,
-            avatarValue: loadedUser.avatar
+            avatarValue: loadedUser.avatar,
+            rawAvatar: authData.user.avatar
           });
           
           setIsLoading(false); // IMPORTANTE: Parar loading imediatamente após carregar do localStorage
@@ -495,9 +497,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Se temos dados locais, NÃO chamar loadProfile - manter dados locais como fonte de verdade
           if (hasLocalData && localUser) {
             console.log('✅ Usando dados locais como fonte de verdade - NÃO carregando do Supabase');
-            // Garantir que o estado está atualizado com dados locais
-            setUser(localUser);
-            persistAuthData(localUser); // Garantir que está salvo
+            // Garantir que o estado está atualizado com dados locais (preservar avatar corretamente)
+            const preservedUser: User = {
+              ...localUser,
+              avatar: localUser.avatar !== undefined ? localUser.avatar : undefined, // Preservar null, string ou undefined
+            };
+            setUser(preservedUser);
+            // NÃO chamar persistAuthData aqui - pode sobrescrever dados mais recentes
+            // Os dados já estão salvos no localStorage
             
             // Carregar apenas stats e achievements em background (sem tocar no perfil)
             Promise.all([
