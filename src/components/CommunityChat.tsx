@@ -672,11 +672,10 @@ export function CommunityChat() {
 
   return (
     <div className="flex flex-col bg-[#e5ddd5] dark:bg-[#0b141a] relative" style={{ 
-      height: 'calc(100vh - 64px)',
-      minHeight: 'calc(100vh - 64px)',
-      maxHeight: 'calc(100vh - 64px)',
-      touchAction: 'pan-y',
-      paddingBottom: '0'
+      height: 'calc(100vh - 180px)',
+      minHeight: 'calc(100vh - 180px)',
+      maxHeight: 'calc(100vh - 180px)',
+      touchAction: 'pan-y'
     }}>
       {/* Background pattern */}
       <div 
@@ -689,8 +688,7 @@ export function CommunityChat() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-2 relative z-10" style={{ 
         WebkitOverflowScrolling: 'touch',
-        overscrollBehavior: 'contain',
-        paddingBottom: '80px' // Espaço para a barra de input
+        overscrollBehavior: 'contain'
       }}>
         {messagesLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -1080,12 +1078,10 @@ export function CommunityChat() {
 
       {/* Input Bar */}
       <div
-        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 sticky bottom-0"
+        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative"
         style={{ 
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)',
-          marginBottom: '0',
-          touchAction: 'none',
-          zIndex: 60
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+          touchAction: 'none'
         }}
       >
         <div className="flex items-end gap-2 w-full">
