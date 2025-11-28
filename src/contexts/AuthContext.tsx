@@ -421,10 +421,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           console.log('👤 Carregando dados do usuário:', session.user.id);
+          
+          // Verificar se já temos dados locais antes de carregar do Supabase
+          const savedAuth = localStorage.getItem(STORAGE_KEY);
+          let hasLocalData = false;
+          if (savedAuth) {
+            try {
+              const authData = JSON.parse(savedAuth);
+              if (authData.user && authData.user.id === session.user.id) {
+                hasLocalData = true;
+                console.log('📦 Dados locais encontrados, mesclando com Supabase');
+              }
+            } catch (e) {
+              console.warn('Erro ao verificar dados locais:', e);
+            }
+          }
+          
           await Promise.all([
             loadProfile(session.user.id).catch(err => {
               console.error('Erro ao carregar perfil:', err);
-              // Se falhar, manter dados do localStorage
+              // Se falhar, manter dados do localStorage (já carregados antes)
             }),
             loadStats(session.user.id).catch(err => {
               console.error('Erro ao carregar stats:', err);
