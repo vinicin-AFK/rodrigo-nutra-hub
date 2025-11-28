@@ -266,9 +266,8 @@ export function usePosts() {
       setIsLoading(false);
     }
   };
-  
-    // CÓDIGO ANTIGO REMOVIDO - substituído pela lógica acima
-    if (false && isSupabaseConfigured) {
+
+  useEffect(() => {
       try {
         console.log('🔍 Buscando TODAS as postagens do feed global no Supabase...');
         
