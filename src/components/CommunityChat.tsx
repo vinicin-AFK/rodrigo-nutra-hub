@@ -1083,15 +1083,16 @@ export function CommunityChat() {
       <div
         className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative"
         style={{ 
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)',
           touchAction: 'none'
         }}
       >
-        <div className="flex items-end gap-2 w-full">
+        <div className="flex items-center gap-2 w-full">
           {/* Icons */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-10 h-10 rounded-lg bg-white dark:bg-[#2a3942] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#323d45] transition-colors flex-shrink-0"
+            className="w-10 h-10 rounded-lg bg-white dark:bg-[#2a3942] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#323d45] transition-colors flex-shrink-0 touch-manipulation"
+            style={{ touchAction: 'manipulation' }}
           >
             <ImageIcon className="w-5 h-5 text-[#54656f] dark:text-[#8696a0]" />
           </button>
@@ -1107,7 +1108,8 @@ export function CommunityChat() {
             <button
               onMouseUp={handleStopRecording}
               onTouchEnd={handleStopRecording}
-              className="flex-1 h-10 bg-red-500 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors"
+              className="flex-1 h-10 bg-red-500 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-colors touch-manipulation"
+              style={{ touchAction: 'manipulation' }}
             >
               <Mic className="w-5 h-5 mr-2" />
               Solte para parar
