@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Flame, MessageCircle, Award, Trash2, Shield } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,12 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
   const [particles, setParticles] = useState<number[]>([]);
   const isSupport = user?.role === 'support' || user?.role === 'admin';
   const isSupportPost = post.author?.role === 'support' || post.author?.role === 'admin';
+
+  // Sincronizar com props quando o post mudar (para atualização imediata)
+  useEffect(() => {
+    setIsLiked(post.isLiked);
+    setLikes(post.likes);
+  }, [post.isLiked, post.likes]);
 
   // Verificação de segurança
   if (!post || !post.author) {
