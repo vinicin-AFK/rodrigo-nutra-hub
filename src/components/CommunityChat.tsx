@@ -733,9 +733,9 @@ export function CommunityChat() {
                     
                     {/* Message Group */}
                     <div className={cn(
-                      "flex mb-2 animate-fade-in",
-                      group.isCurrentUser ? "flex-row-reverse justify-end" : "flex-row justify-start"
-                    )} style={{ gap: '8px', width: '100%' }}>
+                      "flex gap-2 mb-2 animate-fade-in",
+                      group.isCurrentUser ? "flex-row-reverse" : "flex-row"
+                    )}>
                       {/* Avatar - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                       {!group.isCurrentUser && (
                         <div className="flex-shrink-0 w-10 h-10">
@@ -761,9 +761,9 @@ export function CommunityChat() {
 
                       {/* Messages in group */}
                       <div className={cn(
-                        "flex flex-col",
+                        "flex flex-col max-w-[75%]",
                         group.isCurrentUser ? "items-end" : "items-start"
-                      )} style={{ maxWidth: '75%', width: 'fit-content' }}>
+                      )}>
                         {/* Author name - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                         {!group.isCurrentUser && (
                           <div className="mb-1 px-1">
@@ -796,7 +796,7 @@ export function CommunityChat() {
                         )}
 
                         {/* Message bubbles */}
-                        <div className="flex flex-col" style={{ gap: '2px' }}>
+                        <div className="flex flex-col gap-0.5">
                           {group.messages.map((message, msgIndex) => {
                             const isLastInGroup = msgIndex === group.messages.length - 1;
                             
@@ -804,7 +804,7 @@ export function CommunityChat() {
                               <div
                                 key={message.id}
                                 className={cn(
-                                  "rounded-lg px-3 py-2 shadow-sm relative group/message",
+                                  "rounded-lg px-3 py-2 shadow-sm max-w-[75%] relative group/message",
                                   group.isCurrentUser
                                     ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-white"
                                     : group.author?.role === 'support'
@@ -823,11 +823,6 @@ export function CommunityChat() {
                                         ? "rounded-tl-none" 
                                         : "rounded-l-none"
                                 )}
-                                style={{ 
-                                  maxWidth: '75%',
-                                  wordWrap: 'break-word',
-                                  overflowWrap: 'break-word'
-                                }}
                               >
                                 {/* Botão de deletar - aparece no hover para suporte */}
                                 {isSupport && (
@@ -895,12 +890,7 @@ export function CommunityChat() {
                                     )}
                                   </div>
                                 ) : (
-                                  <p className="text-sm leading-relaxed" style={{ 
-                                    wordBreak: 'break-word', 
-                                    overflowWrap: 'break-word',
-                                    whiteSpace: 'pre-wrap',
-                                    hyphens: 'auto'
-                                  }}>
+                                  <p className="text-sm break-words leading-relaxed" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                                     {message.content}
                                   </p>
                                 )}
