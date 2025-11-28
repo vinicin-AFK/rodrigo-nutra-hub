@@ -116,10 +116,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return;
     try {
       if (userData) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        const dataToSave = {
           user: userData,
           timestamp: Date.now(),
-        }));
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+        console.log('💾 Perfil persistido no localStorage:', { name: userData.name, avatar: userData.avatar ? 'sim' : 'não' });
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }
@@ -1167,15 +1169,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updatedUser);
     persistAuthData(updatedUser);
     
-    // Salvar no localStorage IMEDIATAMENTE
+    // Salvar no localStorage IMEDIATAMENTE usando persistAuthData para garantir consistência
+    persistAuthData(updatedUser);
+    
+    // Também salvar diretamente para garantir
     try {
-      const savedAuth = localStorage.getItem(STORAGE_KEY);
-      if (savedAuth) {
-        const authData = JSON.parse(savedAuth);
-        authData.user = updatedUser;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
-        console.log('✅ Perfil salvo no localStorage:', updatedUser.name);
-      }
+      const dataToSave = {
+        user: updatedUser,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      console.log('✅ Perfil salvo no localStorage:', {
+        name: updatedUser.name,
+        avatar: updatedUser.avatar ? 'sim' : 'não',
+        id: updatedUser.id
+      });
     } catch (error) {
       console.error('Erro ao salvar perfil no localStorage:', error);
     }
