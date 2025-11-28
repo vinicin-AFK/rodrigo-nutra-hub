@@ -1077,7 +1077,7 @@ export function CommunityChat() {
       <div
         className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-20"
         style={{ 
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 56px)',
           touchAction: 'none'
         }}
       >
