@@ -806,7 +806,7 @@ export function CommunityChat() {
                                 className={cn(
                                   "rounded-lg px-3 py-2 shadow-sm max-w-[75%] relative group/message",
                                   group.isCurrentUser
-                                    ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-white"
+                                    ? "bg-[#005c4b] text-white"
                                     : group.author?.role === 'support'
                                       ? "bg-gradient-to-r from-[#ff6b35]/20 to-[#ff8c5a]/20 dark:from-[#ff6b35]/30 dark:to-[#ff8c5a]/30 border-2 border-[#ff6b35]/50 text-[#111b21] dark:text-[#e9edef]"
                                       : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef]",
@@ -895,7 +895,7 @@ export function CommunityChat() {
                                     )}
                                   </div>
                                 ) : (
-                                  <p className="text-sm leading-relaxed" style={{ 
+                                  <p className="text-sm leading-relaxed text-white" style={{ 
                                     wordBreak: 'normal',
                                     overflowWrap: 'anywhere',
                                     whiteSpace: 'pre-wrap',
