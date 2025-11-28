@@ -24,10 +24,12 @@ export function useCommunityMessages() {
     try {
       const savedAuth = safeGetItem('nutraelite_auth');
       let currentUserId: string | null = null;
+      let currentUser: any = null;
       if (savedAuth) {
         try {
           const authData = JSON.parse(savedAuth);
           currentUserId = authData?.user?.id || null;
+          currentUser = authData?.user || null;
         } catch (e) {
           console.warn('Erro ao parsear auth:', e);
         }
@@ -40,17 +42,32 @@ export function useCommunityMessages() {
           const authorId = msg.author?.id || null;
           const isUser = currentUserId && authorId ? authorId === currentUserId : msg.isUser;
           
+          // Se a mensagem é do usuário atual e temos perfil atualizado, usar o perfil atualizado
+          let author = msg.author || {
+            name: 'Usuário',
+            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+            id: authorId,
+          };
+          
+          if (currentUser && authorId === currentUserId) {
+            author = {
+              ...author,
+              name: currentUser.name || author.name,
+              avatar: currentUser.avatar || author.avatar,
+              id: authorId || author.id,
+            };
+          } else {
+            author = {
+              ...author,
+              id: authorId || author.id,
+            };
+          }
+          
           return {
             ...msg,
             timestamp: new Date(msg.timestamp),
             isUser,
-            author: {
-              ...(msg.author || {
-                name: 'Usuário',
-                avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
-              }),
-              id: authorId || msg.author?.id,
-            },
+            author,
           };
         });
         setMessages(loadedMessages);
