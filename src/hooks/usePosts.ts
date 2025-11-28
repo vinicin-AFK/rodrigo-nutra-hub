@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Post, Comment } from '@/types';
 import { safeSetItem, safeGetItem, ensureStorageSpace } from '@/lib/storage';
@@ -6,6 +6,12 @@ import { safeSetItem, safeGetItem, ensureStorageSpace } from '@/lib/storage';
 export function usePosts() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const postsRef = useRef<Post[]>([]);
+  
+  // Manter ref atualizada
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   const loadPosts = async () => {
     setIsLoading(true);
@@ -246,20 +252,17 @@ export function usePosts() {
     // Salvar posts no localStorage quando o app for fechado
     const handleBeforeUnload = () => {
       try {
-        // Usar setPosts para pegar o estado mais recente
-        setPosts(currentPosts => {
-          const serialized = JSON.stringify(currentPosts.map(p => ({
-            ...p,
-            createdAt: p.createdAt.toISOString(),
-            commentsList: p.commentsList?.map(c => ({
-              ...c,
-              createdAt: c.createdAt.toISOString(),
-            })) || [],
-          })));
-          safeSetItem('nutraelite_posts', serialized);
-          console.log('💾 Posts salvos antes de fechar o app');
-          return currentPosts; // Não alterar o estado
-        });
+        const currentPosts = postsRef.current;
+        const serialized = JSON.stringify(currentPosts.map(p => ({
+          ...p,
+          createdAt: p.createdAt.toISOString(),
+          commentsList: p.commentsList?.map(c => ({
+            ...c,
+            createdAt: c.createdAt.toISOString(),
+          })) || [],
+        })));
+        safeSetItem('nutraelite_posts', serialized);
+        console.log('💾 Posts salvos antes de fechar o app');
       } catch (error) {
         console.error('Erro ao salvar posts antes de fechar:', error);
       }

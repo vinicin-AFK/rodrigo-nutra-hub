@@ -223,16 +223,13 @@ export function useCommunityMessages() {
     // Salvar mensagens no localStorage quando o app for fechado
     const handleBeforeUnload = () => {
       try {
-        // Usar setMessages para pegar o estado mais recente
-        setMessages(currentMessages => {
-          const serialized = JSON.stringify(currentMessages.map(m => ({
-            ...m,
-            timestamp: m.timestamp.toISOString(),
-          })));
-          safeSetItem('nutraelite_community_messages', serialized);
-          console.log('💾 Mensagens salvas antes de fechar o app');
-          return currentMessages; // Não alterar o estado
-        });
+        const currentMessages = messagesRef.current;
+        const serialized = JSON.stringify(currentMessages.map(m => ({
+          ...m,
+          timestamp: m.timestamp.toISOString(),
+        })));
+        safeSetItem('nutraelite_community_messages', serialized);
+        console.log('💾 Mensagens salvas antes de fechar o app');
       } catch (error) {
         console.error('Erro ao salvar mensagens antes de fechar:', error);
       }
