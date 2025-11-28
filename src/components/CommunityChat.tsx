@@ -689,9 +689,11 @@ export function CommunityChat() {
       />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-2 py-2 relative z-10" style={{ 
+      <div className="flex-1 overflow-y-auto py-2 relative z-10" style={{ 
         WebkitOverflowScrolling: 'touch',
-        overscrollBehavior: 'contain'
+        overscrollBehavior: 'contain',
+        paddingLeft: '8px',
+        paddingRight: '8px'
       }}>
         {messagesLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -761,9 +763,9 @@ export function CommunityChat() {
 
                       {/* Messages in group */}
                       <div className={cn(
-                        "flex flex-col max-w-[75%]",
+                        "flex flex-col",
                         group.isCurrentUser ? "items-end" : "items-start"
-                      )}>
+                      )} style={{ maxWidth: 'calc(100% - 48px)' }}>
                         {/* Author name - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                         {!group.isCurrentUser && (
                           <div className="mb-1 px-1">
@@ -804,7 +806,7 @@ export function CommunityChat() {
                               <div
                                 key={message.id}
                                 className={cn(
-                                  "rounded-lg px-3 py-2 shadow-sm max-w-[75%] relative group/message",
+                                  "rounded-lg px-2 py-1.5 shadow-sm relative group/message",
                                   group.isCurrentUser
                                     ? "bg-[#005c4b] text-white"
                                     : group.author?.role === 'support'
@@ -899,9 +901,9 @@ export function CommunityChat() {
                                     "text-sm leading-relaxed",
                                     group.isCurrentUser ? "text-white" : "text-[#111b21] dark:text-[#e9edef]"
                                   )} style={{ 
-                                    wordBreak: 'normal',
-                                    overflowWrap: 'anywhere',
-                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'keep-all',
+                                    overflowWrap: 'break-word',
+                                    whiteSpace: 'normal',
                                     hyphens: 'none'
                                   }}>
                                     {message.content}
