@@ -31,9 +31,244 @@ export function usePosts() {
       }
     }
     
-    // FEED GLOBAL: Carregar TODAS as postagens sem filtrar por usuário
-    // PRIORIDADE: Se Supabase está configurado, tentar carregar DE LÁ PRIMEIRO (para novos usuários)
+    // MOBILE FIRST: Carregar do localStorage PRIMEIRO (mais rápido e estável)
+    const savedPosts = safeGetItem('nutraelite_posts');
+    if (savedPosts) {
+      try {
+        const parsed = JSON.parse(savedPosts);
+        const loadedPosts: Post[] = parsed.map((post: any) => {
+          let author = post.author || {
+            id: 'unknown',
+            name: 'Usuário',
+            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+            level: 'Bronze',
+            points: 0,
+            rank: 999,
+            totalSales: 0,
+          };
+          
+          if (currentUser && author.id === currentUser.id) {
+            author = {
+              ...author,
+              name: currentUser.name || author.name,
+              avatar: currentUser.avatar || author.avatar,
+            };
+          }
+          
+          const commentsList = post.commentsList?.map((c: any) => {
+            let commentAuthor = c.author || {
+              id: 'unknown',
+              name: 'Usuário',
+              avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+            };
+            
+            if (currentUser && commentAuthor.id === currentUser.id) {
+              commentAuthor = {
+                ...commentAuthor,
+                name: currentUser.name || commentAuthor.name,
+                avatar: currentUser.avatar || commentAuthor.avatar,
+              };
+            }
+            
+            return {
+              ...c,
+              createdAt: new Date(c.createdAt),
+              author: commentAuthor,
+            };
+          }) || [];
+          
+          return {
+            ...post,
+            createdAt: new Date(post.createdAt),
+            author,
+            commentsList,
+          };
+        });
+        
+        setPosts(loadedPosts);
+        setIsLoading(false);
+        console.log('✅ Feed carregado do localStorage (instantâneo):', loadedPosts.length);
+        
+        // Sincronizar com Supabase em background (não bloqueia)
+        if (isSupabaseConfigured) {
+          syncWithSupabase(currentUser).catch(err => {
+            console.warn('⚠️ Erro ao sincronizar (não crítico):', err);
+          });
+        }
+        return;
+      } catch (error) {
+        console.warn('Erro ao carregar do localStorage:', error);
+      }
+    }
+    
+    // Se não há dados locais, tentar Supabase
     if (isSupabaseConfigured) {
+      await syncWithSupabase(currentUser);
+    } else {
+      setPosts([]);
+      setIsLoading(false);
+    }
+  };
+
+  const syncWithSupabase = async (currentUser: any) => {
+    try {
+      console.log('🔍 Sincronizando feed global com Supabase...');
+      
+      // FEED GLOBAL: Buscar TODAS as postagens (sem filtro de usuário)
+      const supabasePromise = supabase
+        .from('posts')
+        .select(`
+          id,
+          author_id,
+          content,
+          image,
+          result_value,
+          type,
+          created_at,
+          author:profiles(id, name, avatar, level, points, rank, total_sales, role)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100); // Reduzir para carregar mais rápido no mobile
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout ao carregar posts')), 3000) // Timeout reduzido para 3s
+      );
+
+      const { data, error } = await Promise.race([
+        supabasePromise,
+        timeoutPromise,
+      ]) as any;
+
+      console.log('📊 Resultado Supabase:', { data: data?.length || 0, error });
+
+      if (!error && data && data.length > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const currentUserId = user?.id;
+
+        // Carregar curtidas e comentários em batch separado (mais rápido)
+        const postIds = data.map((p: any) => p.id);
+        
+        // Buscar curtidas em batch
+        const { data: likesData } = await supabase
+          .from('post_likes')
+          .select('post_id, user_id')
+          .in('post_id', postIds);
+        
+        // Buscar comentários em batch
+        const { data: commentsData } = await supabase
+          .from('comments')
+          .select(`
+            id,
+            post_id,
+            author_id,
+            content,
+            created_at,
+            author:profiles(id, name, avatar, level, points, rank, total_sales, role)
+          `)
+          .in('post_id', postIds)
+          .order('created_at', { ascending: true });
+
+        // Agrupar curtidas e comentários por post
+        const likesByPost = new Map<string, any[]>();
+        const commentsByPost = new Map<string, any[]>();
+        
+        likesData?.forEach((like: any) => {
+          if (!likesByPost.has(like.post_id)) {
+            likesByPost.set(like.post_id, []);
+          }
+          likesByPost.get(like.post_id)!.push(like);
+        });
+        
+        commentsData?.forEach((comment: any) => {
+          if (!commentsByPost.has(comment.post_id)) {
+            commentsByPost.set(comment.post_id, []);
+          }
+          commentsByPost.get(comment.post_id)!.push(comment);
+        });
+
+        const transformedPosts: Post[] = data.map((post: any) => {
+          const postLikes = likesByPost.get(post.id) || [];
+          const postComments = commentsByPost.get(post.id) || [];
+          
+          return {
+            id: post.id,
+            author: {
+              id: post.author?.id || post.author_id,
+              name: post.author?.name || 'Usuário',
+              avatar: post.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.name || 'Usuario')}&background=random`,
+              level: post.author?.level || 'Bronze',
+              points: post.author?.points || 0,
+              rank: post.author?.rank || 999,
+              totalSales: post.author?.total_sales || 0,
+              role: post.author?.role || undefined,
+            },
+            content: post.content,
+            image: post.image || undefined,
+            likes: postLikes.length,
+            comments: postComments.length,
+            isLiked: postLikes.some((like: any) => like.user_id === currentUserId) || false,
+            createdAt: new Date(post.created_at),
+            resultValue: post.result_value || undefined,
+            type: post.type || 'post',
+            status: 'active',
+            commentsList: postComments.map((c: any) => ({
+              id: c.id,
+              postId: post.id,
+              author: {
+                id: c.author?.id || c.author_id,
+                name: c.author?.name || 'Usuário',
+                avatar: c.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author?.name || 'Usuario')}&background=random`,
+                level: c.author?.level || 'Bronze',
+                points: c.author?.points || 0,
+                rank: c.author?.rank || 999,
+                totalSales: c.author?.total_sales || 0,
+                role: c.author?.role || undefined,
+              },
+              content: c.content,
+              createdAt: new Date(c.created_at),
+              status: 'active',
+            })),
+            engagement: {
+              likes: postLikes.length,
+              comments: postComments.length,
+              reactions: 0,
+            },
+          };
+        });
+
+        setPosts(transformedPosts);
+        // FEED GLOBAL: Salvar no localStorage compartilhado
+        const serialized = JSON.stringify(transformedPosts.map(p => ({
+          ...p,
+          createdAt: p.createdAt.toISOString(),
+          commentsList: p.commentsList?.map(c => ({
+            ...c,
+            createdAt: c.createdAt.toISOString(),
+          })) || [],
+        })));
+        safeSetItem('nutraelite_posts', serialized);
+        setIsLoading(false);
+        console.log('✅ Feed global sincronizado do Supabase:', transformedPosts.length);
+      } else if (error) {
+        console.warn('⚠️ Erro ao buscar do Supabase:', error);
+        setIsLoading(false);
+      } else {
+        // Sem dados mas sem erro
+        setPosts([]);
+        setIsLoading(false);
+      }
+    } catch (error: any) {
+      if (error?.message === 'Timeout ao carregar posts') {
+        console.warn('⚠️ Timeout ao buscar do Supabase (3s)');
+      } else {
+        console.warn('⚠️ Erro ao sincronizar com Supabase:', error?.message || error);
+      }
+      setIsLoading(false);
+    }
+  };
+  
+    // CÓDIGO ANTIGO REMOVIDO - substituído pela lógica acima
+    if (false && isSupabaseConfigured) {
       try {
         console.log('🔍 Buscando TODAS as postagens do feed global no Supabase...');
         
