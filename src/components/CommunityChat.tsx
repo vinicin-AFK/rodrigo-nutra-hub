@@ -675,7 +675,8 @@ export function CommunityChat() {
       height: 'calc(100vh - 64px)',
       minHeight: 'calc(100vh - 64px)',
       maxHeight: 'calc(100vh - 64px)',
-      touchAction: 'pan-y'
+      touchAction: 'pan-y',
+      paddingBottom: '0'
     }}>
       {/* Background pattern */}
       <div 
@@ -1079,7 +1080,7 @@ export function CommunityChat() {
 
       {/* Input Bar */}
       <div
-        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative"
+        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 sticky bottom-0"
         style={{ 
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)',
           marginBottom: '0',
