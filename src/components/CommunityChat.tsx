@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useCommunityMessages } from '@/hooks/useCommunityMessages';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { currentUser as fallbackUser, users } from '@/data/mockData';
+// Fallback user removido - usando apenas dados reais do AuthContext
 
 // Componente para player de áudio
 function AudioPlayer({ 

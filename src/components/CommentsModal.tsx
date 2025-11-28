@@ -5,7 +5,7 @@ import { Post, Comment } from '@/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { currentUser as fallbackUser } from '@/data/mockData';
+// Fallback user removido - usando apenas dados reais do AuthContext
 
 interface CommentsModalProps {
   isOpen: boolean;

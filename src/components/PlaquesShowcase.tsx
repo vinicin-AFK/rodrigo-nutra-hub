@@ -1,4 +1,11 @@
-import { rankingPlaques } from '@/data/mockData';
+// Placas de ranking (configuração estática do sistema)
+const rankingPlaques = [
+  { id: '1', name: 'Bronze', minSales: 10000, color: '#CD7F32', icon: '🥉' },
+  { id: '2', name: 'Prata', minSales: 30000, color: '#C0C0C0', icon: '🥈' },
+  { id: '3', name: 'Ouro', minSales: 50000, color: '#FFD700', icon: '🥇' },
+  { id: '4', name: 'Diamante', minSales: 100000, color: '#B9F2FF', icon: '💎' },
+  { id: '5', name: 'Black', minSales: 250000, color: '#1a1a1a', icon: '🖤' },
+];
 
 interface PlaquesShowcaseProps {
   currentSales: number;

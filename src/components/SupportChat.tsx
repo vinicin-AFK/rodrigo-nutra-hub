@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSupportMessages } from '@/hooks/useSupportMessages';
-import { currentUser } from '@/data/mockData';
+// Mock data removido - usando apenas dados reais do AuthContext
 
 interface SupportChatProps {
   initialMessage?: string;

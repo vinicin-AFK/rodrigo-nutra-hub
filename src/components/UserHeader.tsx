@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { currentUser as fallbackUser } from '@/data/mockData';
+// Fallback user removido - usando apenas dados reais do AuthContext
 
 export function UserHeader() {
   const { user, logout, userPoints, userPlan } = useAuth();

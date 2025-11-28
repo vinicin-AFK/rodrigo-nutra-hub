@@ -20,7 +20,17 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePosts } from '@/hooks/usePosts';
 import { useNavigate } from 'react-router-dom';
-import { posts, users, prizes, currentUser as fallbackUser } from '@/data/mockData';
+// Dados mock removidos - agora usando apenas dados reais do Supabase
+// Mantendo apenas fallbackUser para casos de emergência
+const fallbackUser = {
+  id: 'fallback',
+  name: 'Usuário',
+  avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+  points: 0,
+  rank: 999,
+  level: 'Bronze',
+  totalSales: 0,
+};
 import { Post } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -223,6 +233,15 @@ const Index = () => {
     }
   };
 
+  // Prêmios estáticos (configuração do sistema)
+  const prizes = [
+    { id: '1', name: 'Mentoria Individual', description: '1 hora de mentoria com Rodrigo Nutra', pointsCost: 5000, image: '🎯', category: 'experience' as const },
+    { id: '2', name: 'Kit Premium', description: 'Kit completo de suplementos', pointsCost: 3000, image: '📦', category: 'physical' as const },
+    { id: '3', name: 'Curso Avançado', description: 'Acesso ao curso de copy avançada', pointsCost: 2000, image: '📚', category: 'digital' as const },
+    { id: '4', name: 'AirPods Pro', description: 'Apple AirPods Pro 2ª geração', pointsCost: 8000, image: '🎧', category: 'physical' as const },
+    { id: '5', name: 'Viagem VIP', description: 'Viagem para evento exclusivo', pointsCost: 15000, image: '✈️', category: 'experience' as const },
+  ];
+
   const handleRedeemPrize = async (prize: typeof prizes[0]) => {
     if (userPoints < prize.pointsCost) {
       toast({
@@ -329,23 +348,13 @@ const Index = () => {
         return <CommunityChat />;
 
       case 'ranking':
-        // Criar lista de usuários incluindo o usuário atual e ordenar por pontos
-        const allUsersForRanking = [
-          ...users.map(u => ({
-            ...u,
-            points: (u as any).points || 0,
-          })),
-          ...(user ? [{
-            ...currentUser,
-            points: userPoints,
-            id: user.id,
-          }] : []),
-        ];
-        
-        // Remover duplicatas e ordenar por pontos (decrescente)
-        const uniqueUsers = Array.from(
-          new Map(allUsersForRanking.map(u => [u.id, u])).values()
-        ).sort((a, b) => (b.points || 0) - (a.points || 0));
+        // Ranking agora vem apenas de dados reais (será implementado com Supabase)
+        // Por enquanto, mostrar apenas o usuário atual
+        const rankingUsers = user ? [{
+          ...currentUser,
+          points: userPoints,
+          id: user.id,
+        }] : [];
         
         return (
           <div className="space-y-4">
@@ -354,11 +363,18 @@ const Index = () => {
               <p className="text-muted-foreground">Top membros por pontos</p>
             </div>
             
-            {uniqueUsers.map((userItem, index) => (
-              <RankingCard key={userItem.id} user={userItem} position={index + 1} />
-            ))}
-
-            <PlaquesShowcase currentSales={currentUser.totalSales} />
+            {rankingUsers.length > 0 ? (
+              <>
+                {rankingUsers.map((userItem, index) => (
+                  <RankingCard key={userItem.id} user={userItem} position={index + 1} />
+                ))}
+                <PlaquesShowcase currentSales={currentUser.totalSales} />
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Nenhum usuário no ranking ainda</p>
+              </div>
+            )}
           </div>
         );
 
