@@ -270,7 +270,8 @@ export function usePosts() {
   useEffect(() => {
     loadPosts();
 
-        if (!error && data && data.length > 0) {
+    // Listener para atualizar posts quando o perfil mudar
+    const handleProfileUpdate = (event: CustomEvent) => {
           const { data: { user } } = await supabase.auth.getUser();
           const currentUserId = user?.id;
 
