@@ -133,7 +133,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     accept="image/*"
                     onChange={handleImageSelect}
                     className="hidden"
-                    capture="environment"
                     multiple={false}
                   />
             </div>

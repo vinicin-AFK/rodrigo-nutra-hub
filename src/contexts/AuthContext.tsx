@@ -1158,31 +1158,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Usuário não autenticado');
     }
     
+    // Atualizar estado local IMEDIATAMENTE
+    const updatedUser: User = {
+      ...user,
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.avatar !== undefined && { avatar: data.avatar || undefined }),
+    };
+    setUser(updatedUser);
+    persistAuthData(updatedUser);
+    
+    // Salvar no localStorage IMEDIATAMENTE
     try {
-      const updateData: any = {
-        updated_at: new Date().toISOString(),
-      };
-
-      if (data.name !== undefined) {
-        updateData.name = data.name;
+      const savedAuth = localStorage.getItem(STORAGE_KEY);
+      if (savedAuth) {
+        const authData = JSON.parse(savedAuth);
+        authData.user = updatedUser;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
+        console.log('✅ Perfil salvo no localStorage:', updatedUser.name);
       }
-
-      if (data.avatar !== undefined) {
-        updateData.avatar = data.avatar || null;
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      // Recarregar perfil atualizado
-      await loadProfile(user.id);
     } catch (error) {
-      console.error('Erro ao atualizar perfil:', error);
-      throw error;
+      console.error('Erro ao salvar perfil no localStorage:', error);
+    }
+    
+    // Tentar sincronizar com Supabase em background (não bloqueia)
+    if (isSupabaseConfigured) {
+      (async () => {
+        try {
+          const updateData: any = {
+            updated_at: new Date().toISOString(),
+          };
+
+          if (data.name !== undefined) {
+            updateData.name = data.name;
+          }
+
+          if (data.avatar !== undefined) {
+            updateData.avatar = data.avatar || null;
+          }
+
+          const { error } = await supabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', user.id);
+
+          if (error) {
+            console.warn('⚠️ Erro ao sincronizar perfil com Supabase (não crítico):', error);
+            return;
+          }
+
+          console.log('✅ Perfil sincronizado com Supabase');
+          // Recarregar perfil atualizado do Supabase
+          await loadProfile(user.id);
+        } catch (error) {
+          console.warn('⚠️ Erro ao sincronizar perfil com Supabase (não crítico):', error);
+          // Não é crítico - já está salvo no localStorage
+        }
+      })();
     }
   };
 
