@@ -72,15 +72,32 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       console.log('Atualizando perfil com:', updateData);
       await updateProfile(updateData);
       
-      toast({
-        title: 'Perfil atualizado!',
-        description: 'Suas informações foram salvas com sucesso.',
-      });
+      // Verificar se foi salvo corretamente no localStorage
+      const verify = localStorage.getItem('nutraelite_auth');
+      if (verify) {
+        const parsed = JSON.parse(verify);
+        const savedName = parsed.user?.name;
+        const savedAvatar = parsed.user?.avatar;
+        
+        if (savedName === name.trim() && (savedAvatar === avatar || (!avatar && !savedAvatar))) {
+          toast({
+            title: '✅ Perfil salvo!',
+            description: `Nome: ${savedName} | Foto: ${savedAvatar ? 'Sim' : 'Não'}`,
+          });
+        } else {
+          toast({
+            title: '⚠️ Verificação',
+            description: 'Salvando novamente para garantir...',
+          });
+          // Tentar salvar novamente
+          await updateProfile(updateData);
+        }
+      }
       
       // Pequeno delay para garantir que o estado foi atualizado
       setTimeout(() => {
         onClose();
-      }, 100);
+      }, 500);
     } catch (error) {
       console.error('Erro detalhado ao salvar perfil:', error);
       const errorMessage = error instanceof Error 

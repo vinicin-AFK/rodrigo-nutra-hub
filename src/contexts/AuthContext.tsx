@@ -1362,47 +1362,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return dataToSave;
     };
     
-    // Salvar múltiplas vezes para garantir
-    try {
-      saveToStorage();
-      persistAuthData(updatedUser); // Também usar a função helper
-      saveToStorage(); // Salvar novamente para garantir
-      
-      // Verificar se foi salvo corretamente
-      const verify = localStorage.getItem(STORAGE_KEY);
-      if (verify) {
-        const parsed = JSON.parse(verify);
-        const savedName = parsed.user?.name;
-        const savedAvatar = parsed.user?.avatar;
-        const savedId = parsed.user?.id;
-        
-        console.log('✅ Perfil salvo e verificado no localStorage:', {
-          name: savedName,
-          avatar: savedAvatar ? 'sim' : 'não',
-          avatarValue: savedAvatar,
-          id: savedId,
-          timestamp: new Date(parsed.timestamp).toISOString(),
-          match: savedName === updatedUser.name && savedId === updatedUser.id
-        });
-        
-        // Se não bateu, tentar salvar mais uma vez
-        if (savedName !== updatedUser.name || savedId !== updatedUser.id) {
-          console.warn('⚠️ Dados não batem, salvando novamente...');
-          saveToStorage();
-        }
-      } else {
-        console.error('❌ ERRO: Perfil não foi salvo corretamente!');
-        // Tentar salvar novamente
+    // Salvar múltiplas vezes para garantir (até 5 tentativas)
+    let saved = false;
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    while (!saved && attempts < maxAttempts) {
+      try {
         saveToStorage();
+        persistAuthData(updatedUser); // Também usar a função helper
+        
+        // Verificar se foi salvo corretamente
+        const verify = localStorage.getItem(STORAGE_KEY);
+        if (verify) {
+          const parsed = JSON.parse(verify);
+          const savedName = parsed.user?.name;
+          const savedAvatar = parsed.user?.avatar;
+          const savedId = parsed.user?.id;
+          
+          // Verificar se todos os dados importantes foram salvos
+          if (savedName === updatedUser.name && 
+              savedId === updatedUser.id &&
+              (savedAvatar === updatedUser.avatar || 
+               (!updatedUser.avatar && !savedAvatar) ||
+               (updatedUser.avatar && savedAvatar))) {
+            saved = true;
+            // Disparar evento para notificar que foi salvo
+            window.dispatchEvent(new CustomEvent('profile-saved', {
+              detail: { name: savedName, avatar: savedAvatar, success: true }
+            }));
+          } else {
+            attempts++;
+            if (attempts < maxAttempts) {
+              // Aguardar um pouco antes de tentar novamente
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+          }
+        } else {
+          attempts++;
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
+      } catch (error) {
+        attempts++;
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } else {
+          window.dispatchEvent(new CustomEvent('profile-saved', {
+            detail: { success: false, error: error }
+          }));
+        }
       }
-    } catch (error) {
-      console.error('❌ Erro ao salvar perfil no localStorage:', error);
-      // Tentar novamente
+    }
+    
+    if (!saved) {
+      // Última tentativa desesperada
       try {
         saveToStorage();
         persistAuthData(updatedUser);
-      } catch (retryError) {
-        console.error('❌ Erro ao tentar salvar novamente:', retryError);
+      } catch (finalError) {
+        throw new Error('Não foi possível salvar o perfil após múltiplas tentativas');
       }
     }
     
