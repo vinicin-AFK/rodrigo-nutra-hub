@@ -197,20 +197,28 @@ export function useCommunityMessages() {
       .channel('community_messages_changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'community_messages' },
-        () => {
-          console.log('🔄 Nova mensagem detectada, sincronizando...');
-          // Recarregar sem mostrar loading (já temos mensagens)
-          loadMessages(false);
+        (payload) => {
+          console.log('🔄 Nova mensagem detectada via Realtime:', payload);
+          // Aguardar um pouco para garantir que o Supabase processou
+          setTimeout(() => {
+            // Recarregar sem mostrar loading (já temos mensagens)
+            loadMessages(false);
+          }, 300);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Status da subscription:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Subscription ativa - recebendo atualizações em tempo real');
+        }
+      });
 
-    // Recarregar mensagens a cada 15 segundos para garantir sincronização (reduzido de 5s)
+    // Recarregar mensagens a cada 8 segundos para garantir sincronização (mobile precisa de sincronização mais frequente)
     const intervalId = setInterval(() => {
       console.log('🔄 Sincronização periódica de mensagens...');
       // Recarregar sem mostrar loading (já temos mensagens)
       loadMessages(false);
-    }, 15000);
+    }, 8000);
 
     return () => {
       clearTimeout(safetyTimeout);
