@@ -1430,14 +1430,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         detail: { name: updatedUser.name, avatar: updatedUser.avatar, success: true }
       }));
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar perfil:', error);
-      // Tentar salvar de forma mais simples
+      
+      // Verificar se é erro de quota (localStorage cheio)
+      if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
+        // Tentar salvar sem avatar se o problema for tamanho
+        try {
+          const userWithoutAvatar = {
+            ...updatedUser,
+            avatar: null, // Remover avatar para reduzir tamanho
+          };
+          const dataToSave = {
+            user: {
+              id: userWithoutAvatar.id,
+              name: userWithoutAvatar.name,
+              email: userWithoutAvatar.email,
+              avatar: null,
+              level: userWithoutAvatar.level || 'Bronze',
+              points: userWithoutAvatar.points || 0,
+              plan: userWithoutAvatar.plan || 'bronze',
+              role: userWithoutAvatar.role || undefined,
+            },
+            timestamp: Date.now(),
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+          setUser(userWithoutAvatar);
+          throw new Error('Avatar muito grande. O perfil foi salvo sem foto. Tente uma imagem menor.');
+        } catch (fallbackError) {
+          throw new Error('LocalStorage cheio. Limpe alguns dados ou use uma imagem menor.');
+        }
+      }
+      
+      // Tentar salvar de forma mais simples (sem avatar se necessário)
       try {
+        // Primeiro tentar salvar completo
         persistAuthData(updatedUser);
         localStorage.setItem(STORAGE_KEY, saveProfileData());
-      } catch (retryError) {
+      } catch (retryError: any) {
         console.error('Erro ao tentar salvar novamente:', retryError);
+        
+        // Se ainda falhar, tentar sem avatar
+        if (retryError?.name === 'QuotaExceededError' || retryError?.message?.includes('quota')) {
+          try {
+            const userWithoutAvatar = { ...updatedUser, avatar: null };
+            persistAuthData(userWithoutAvatar);
+            setUser(userWithoutAvatar);
+            throw new Error('Avatar muito grande removido. Perfil salvo sem foto.');
+          } catch (finalError) {
+            throw new Error('Não foi possível salvar o perfil. Limpe o cache do navegador e tente novamente.');
+          }
+        }
+        
         throw new Error('Não foi possível salvar o perfil. Verifique se há espaço suficiente no dispositivo.');
       }
     }

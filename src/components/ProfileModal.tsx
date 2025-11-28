@@ -32,9 +32,85 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validar tamanho (máximo 2MB para avatar)
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          title: 'Imagem muito grande',
+          description: 'A imagem deve ter no máximo 2MB. Redimensionando...',
+          variant: 'destructive',
+        });
+      }
+
+      // Validar tipo
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Tipo de arquivo inválido',
+          description: 'Por favor, selecione uma imagem.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
-        setAvatar(event.target?.result as string);
+        const dataUrl = event.target?.result as string;
+        
+        // Comprimir imagem para reduzir tamanho (especialmente importante no mobile)
+        const img = new Image();
+        img.onload = () => {
+          // Criar canvas para redimensionar
+          const canvas = document.createElement('canvas');
+          const maxSize = 400; // Tamanho máximo da imagem
+          let width = img.width;
+          let height = img.height;
+
+          // Redimensionar mantendo proporção
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Converter para JPEG com qualidade 0.8 para reduzir tamanho
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            setAvatar(compressedDataUrl);
+            console.log('✅ Imagem comprimida:', {
+              original: dataUrl.length,
+              compressed: compressedDataUrl.length,
+              reduction: `${Math.round((1 - compressedDataUrl.length / dataUrl.length) * 100)}%`
+            });
+          } else {
+            // Fallback: usar imagem original se canvas não funcionar
+            setAvatar(dataUrl);
+          }
+        };
+        img.onerror = () => {
+          toast({
+            title: 'Erro ao processar imagem',
+            description: 'Não foi possível processar a imagem. Tente novamente.',
+            variant: 'destructive',
+          });
+        };
+        img.src = dataUrl;
+      };
+      reader.onerror = () => {
+        toast({
+          title: 'Erro ao carregar imagem',
+          description: 'Não foi possível carregar a imagem. Tente novamente.',
+          variant: 'destructive',
+        });
       };
       reader.readAsDataURL(file);
     }
