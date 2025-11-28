@@ -266,9 +266,13 @@ export function CommunityChat() {
         ? Math.abs(message.timestamp.getTime() - prevMessage.timestamp.getTime()) / 1000 / 60
         : Infinity;
       
+      // Recalcular isCurrentUser do prevMessage também
+      const prevAuthorId = prevMessage?.author?.id || null;
+      const prevIsCurrentUser = prevAuthorId && currentUser.id ? prevAuthorId === currentUser.id : prevMessage?.isUser || false;
+      
       const sameAuthor = prevMessage && 
-        ((isCurrentUser && prevMessage.isUser) || 
-         (!isCurrentUser && !prevMessage.isUser && 
+        ((isCurrentUser && prevIsCurrentUser) || 
+         (!isCurrentUser && !prevIsCurrentUser && 
           (message.author?.id || message.author?.name) === (prevMessage.author?.id || prevMessage.author?.name)));
       
       if (currentGroup && sameAuthor && timeDiff < 5) {
@@ -1073,7 +1077,7 @@ export function CommunityChat() {
       <div
         className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-20"
         style={{ 
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)',
           touchAction: 'none'
         }}
       >
