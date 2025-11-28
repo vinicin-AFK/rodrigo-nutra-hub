@@ -319,6 +319,7 @@ export function useCommunityMessages() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handleBeforeUnload);
       window.removeEventListener('profile-updated', handleProfileUpdate as EventListener);
+      window.removeEventListener('messages-need-reload', handleMessagesReload);
     };
   }, []);
 
