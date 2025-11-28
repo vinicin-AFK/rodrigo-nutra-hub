@@ -1343,14 +1343,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // CRÍTICO: Atualizar estado ANTES de salvar
     setUser(updatedUser);
     
-    // Salvar no localStorage IMEDIATAMENTE - FORÇAR salvamento múltiplas vezes
-    const saveToStorage = () => {
+    // Salvar no localStorage - SIMPLES E DIRETO
+    try {
       const dataToSave = {
         user: {
           id: updatedUser.id,
           name: updatedUser.name,
           email: updatedUser.email,
-          avatar: updatedUser.avatar || null, // Salvar null se não houver avatar (não undefined)
+          avatar: updatedUser.avatar || null, // Salvar null se não houver avatar
           level: updatedUser.level || 'Bronze',
           points: updatedUser.points || 0,
           plan: updatedUser.plan || 'bronze',
@@ -1358,88 +1358,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         timestamp: Date.now(),
       };
+      
+      // Salvar diretamente
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-      return dataToSave;
-    };
-    
-    // Salvar múltiplas vezes para garantir (até 5 tentativas)
-    let saved = false;
-    let attempts = 0;
-    const maxAttempts = 5;
-    
-    // Função helper para aguardar
-    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-    
-    while (!saved && attempts < maxAttempts) {
+      
+      // Também usar a função helper
+      persistAuthData(updatedUser);
+      
+      // Salvar mais uma vez para garantir (mobile pode ter problemas de sincronização)
+      setTimeout(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      }, 50);
+      
+      // Disparar evento para notificar que foi salvo
+      window.dispatchEvent(new CustomEvent('profile-saved', {
+        detail: { name: updatedUser.name, avatar: updatedUser.avatar, success: true }
+      }));
+      
+    } catch (error) {
+      console.error('Erro ao salvar perfil:', error);
+      // Tentar salvar de forma mais simples
       try {
-        saveToStorage();
-        persistAuthData(updatedUser); // Também usar a função helper
-        
-        // Verificar se foi salvo corretamente
-        const verify = localStorage.getItem(STORAGE_KEY);
-        if (verify) {
-          const parsed = JSON.parse(verify);
-          const savedName = parsed.user?.name;
-          const savedAvatar = parsed.user?.avatar;
-          const savedId = parsed.user?.id;
-          
-          // Verificar se todos os dados importantes foram salvos
-          if (savedName === updatedUser.name && 
-              savedId === updatedUser.id &&
-              (savedAvatar === updatedUser.avatar || 
-               (!updatedUser.avatar && !savedAvatar) ||
-               (updatedUser.avatar && savedAvatar))) {
-            saved = true;
-            // Disparar evento para notificar que foi salvo
-            window.dispatchEvent(new CustomEvent('profile-saved', {
-              detail: { name: savedName, avatar: savedAvatar, success: true }
-            }));
-          } else {
-            attempts++;
-            if (attempts < maxAttempts) {
-              // Aguardar um pouco antes de tentar novamente
-              await wait(100);
-            }
-          }
-        } else {
-          attempts++;
-          if (attempts < maxAttempts) {
-            await wait(100);
-          }
-        }
-      } catch (error) {
-        attempts++;
-        if (attempts < maxAttempts) {
-          await wait(100);
-        } else {
-          window.dispatchEvent(new CustomEvent('profile-saved', {
-            detail: { success: false, error: error }
-          }));
-        }
-      }
-    }
-    
-    if (!saved) {
-      // Última tentativa desesperada
-      try {
-        saveToStorage();
         persistAuthData(updatedUser);
-        // Verificar uma última vez
-        const finalVerify = localStorage.getItem(STORAGE_KEY);
-        if (finalVerify) {
-          const parsed = JSON.parse(finalVerify);
-          if (parsed.user?.name === updatedUser.name && parsed.user?.id === updatedUser.id) {
-            saved = true;
-          }
-        }
-      } catch (finalError) {
-        // Se ainda falhar, lançar erro
-        throw new Error('Não foi possível salvar o perfil após múltiplas tentativas');
+      } catch (retryError) {
+        console.error('Erro ao tentar salvar novamente:', retryError);
+        throw new Error('Não foi possível salvar o perfil. Verifique se há espaço suficiente no dispositivo.');
       }
-    }
-    
-    if (!saved) {
-      throw new Error('Não foi possível salvar o perfil após múltiplas tentativas');
     }
     
     // Atualizar posts existentes no localStorage com o novo perfil
