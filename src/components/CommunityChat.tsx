@@ -705,7 +705,7 @@ export function CommunityChat() {
               Comunidade NutraHub
             </h3>
             <p className="text-xs text-[#667781] dark:text-[#8696a0]">
-              {messages.length} {messages.length === 1 ? 'membro' : 'membros'} • Grupo
+              {new Set(messages.map(m => m.author?.id).filter(Boolean)).size} {new Set(messages.map(m => m.author?.id).filter(Boolean)).size === 1 ? 'membro' : 'membros'} • Grupo
             </p>
           </div>
         </div>
