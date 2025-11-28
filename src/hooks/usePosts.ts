@@ -32,7 +32,24 @@ export function usePosts() {
       }
     }
     
-    // MOBILE FIRST: Carregar do localStorage PRIMEIRO (mais rápido e estável)
+    // FEED GLOBAL: SEMPRE sincronizar com Supabase PRIMEIRO para garantir que todos veem o mesmo conteúdo
+    // Depois usar localStorage como cache
+    if (isSupabaseConfigured) {
+      // Tentar sincronizar com Supabase primeiro (com timeout curto)
+      try {
+        await Promise.race([
+          syncWithSupabase(currentUser),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+        ]);
+        console.log('✅ Feed global sincronizado do Supabase');
+        return; // Se sincronizou com sucesso, não precisa carregar do localStorage
+      } catch (error) {
+        console.warn('⚠️ Erro ao sincronizar com Supabase, usando cache local:', error);
+        // Continuar para carregar do localStorage como fallback
+      }
+    }
+    
+    // Fallback: Carregar do localStorage (cache local)
     const savedPosts = safeGetItem('nutraelite_posts');
     if (savedPosts) {
       try {

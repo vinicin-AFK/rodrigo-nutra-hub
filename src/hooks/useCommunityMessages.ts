@@ -56,19 +56,19 @@ export function useCommunityMessages() {
           };
         });
         
-        setMessages(loadedMessages);
-        if (showLoading) {
-          setIsLoading(false);
-        }
-        console.log('✅ Mensagens carregadas do localStorage (instantâneo):', loadedMessages.length);
-        
-        // Sincronizar com Supabase em background (não bloqueia)
-        if (isSupabaseConfigured) {
-          syncWithSupabase(currentUserId, showLoading).catch(err => {
-            console.warn('⚠️ Erro ao sincronizar (não crítico):', err);
-          });
-        }
-        return;
+            setMessages(loadedMessages);
+            if (showLoading) {
+              setIsLoading(false);
+            }
+            console.log('✅ Mensagens carregadas do localStorage (cache):', loadedMessages.length);
+            
+            // Sincronizar com Supabase em background para atualizar (não bloqueia)
+            if (isSupabaseConfigured) {
+              syncWithSupabase(currentUserId, showLoading).catch(err => {
+                console.warn('⚠️ Erro ao sincronizar em background (não crítico):', err);
+              });
+            }
+            return;
       } catch (error) {
         console.warn('Erro ao carregar do localStorage:', error);
       }
