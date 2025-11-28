@@ -662,6 +662,7 @@ export function usePosts() {
     
     const newComment: Comment = {
       id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      postId: postId, // OBRIGATÓRIO - não pode existir sem publicação
       author: {
         id: authorData.id || 'unknown',
         name: authorData.name || 'Usuário',
@@ -674,6 +675,7 @@ export function usePosts() {
       },
       content: content.trim(),
       createdAt: new Date(),
+      status: 'active', // Status padrão
     };
 
     console.log('✅ Comentário criado:', newComment.id);
