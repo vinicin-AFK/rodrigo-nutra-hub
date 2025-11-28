@@ -243,10 +243,33 @@ export function usePosts() {
       )
       .subscribe();
 
+    // Salvar posts no localStorage quando o app for fechado
+    const handleBeforeUnload = () => {
+      try {
+        const serialized = JSON.stringify(posts.map(p => ({
+          ...p,
+          createdAt: p.createdAt.toISOString(),
+          commentsList: p.commentsList?.map(c => ({
+            ...c,
+            createdAt: c.createdAt.toISOString(),
+          })) || [],
+        })));
+        safeSetItem('nutraelite_posts', serialized);
+        console.log('💾 Posts salvos antes de fechar o app');
+      } catch (error) {
+        console.error('Erro ao salvar posts antes de fechar:', error);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
     };
-  }, []);
+  }, [posts]);
 
   const createPost = async (content: string, resultValue?: number, image?: string): Promise<Post> => {
     // Buscar dados do usuário - SEMPRE do localStorage

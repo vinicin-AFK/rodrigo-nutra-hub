@@ -220,12 +220,31 @@ export function useCommunityMessages() {
       loadMessages(false);
     }, 8000);
 
+    // Salvar mensagens no localStorage quando o app for fechado
+    const handleBeforeUnload = () => {
+      try {
+        const serialized = JSON.stringify(messages.map(m => ({
+          ...m,
+          timestamp: m.timestamp.toISOString(),
+        })));
+        safeSetItem('nutraelite_community_messages', serialized);
+        console.log('💾 Mensagens salvas antes de fechar o app');
+      } catch (error) {
+        console.error('Erro ao salvar mensagens antes de fechar:', error);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+
     return () => {
       clearTimeout(safetyTimeout);
       clearInterval(intervalId);
       subscription.unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
     };
-  }, []);
+  }, [messages]);
 
   const sendMessage = async (content: string, type: string = 'text', image?: string, audioUrl?: string, audioDuration?: number): Promise<Message> => {
     console.log('📤 sendMessage iniciado', { content: content.substring(0, 50), type, hasImage: !!image, hasAudio: !!audioUrl });
