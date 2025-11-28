@@ -909,13 +909,18 @@ export function CommunityChat() {
                                 {isLastInGroup && (
                                   <div className={cn(
                                     "flex items-center gap-1 mt-1",
-                                    group.isCurrentUser ? "flex-row-reverse" : "flex-row"
+                                    group.isCurrentUser ? "justify-end" : "justify-start"
                                   )}>
-                                    <span className="text-[11px] text-[#667781]/80 dark:text-[#8696a0]/80">
+                                    <span className={cn(
+                                      "text-[11px]",
+                                      group.isCurrentUser 
+                                        ? "text-[#d9fdd3]/70" 
+                                        : "text-[#667781]/80 dark:text-[#8696a0]/80"
+                                    )}>
                                       {formatTime(message.timestamp)}
                                     </span>
                                     {group.isCurrentUser && (
-                                      <span className="text-[#53bdeb] text-xs">✓✓</span>
+                                      <span className="text-[#d9fdd3]/70 text-xs">✓</span>
                                     )}
                                     {/* Botão de deletar - apenas para suporte (pode deletar qualquer mensagem) */}
                                     {isSupport && (
