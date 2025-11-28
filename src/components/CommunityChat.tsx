@@ -733,9 +733,9 @@ export function CommunityChat() {
                     
                     {/* Message Group */}
                     <div className={cn(
-                      "flex gap-2 mb-2 animate-fade-in",
-                      group.isCurrentUser ? "flex-row-reverse" : "flex-row"
-                    )}>
+                      "flex mb-2 animate-fade-in",
+                      group.isCurrentUser ? "flex-row-reverse justify-end" : "flex-row justify-start"
+                    )} style={{ gap: '8px', width: '100%' }}>
                       {/* Avatar - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                       {!group.isCurrentUser && (
                         <div className="flex-shrink-0 w-10 h-10">
