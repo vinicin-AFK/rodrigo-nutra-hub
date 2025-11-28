@@ -36,20 +36,25 @@ export function usePosts() {
       try {
         console.log('🔍 Buscando postagens no Supabase (prioridade)...');
         
-        // Timeout de 10 segundos para mobile
+        // Timeout reduzido para 5 segundos - carregar mais rápido
+        // Primeiro carregar posts básicos (sem joins pesados)
         const supabasePromise = supabase
           .from('posts')
           .select(`
-            *,
-            author:profiles(*),
-            comments:comments(*, author:profiles(*)),
-            likes:post_likes(*)
+            id,
+            author_id,
+            content,
+            image,
+            result_value,
+            type,
+            created_at,
+            author:profiles(id, name, avatar, level, points, rank, total_sales, role)
           `)
           .order('created_at', { ascending: false })
-          .limit(100); // Limitar para performance
+          .limit(50); // Reduzir limite para carregar mais rápido
 
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout ao carregar posts')), 10000)
+          setTimeout(() => reject(new Error('Timeout ao carregar posts')), 5000)
         );
 
         const { data, error } = await Promise.race([
@@ -63,50 +68,96 @@ export function usePosts() {
           const { data: { user } } = await supabase.auth.getUser();
           const currentUserId = user?.id;
 
-          const transformedPosts: Post[] = data.map((post: any) => ({
-            id: post.id,
-            author: {
-              id: post.author?.id || post.author_id,
-              name: post.author?.name || 'Usuário',
-              avatar: post.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.name || 'Usuario')}&background=random`,
-              level: post.author?.level || 'Bronze',
-              points: post.author?.points || 0,
-              rank: post.author?.rank || 999,
-              totalSales: post.author?.total_sales || 0,
-              role: post.author?.role || undefined,
-            },
-            content: post.content,
-            image: post.image || undefined,
-            likes: post.likes?.length || 0,
-            comments: post.comments?.length || 0,
-            isLiked: post.likes?.some((like: any) => like.user_id === currentUserId) || false,
-            createdAt: new Date(post.created_at),
-            resultValue: post.result_value || undefined,
-            type: post.type || 'post',
-            status: 'active',
-            commentsList: (post.comments || []).map((c: any) => ({
-              id: c.id,
-              postId: post.id,
+          // Carregar curtidas e comentários em batch separado (mais rápido)
+          const postIds = data.map((p: any) => p.id);
+          
+          // Buscar curtidas em batch
+          const { data: likesData } = await supabase
+            .from('post_likes')
+            .select('post_id, user_id')
+            .in('post_id', postIds);
+          
+          // Buscar comentários em batch
+          const { data: commentsData } = await supabase
+            .from('comments')
+            .select(`
+              id,
+              post_id,
+              author_id,
+              content,
+              created_at,
+              author:profiles(id, name, avatar, level, points, rank, total_sales, role)
+            `)
+            .in('post_id', postIds)
+            .order('created_at', { ascending: true });
+
+          // Agrupar curtidas e comentários por post
+          const likesByPost = new Map<string, any[]>();
+          const commentsByPost = new Map<string, any[]>();
+          
+          likesData?.forEach((like: any) => {
+            if (!likesByPost.has(like.post_id)) {
+              likesByPost.set(like.post_id, []);
+            }
+            likesByPost.get(like.post_id)!.push(like);
+          });
+          
+          commentsData?.forEach((comment: any) => {
+            if (!commentsByPost.has(comment.post_id)) {
+              commentsByPost.set(comment.post_id, []);
+            }
+            commentsByPost.get(comment.post_id)!.push(comment);
+          });
+
+          const transformedPosts: Post[] = data.map((post: any) => {
+            const postLikes = likesByPost.get(post.id) || [];
+            const postComments = commentsByPost.get(post.id) || [];
+            
+            return {
+              id: post.id,
               author: {
-                id: c.author?.id || c.author_id,
-                name: c.author?.name || 'Usuário',
-                avatar: c.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author?.name || 'Usuario')}&background=random`,
-                level: c.author?.level || 'Bronze',
-                points: c.author?.points || 0,
-                rank: c.author?.rank || 999,
-                totalSales: c.author?.total_sales || 0,
-                role: c.author?.role || undefined,
+                id: post.author?.id || post.author_id,
+                name: post.author?.name || 'Usuário',
+                avatar: post.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.name || 'Usuario')}&background=random`,
+                level: post.author?.level || 'Bronze',
+                points: post.author?.points || 0,
+                rank: post.author?.rank || 999,
+                totalSales: post.author?.total_sales || 0,
+                role: post.author?.role || undefined,
               },
-              content: c.content,
-              createdAt: new Date(c.created_at),
+              content: post.content,
+              image: post.image || undefined,
+              likes: postLikes.length,
+              comments: postComments.length,
+              isLiked: postLikes.some((like: any) => like.user_id === currentUserId) || false,
+              createdAt: new Date(post.created_at),
+              resultValue: post.result_value || undefined,
+              type: post.type || 'post',
               status: 'active',
-            })) || [],
-            engagement: {
-              likes: post.likes?.length || 0,
-              comments: post.comments?.length || 0,
-              reactions: 0,
-            },
-          }));
+              commentsList: postComments.map((c: any) => ({
+                id: c.id,
+                postId: post.id,
+                author: {
+                  id: c.author?.id || c.author_id,
+                  name: c.author?.name || 'Usuário',
+                  avatar: c.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author?.name || 'Usuario')}&background=random`,
+                  level: c.author?.level || 'Bronze',
+                  points: c.author?.points || 0,
+                  rank: c.author?.rank || 999,
+                  totalSales: c.author?.total_sales || 0,
+                  role: c.author?.role || undefined,
+                },
+                content: c.content,
+                createdAt: new Date(c.created_at),
+                status: 'active',
+              })),
+              engagement: {
+                likes: postLikes.length,
+                comments: postComments.length,
+                reactions: 0,
+              },
+            };
+          });
 
           setPosts(transformedPosts);
           // Salvar no localStorage para cache

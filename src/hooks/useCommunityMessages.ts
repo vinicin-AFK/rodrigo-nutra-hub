@@ -38,17 +38,25 @@ export function useCommunityMessages() {
       try {
         console.log('🔍 Buscando mensagens no Supabase (prioridade)...');
         
+        // Query simplificada para carregar mais rápido
         const supabasePromise = supabase
           .from('community_messages')
           .select(`
-            *,
-            author:profiles(*)
+            id,
+            author_id,
+            content,
+            type,
+            image,
+            audio_duration,
+            audio_url,
+            created_at,
+            author:profiles(id, name, avatar, role)
           `)
           .order('created_at', { ascending: true })
-          .limit(500); // Limitar para performance
+          .limit(200); // Reduzir limite para carregar mais rápido
 
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 8000)
+          setTimeout(() => reject(new Error('Timeout')), 5000)
         );
 
         const { data, error } = await Promise.race([
