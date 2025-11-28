@@ -620,24 +620,62 @@ export function usePosts() {
     }
 
     // Atualizar estado local IMEDIATAMENTE
-    setPosts(prevPosts => [newPost, ...prevPosts]);
+    setPosts(prevPosts => {
+      // Verificar se o post já existe (evitar duplicação)
+      const exists = prevPosts.some(p => p.id === newPost.id);
+      if (exists) {
+        console.log('⚠️ Post já existe no estado, não duplicando');
+        return prevPosts;
+      }
+      return [newPost, ...prevPosts];
+    });
     console.log('✅ Postagem salva localmente (feedback imediato)');
     
     // Depois tentar sincronizar com Supabase (em background, não bloqueia)
     if (isSupabaseConfigured) {
       (async () => {
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            console.warn('⚠️ Erro ao buscar usuário do Supabase:', userError);
+            return;
+          }
           
           if (user) {
-            console.log('💾 Sincronizando com Supabase...');
+            console.log('💾 Sincronizando com Supabase...', { userId: user.id, content: content.substring(0, 30) });
+            
+            // Verificar se o perfil existe no Supabase
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('id', user.id)
+              .single();
+            
+            if (profileError && profileError.code !== 'PGRST116') {
+              console.warn('⚠️ Erro ao verificar perfil:', profileError);
+              // Tentar criar perfil se não existir
+              const { error: insertProfileError } = await supabase
+                .from('profiles')
+                .insert({
+                  id: user.id,
+                  name: authorData.name || 'Usuário',
+                  email: authorData.email || user.email || 'usuario@temp.com',
+                  avatar: authorData.avatar,
+                });
+              
+              if (insertProfileError) {
+                console.warn('⚠️ Erro ao criar perfil:', insertProfileError);
+              }
+            }
+            
             const { data: insertedPost, error } = await supabase
               .from('posts')
               .insert({
                 author_id: user.id,
                 content,
-                image,
-                result_value: resultValue,
+                image: image || null,
+                result_value: resultValue || null,
                 type: resultValue ? 'result' : 'post',
               })
               .select(`
@@ -648,16 +686,36 @@ export function usePosts() {
 
             if (!error && insertedPost) {
               console.log('✅ Postagem sincronizada com Supabase:', insertedPost.id);
-              // Recarregar do Supabase para ter dados atualizados
-              await loadPosts();
+              
+              // Atualizar o post local com o ID do Supabase
+              setPosts(prevPosts => {
+                return prevPosts.map(p => {
+                  if (p.id === newPost.id) {
+                    return {
+                      ...p,
+                      id: insertedPost.id,
+                      createdAt: new Date(insertedPost.created_at),
+                    };
+                  }
+                  return p;
+                });
+              });
+              
+              // Recarregar do Supabase para ter dados atualizados (em background)
+              setTimeout(() => {
+                loadPosts().catch(err => {
+                  console.warn('⚠️ Erro ao recarregar posts após criar:', err);
+                });
+              }, 500);
             } else {
-              console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', error);
+              console.error('❌ Erro ao sincronizar com Supabase:', error);
+              // Não é crítico - já está salvo localmente
             }
           } else {
             console.log('ℹ️ Usuário não autenticado no Supabase, mantendo apenas local');
           }
         } catch (error: any) {
-          console.warn('⚠️ Erro ao sincronizar com Supabase (não crítico):', error?.message || error);
+          console.error('❌ Erro ao sincronizar com Supabase:', error?.message || error);
           // Não é crítico - já está salvo localmente
         }
       })();
