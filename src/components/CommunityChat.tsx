@@ -1033,7 +1033,10 @@ export function CommunityChat() {
 
       {/* Selected image preview */}
       {selectedImage && (
-        <div className="absolute bottom-20 left-2 z-30 max-w-[100px] sm:max-w-[150px]" style={{ touchAction: 'none' }}>
+        <div className="absolute left-2 z-40 max-w-[100px] sm:max-w-[150px]" style={{ 
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          touchAction: 'none' 
+        }}>
           <div className="bg-white dark:bg-[#202c33] rounded-lg p-1 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="relative">
               <img
