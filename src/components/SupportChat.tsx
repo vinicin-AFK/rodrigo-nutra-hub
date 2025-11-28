@@ -497,7 +497,7 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
   const messages = currentConversation?.messages || [];
   const displayName = isSupport && currentConversation 
     ? currentConversation.userName 
-    : (user?.name || currentUser.name);
+    : (user?.name || 'Usuário');
 
   return (
     <div className="flex flex-col bg-white dark:bg-background" style={{ 

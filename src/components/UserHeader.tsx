@@ -16,11 +16,19 @@ export function UserHeader() {
   const { user, logout, userPoints, userPlan } = useAuth();
   const navigate = useNavigate();
   
-  // Usar dados do usuário autenticado ou fallback
-  const displayUser = user || fallbackUser;
-  const userRank = (user as any)?.rank || fallbackUser.rank || 999;
-  const userTotalSales = (user as any)?.totalSales || fallbackUser.totalSales || 0;
-  const userLevel = userPlan?.name || user?.level || fallbackUser.level || 'Iniciante';
+  // Usar dados do usuário autenticado
+  const displayUser = user || {
+    id: 'anonymous',
+    name: 'Usuário',
+    avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+    points: 0,
+    rank: 999,
+    level: 'Bronze',
+    totalSales: 0,
+  };
+  const userRank = (user as any)?.rank || 999;
+  const userTotalSales = (user as any)?.totalSales || 0;
+  const userLevel = userPlan?.name || user?.level || 'Iniciante';
 
   const handleLogout = async () => {
     try {
