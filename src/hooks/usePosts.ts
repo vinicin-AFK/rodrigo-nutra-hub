@@ -21,12 +21,24 @@ export function usePosts() {
     // SEMPRE carregar do localStorage primeiro (para ter dados imediatamente)
     try {
       const savedPosts = safeGetItem('nutraelite_posts');
+      const savedAuth = safeGetItem('nutraelite_auth');
+      let currentUser: any = null;
+      
+      // Buscar perfil atual do usuário
+      if (savedAuth) {
+        try {
+          const authData = JSON.parse(savedAuth);
+          currentUser = authData?.user;
+        } catch (e) {
+          console.warn('Erro ao parsear auth:', e);
+        }
+      }
+      
       if (savedPosts) {
         const parsed = JSON.parse(savedPosts);
-        const loadedPosts: Post[] = parsed.map((post: any) => ({
-          ...post,
-          createdAt: new Date(post.createdAt),
-          author: post.author || {
+        const loadedPosts: Post[] = parsed.map((post: any) => {
+          // Se o post é do usuário atual e temos perfil atualizado, usar o perfil atualizado
+          let author = post.author || {
             id: 'unknown',
             name: 'Usuário',
             avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
@@ -34,12 +46,46 @@ export function usePosts() {
             points: 0,
             rank: 999,
             totalSales: 0,
-          },
-          commentsList: post.commentsList?.map((c: any) => ({
-            ...c,
-            createdAt: new Date(c.createdAt),
-          })) || [],
-        }));
+          };
+          
+          if (currentUser && author.id === currentUser.id) {
+            author = {
+              ...author,
+              name: currentUser.name || author.name,
+              avatar: currentUser.avatar || author.avatar,
+            };
+          }
+          
+          // Atualizar comentários também
+          const commentsList = post.commentsList?.map((c: any) => {
+            let commentAuthor = c.author || {
+              id: 'unknown',
+              name: 'Usuário',
+              avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+            };
+            
+            if (currentUser && commentAuthor.id === currentUser.id) {
+              commentAuthor = {
+                ...commentAuthor,
+                name: currentUser.name || commentAuthor.name,
+                avatar: currentUser.avatar || commentAuthor.avatar,
+              };
+            }
+            
+            return {
+              ...c,
+              createdAt: new Date(c.createdAt),
+              author: commentAuthor,
+            };
+          }) || [];
+          
+          return {
+            ...post,
+            createdAt: new Date(post.createdAt),
+            author,
+            commentsList,
+          };
+        });
         setPosts(loadedPosts);
         console.log('✅ Postagens carregadas do localStorage (inicial):', loadedPosts.length);
       }
