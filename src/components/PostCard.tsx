@@ -241,15 +241,19 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
           </button>
         </div>
 
-        {/* Likes count - sempre mostrar se houver curtidas */}
-        {likes > 0 && (
-          <div className="mb-2">
-            <span className="text-sm font-semibold text-foreground flex items-center gap-1">
-              <Flame className="w-4 h-4 text-primary" />
-              {likes.toLocaleString()} {likes === 1 ? 'curtida' : 'curtidas'}
-            </span>
-          </div>
-        )}
+        {/* Likes count - sempre mostrar */}
+        <div className="mb-2">
+          <span className="text-sm font-semibold text-foreground flex items-center gap-1">
+            {likes > 0 && <Flame className="w-4 h-4 text-primary" />}
+            {likes > 0 ? (
+              <>
+                {likes.toLocaleString()} {likes === 1 ? 'curtida' : 'curtidas'}
+              </>
+            ) : (
+              <span className="text-muted-foreground text-xs">Seja o primeiro a curtir</span>
+            )}
+          </span>
+        </div>
       </div>
 
       {/* Content */}
