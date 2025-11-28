@@ -18,21 +18,110 @@ export function usePosts() {
     
     console.log('📥 Carregando postagens...', { isSupabaseConfigured });
     
-    // SEMPRE carregar do localStorage primeiro (para ter dados imediatamente)
+    const savedAuth = safeGetItem('nutraelite_auth');
+    let currentUser: any = null;
+    
+    // Buscar perfil atual do usuário
+    if (savedAuth) {
+      try {
+        const authData = JSON.parse(savedAuth);
+        currentUser = authData?.user;
+      } catch (e) {
+        console.warn('Erro ao parsear auth:', e);
+      }
+    }
+    
+    // PRIORIDADE: Se Supabase está configurado, tentar carregar DE LÁ PRIMEIRO (para novos usuários)
+    if (isSupabaseConfigured) {
+      try {
+        console.log('🔍 Buscando postagens no Supabase (prioridade)...');
+        const { data, error } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            author:profiles(*),
+            comments:post_comments(*, author:profiles(*)),
+            likes:post_likes(*)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(100); // Limitar para performance
+
+        console.log('📊 Resultado Supabase:', { data: data?.length || 0, error });
+
+        if (!error && data && data.length > 0) {
+          const { data: { user } } = await supabase.auth.getUser();
+          const currentUserId = user?.id;
+
+          const transformedPosts: Post[] = data.map((post: any) => ({
+            id: post.id,
+            author: {
+              id: post.author?.id || post.author_id,
+              name: post.author?.name || 'Usuário',
+              avatar: post.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.name || 'Usuario')}&background=random`,
+              level: post.author?.level || 'Bronze',
+              points: post.author?.points || 0,
+              rank: post.author?.rank || 999,
+              totalSales: post.author?.total_sales || 0,
+              role: post.author?.role || undefined,
+            },
+            content: post.content,
+            image: post.image || undefined,
+            likes: post.likes?.length || 0,
+            comments: post.comments?.length || 0,
+            isLiked: post.likes?.some((like: any) => like.user_id === currentUserId) || false,
+            createdAt: new Date(post.created_at),
+            resultValue: post.result_value || undefined,
+            type: post.type || 'post',
+            status: 'active',
+            commentsList: (post.comments || []).map((c: any) => ({
+              id: c.id,
+              postId: post.id,
+              author: {
+                id: c.author?.id || c.author_id,
+                name: c.author?.name || 'Usuário',
+                avatar: c.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.author?.name || 'Usuario')}&background=random`,
+                level: c.author?.level || 'Bronze',
+                points: c.author?.points || 0,
+                rank: c.author?.rank || 999,
+                totalSales: c.author?.total_sales || 0,
+                role: c.author?.role || undefined,
+              },
+              content: c.content,
+              createdAt: new Date(c.created_at),
+              status: 'active',
+            })) || [],
+            engagement: {
+              likes: post.likes?.length || 0,
+              comments: post.comments?.length || 0,
+              reactions: 0,
+            },
+          }));
+
+          setPosts(transformedPosts);
+          // Salvar no localStorage para cache
+          const serialized = JSON.stringify(transformedPosts.map(p => ({
+            ...p,
+            createdAt: p.createdAt.toISOString(),
+            commentsList: p.commentsList?.map(c => ({
+              ...c,
+              createdAt: c.createdAt.toISOString(),
+            })) || [],
+          })));
+          safeSetItem('nutraelite_posts', serialized);
+          setIsLoading(false);
+          console.log('✅ Postagens carregadas do Supabase:', transformedPosts.length);
+          return; // Sair aqui se conseguiu carregar do Supabase
+        } else if (error) {
+          console.warn('⚠️ Erro ao buscar do Supabase, tentando localStorage:', error);
+        }
+      } catch (error: any) {
+        console.warn('⚠️ Erro ao carregar do Supabase, tentando localStorage:', error?.message || error);
+      }
+    }
+    
+    // FALLBACK: Carregar do localStorage se Supabase não funcionou ou não está configurado
     try {
       const savedPosts = safeGetItem('nutraelite_posts');
-      const savedAuth = safeGetItem('nutraelite_auth');
-      let currentUser: any = null;
-      
-      // Buscar perfil atual do usuário
-      if (savedAuth) {
-        try {
-          const authData = JSON.parse(savedAuth);
-          currentUser = authData?.user;
-        } catch (e) {
-          console.warn('Erro ao parsear auth:', e);
-        }
-      }
       
       if (savedPosts) {
         const parsed = JSON.parse(savedPosts);
@@ -87,19 +176,20 @@ export function usePosts() {
           };
         });
         setPosts(loadedPosts);
-        setIsLoading(false); // Parar loading imediatamente após carregar do localStorage
-        console.log('✅ Postagens carregadas do localStorage (inicial):', loadedPosts.length);
-      } else {
-        // Se não há posts no localStorage, parar loading também
         setIsLoading(false);
-        console.log('ℹ️ Nenhuma postagem no localStorage');
+        console.log('✅ Postagens carregadas do localStorage:', loadedPosts.length);
+      } else {
+        setPosts([]);
+        setIsLoading(false);
+        console.log('ℹ️ Nenhuma postagem encontrada (nem Supabase nem localStorage)');
       }
     } catch (error) {
       console.error('Erro ao carregar postagens do localStorage:', error);
-      setIsLoading(false); // Parar loading mesmo em caso de erro
+      setPosts([]);
+      setIsLoading(false);
     }
     
-    // Depois tentar sincronizar com Supabase (se configurado)
+    // Sincronização em background (não bloqueia)
     if (isSupabaseConfigured) {
       try {
         console.log('🔍 Buscando postagens no Supabase...');
