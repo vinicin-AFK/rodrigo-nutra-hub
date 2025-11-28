@@ -340,22 +340,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: authData.user.id,
             name: authData.user.name || 'Usuário',
             email: authData.user.email || '',
-            avatar: authData.user.avatar || undefined,
+            avatar: authData.user.avatar || undefined, // Preservar avatar mesmo se for null/undefined
             level: authData.user.level || 'Bronze',
             points: authData.user.points || 0,
             plan: authData.user.plan || 'bronze',
             role: authData.user.role || undefined,
           };
+          
+          // CRÍTICO: Definir no estado ANTES de qualquer outra coisa
           setUser(loadedUser);
-          // Garantir que está salvo corretamente (pode ter sido salvo de forma incompleta antes)
+          
+          // Garantir que está salvo corretamente
           persistAuthData(loadedUser);
+          
+          // Verificar se foi salvo
+          const verify = localStorage.getItem(STORAGE_KEY);
+          if (verify) {
+            const parsed = JSON.parse(verify);
+            console.log('✅ Usuário carregado e verificado do localStorage:', {
+              email: loadedUser.email,
+              name: loadedUser.name,
+              avatar: loadedUser.avatar ? 'sim' : 'não',
+              id: loadedUser.id,
+              savedName: parsed.user?.name,
+              savedAvatar: parsed.user?.avatar ? 'sim' : 'não'
+            });
+          }
+          
           setIsLoading(false); // IMPORTANTE: Parar loading imediatamente após carregar do localStorage
-          console.log('✅ Usuário carregado do localStorage (inicial):', {
-            email: loadedUser.email,
-            name: loadedUser.name,
-            avatar: loadedUser.avatar ? 'sim' : 'não',
-            id: loadedUser.id
-          });
           
           // Se há timestamp, verificar se não expirou (opcional - manter sessão indefinidamente por padrão)
           // Por enquanto, manter sessão sempre ativa se houver dados no localStorage
