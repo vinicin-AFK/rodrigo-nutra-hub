@@ -112,6 +112,42 @@ const isSupportLogin = (email: string, password: string): boolean => {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Salvar perfil antes de fechar o app (mobile)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (user) {
+        try {
+          const dataToSave = {
+            user: {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              avatar: user.avatar || null,
+              level: user.level || 'Bronze',
+              points: user.points || 0,
+              plan: user.plan || 'bronze',
+              role: user.role || undefined,
+            },
+            timestamp: Date.now(),
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+          console.log('💾 Perfil salvo antes de fechar app');
+        } catch (error) {
+          console.error('Erro ao salvar antes de fechar:', error);
+        }
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload); // Mobile
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+    };
+  }, [user]);
+  
   const persistAuthData = (userData: User | null) => {
     if (typeof window === 'undefined') return;
     try {
@@ -119,8 +155,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Garantir que avatar seja null (não undefined) para preservar
         const dataToSave = {
           user: {
-            ...userData,
+            id: userData.id,
+            name: userData.name,
+            email: userData.email,
             avatar: userData.avatar || null, // Sempre salvar null se não houver (não undefined)
+            level: userData.level || 'Bronze',
+            points: userData.points || 0,
+            plan: userData.plan || 'bronze',
+            role: userData.role || undefined,
           },
           timestamp: Date.now(),
         };
@@ -1332,8 +1374,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // CRÍTICO: Atualizar estado ANTES de salvar
     setUser(updatedUser);
     
-    // Salvar no localStorage - SIMPLES E DIRETO
-    try {
+    // Salvar no localStorage - MÚLTIPLAS VEZES para garantir persistência no mobile
+    const saveProfileData = () => {
       const dataToSave = {
         user: {
           id: updatedUser.id,
@@ -1347,17 +1389,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         timestamp: Date.now(),
       };
+      return JSON.stringify(dataToSave);
+    };
+    
+    try {
+      const serialized = saveProfileData();
       
-      // Salvar diretamente
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-      
-      // Também usar a função helper
+      // Salvar múltiplas vezes para garantir (mobile pode ter problemas de sincronização)
+      localStorage.setItem(STORAGE_KEY, serialized);
       persistAuthData(updatedUser);
+      localStorage.setItem(STORAGE_KEY, serialized); // Salvar novamente
       
-      // Salvar mais uma vez para garantir (mobile pode ter problemas de sincronização)
+      // Verificar se foi salvo corretamente
+      const verify = localStorage.getItem(STORAGE_KEY);
+      if (verify) {
+        const parsed = JSON.parse(verify);
+        if (parsed.user?.name === updatedUser.name && parsed.user?.id === updatedUser.id) {
+          console.log('✅ Perfil salvo e verificado:', {
+            name: parsed.user.name,
+            avatar: parsed.user.avatar ? 'sim' : 'não'
+          });
+        } else {
+          // Se não bateu, salvar novamente
+          console.warn('⚠️ Dados não batem, salvando novamente...');
+          localStorage.setItem(STORAGE_KEY, serialized);
+        }
+      }
+      
+      // Salvar novamente após um delay (mobile pode precisar de tempo)
       setTimeout(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-      }, 50);
+        localStorage.setItem(STORAGE_KEY, saveProfileData());
+      }, 100);
+      
+      setTimeout(() => {
+        localStorage.setItem(STORAGE_KEY, saveProfileData());
+      }, 500);
       
       // Disparar evento para notificar que foi salvo
       window.dispatchEvent(new CustomEvent('profile-saved', {
@@ -1369,6 +1435,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Tentar salvar de forma mais simples
       try {
         persistAuthData(updatedUser);
+        localStorage.setItem(STORAGE_KEY, saveProfileData());
       } catch (retryError) {
         console.error('Erro ao tentar salvar novamente:', retryError);
         throw new Error('Não foi possível salvar o perfil. Verifique se há espaço suficiente no dispositivo.');
