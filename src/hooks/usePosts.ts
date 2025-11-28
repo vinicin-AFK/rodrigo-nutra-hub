@@ -225,7 +225,68 @@ export function usePosts() {
   useEffect(() => {
     loadPosts();
 
-    if (!isSupabaseConfigured) return;
+    // Listener para atualizar posts quando o perfil mudar
+    const handleProfileUpdate = (event: CustomEvent) => {
+      const updatedUser = event.detail;
+      setPosts(prevPosts => {
+        const updated = prevPosts.map(post => {
+          // Se o post é do usuário atual, atualizar o autor
+          if (post.author?.id === updatedUser.id) {
+            return {
+              ...post,
+              author: {
+                ...post.author,
+                name: updatedUser.name,
+                avatar: updatedUser.avatar || post.author.avatar,
+              },
+            };
+          }
+          // Atualizar comentários do usuário também
+          if (post.commentsList) {
+            return {
+              ...post,
+              commentsList: post.commentsList.map(comment => {
+                if (comment.author?.id === updatedUser.id) {
+                  return {
+                    ...comment,
+                    author: {
+                      ...comment.author,
+                      name: updatedUser.name,
+                      avatar: updatedUser.avatar || comment.author.avatar,
+                    },
+                  };
+                }
+                return comment;
+              }),
+            };
+          }
+          return post;
+        });
+        // Salvar posts atualizados no localStorage
+        try {
+          const serialized = JSON.stringify(updated.map(p => ({
+            ...p,
+            createdAt: p.createdAt.toISOString(),
+            commentsList: p.commentsList?.map(c => ({
+              ...c,
+              createdAt: c.createdAt.toISOString(),
+            })) || [],
+          })));
+          safeSetItem('nutraelite_posts', serialized);
+        } catch (error) {
+          console.error('Erro ao salvar posts atualizados:', error);
+        }
+        return updated;
+      });
+    };
+
+    window.addEventListener('profile-updated', handleProfileUpdate as EventListener);
+
+    if (!isSupabaseConfigured) {
+      return () => {
+        window.removeEventListener('profile-updated', handleProfileUpdate as EventListener);
+      };
+    }
 
     const subscription = supabase
       .channel('posts_changes')
@@ -275,6 +336,7 @@ export function usePosts() {
       subscription.unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handleBeforeUnload);
+      window.removeEventListener('profile-updated', handleProfileUpdate as EventListener);
     };
   }, []);
 

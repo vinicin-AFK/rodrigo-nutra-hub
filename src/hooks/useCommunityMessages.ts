@@ -188,6 +188,40 @@ export function useCommunityMessages() {
     // Carregar inicialmente (com loading)
     loadMessages(true);
     
+    // Listener para atualizar mensagens quando o perfil mudar
+    const handleProfileUpdate = (event: CustomEvent) => {
+      const updatedUser = event.detail;
+      setMessages(prevMessages => {
+        const updated = prevMessages.map(msg => {
+          // Se a mensagem é do usuário atual, atualizar o autor
+          if (msg.author?.id === updatedUser.id) {
+            return {
+              ...msg,
+              author: {
+                ...msg.author,
+                name: updatedUser.name,
+                avatar: updatedUser.avatar || msg.author.avatar,
+              },
+            };
+          }
+          return msg;
+        });
+        // Salvar mensagens atualizadas no localStorage
+        try {
+          const serialized = JSON.stringify(updated.map(m => ({
+            ...m,
+            timestamp: m.timestamp.toISOString(),
+          })));
+          safeSetItem('nutraelite_community_messages', serialized);
+        } catch (error) {
+          console.error('Erro ao salvar mensagens atualizadas:', error);
+        }
+        return updated;
+      });
+    };
+
+    window.addEventListener('profile-updated', handleProfileUpdate as EventListener);
+    
     // Timeout de segurança - sempre parar loading após 3 segundos (já carregou do localStorage)
     const safetyTimeout = setTimeout(() => {
       console.warn('⚠️ Timeout de segurança: parando loading de mensagens');
@@ -195,7 +229,10 @@ export function useCommunityMessages() {
     }, 3000);
     
     if (!isSupabaseConfigured) {
-      return () => clearTimeout(safetyTimeout);
+      return () => {
+        clearTimeout(safetyTimeout);
+        window.removeEventListener('profile-updated', handleProfileUpdate as EventListener);
+      };
     }
 
     // Subscription para atualizações em tempo real
@@ -250,6 +287,7 @@ export function useCommunityMessages() {
       subscription.unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handleBeforeUnload);
+      window.removeEventListener('profile-updated', handleProfileUpdate as EventListener);
     };
   }, []);
 

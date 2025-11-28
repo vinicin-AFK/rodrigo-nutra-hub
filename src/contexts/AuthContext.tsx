@@ -1180,6 +1180,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Erro ao salvar perfil no localStorage:', error);
     }
     
+    // Atualizar posts existentes no localStorage com o novo perfil
+    try {
+      const savedPosts = localStorage.getItem('nutraelite_posts');
+      if (savedPosts) {
+        const parsed = JSON.parse(savedPosts);
+        const updatedPosts = parsed.map((post: any) => {
+          // Se o post é do usuário atual, atualizar o autor
+          if (post.author?.id === user.id) {
+            return {
+              ...post,
+              author: {
+                ...post.author,
+                ...(data.name !== undefined && { name: data.name }),
+                ...(data.avatar !== undefined && { avatar: data.avatar || undefined }),
+              },
+            };
+          }
+          // Atualizar comentários do usuário também
+          if (post.commentsList) {
+            post.commentsList = post.commentsList.map((comment: any) => {
+              if (comment.author?.id === user.id) {
+                return {
+                  ...comment,
+                  author: {
+                    ...comment.author,
+                    ...(data.name !== undefined && { name: data.name }),
+                    ...(data.avatar !== undefined && { avatar: data.avatar || undefined }),
+                  },
+                };
+              }
+              return comment;
+            });
+          }
+          return post;
+        });
+        localStorage.setItem('nutraelite_posts', JSON.stringify(updatedPosts));
+        console.log('✅ Posts atualizados com novo perfil');
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar posts com novo perfil:', error);
+    }
+    
+    // Atualizar mensagens existentes no localStorage com o novo perfil
+    try {
+      const savedMessages = localStorage.getItem('nutraelite_community_messages');
+      if (savedMessages) {
+        const parsed = JSON.parse(savedMessages);
+        const updatedMessages = parsed.map((msg: any) => {
+          // Se a mensagem é do usuário atual, atualizar o autor
+          if (msg.author?.id === user.id) {
+            return {
+              ...msg,
+              author: {
+                ...msg.author,
+                ...(data.name !== undefined && { name: data.name }),
+                ...(data.avatar !== undefined && { avatar: data.avatar || undefined }),
+              },
+            };
+          }
+          return msg;
+        });
+        localStorage.setItem('nutraelite_community_messages', JSON.stringify(updatedMessages));
+        console.log('✅ Mensagens atualizadas com novo perfil');
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar mensagens com novo perfil:', error);
+    }
+    
+    // Disparar evento para atualizar os hooks
+    window.dispatchEvent(new CustomEvent('profile-updated', {
+      detail: updatedUser
+    }));
+    
     // Tentar sincronizar com Supabase em background (não bloqueia)
     if (isSupabaseConfigured) {
       (async () => {
