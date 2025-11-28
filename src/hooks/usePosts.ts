@@ -40,7 +40,7 @@ export function usePosts() {
           .select(`
             *,
             author:profiles(*),
-            comments:post_comments(*, author:profiles(*)),
+            comments:comments(*, author:profiles(*)),
             likes:post_likes(*)
           `)
           .order('created_at', { ascending: false })
@@ -844,7 +844,7 @@ export function usePosts() {
           if (user) {
             console.log('🔄 Tentando sincronizar comentário com Supabase...');
             const { data: insertedComment, error } = await supabase
-              .from('post_comments')
+              .from('comments')
               .insert({
                 post_id: postId,
                 author_id: user.id,
