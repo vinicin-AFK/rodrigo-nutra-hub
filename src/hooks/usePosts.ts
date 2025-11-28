@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Post, Comment } from '@/types';
 import { safeSetItem, safeGetItem, ensureStorageSpace } from '@/lib/storage';
+import { toast } from '@/hooks/use-toast';
 
 export function usePosts() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -545,6 +546,16 @@ export function usePosts() {
       willSync: isSupabaseConfigured,
     });
     
+    if (!isSupabaseConfigured) {
+      // Mostrar aviso se Supabase não estiver configurado
+      toast({
+        title: '⚠️ Modo offline',
+        description: 'Supabase não configurado. A publicação foi salva apenas localmente.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+    }
+    
     if (isSupabaseConfigured) {
       (async () => {
         try {
@@ -642,6 +653,13 @@ export function usePosts() {
                 created_at: insertedPost.created_at,
               });
               
+              // Mostrar notificação de sucesso (visível no mobile)
+              toast({
+                title: '✅ Publicação salva!',
+                description: 'Sua publicação foi salva no servidor e está visível para todos.',
+                duration: 3000,
+              });
+              
               // Atualizar o post local com o ID do Supabase e dados atualizados
               setPosts(prevPosts => {
                 return prevPosts.map(p => {
@@ -685,12 +703,31 @@ export function usePosts() {
                 userId: user.id,
                 content: content.substring(0, 50),
               });
+              
+              // Mostrar notificação de erro (visível no mobile)
+              const errorMessage = error?.message || 'Erro desconhecido';
+              const errorHint = error?.hint || '';
+              
+              toast({
+                title: '⚠️ Erro ao salvar no servidor',
+                description: `A publicação foi salva localmente, mas não foi sincronizada. ${errorMessage}${errorHint ? ` (${errorHint})` : ''}`,
+                variant: 'destructive',
+                duration: 5000,
+              });
               // Não é crítico - já está salvo localmente
             }
           } else {
             console.warn('⚠️ Usuário não autenticado no Supabase!');
             console.warn('📋 Isso significa que a publicação será salva apenas localmente.');
             console.warn('💡 Solução: Faça login novamente no aplicativo.');
+            
+            // Mostrar notificação de aviso (visível no mobile)
+            toast({
+              title: '⚠️ Não autenticado',
+              description: 'A publicação foi salva localmente. Faça login para sincronizar com o servidor.',
+              variant: 'destructive',
+              duration: 5000,
+            });
           }
         } catch (error: any) {
           console.error('❌ Erro ao sincronizar com Supabase:', error?.message || error);
