@@ -255,23 +255,44 @@ const Index = () => {
 
             {/* Feed de postagens estilo Instagram - scroll infinito */}
             <div className="space-y-0 pb-4">
-              {postsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-muted-foreground">Carregando publicações...</div>
-                </div>
-              ) : allPosts.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <p className="text-muted-foreground mb-4">Nenhuma publicação ainda</p>
-                  <Button 
-                    onClick={() => setIsCreatePostOpen(true)} 
-                    variant="fire"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Criar primeira publicação
-                  </Button>
-                </div>
-              ) : (
-                validPosts.map((post) => (
+              {(() => {
+                // Filtrar posts válidos
+                const validPosts = allPosts.filter(post => {
+                  if (!post || !post.author) {
+                    console.warn('Post inválido encontrado:', post);
+                    return false;
+                  }
+                  // Filtrar apenas posts deletados ou ocultos (status undefined ou 'active' são válidos)
+                  if (post.status === 'deleted' || post.status === 'hidden') {
+                    return false;
+                  }
+                  return true;
+                });
+
+                if (postsLoading) {
+                  return (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-muted-foreground">Carregando publicações...</div>
+                    </div>
+                  );
+                }
+
+                if (validPosts.length === 0) {
+                  return (
+                    <div className="text-center py-12 px-4">
+                      <p className="text-muted-foreground mb-4">Nenhuma publicação ainda</p>
+                      <Button 
+                        onClick={() => setIsCreatePostOpen(true)} 
+                        variant="fire"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Criar primeira publicação
+                      </Button>
+                    </div>
+                  );
+                }
+
+                return validPosts.map((post) => (
                   <PostCard 
                     key={post.id} 
                     post={post} 
@@ -279,8 +300,7 @@ const Index = () => {
                     onComment={handleOpenComments}
                     onDelete={deletePost}
                   />
-                ))
-              );
+                ));
               })()}
             </div>
           </div>
