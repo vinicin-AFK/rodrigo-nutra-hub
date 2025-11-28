@@ -350,22 +350,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // CRÍTICO: Definir no estado ANTES de qualquer outra coisa
           setUser(loadedUser);
           
-          // Garantir que está salvo corretamente
-          persistAuthData(loadedUser);
+          // NÃO chamar persistAuthData aqui - os dados já estão salvos!
+          // Chamar persistAuthData aqui pode sobrescrever dados mais recentes
           
-          // Verificar se foi salvo
-          const verify = localStorage.getItem(STORAGE_KEY);
-          if (verify) {
-            const parsed = JSON.parse(verify);
-            console.log('✅ Usuário carregado e verificado do localStorage:', {
-              email: loadedUser.email,
-              name: loadedUser.name,
-              avatar: loadedUser.avatar ? 'sim' : 'não',
-              id: loadedUser.id,
-              savedName: parsed.user?.name,
-              savedAvatar: parsed.user?.avatar ? 'sim' : 'não'
-            });
-          }
+          // Verificar se foi carregado corretamente
+          console.log('✅ Usuário carregado do localStorage:', {
+            email: loadedUser.email,
+            name: loadedUser.name,
+            avatar: loadedUser.avatar ? 'sim' : 'não',
+            id: loadedUser.id,
+            hasAvatar: !!loadedUser.avatar,
+            avatarValue: loadedUser.avatar
+          });
           
           setIsLoading(false); // IMPORTANTE: Parar loading imediatamente após carregar do localStorage
           
@@ -480,7 +476,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 
                 // Se temos dados locais, garantir que estão no estado ANTES de tentar Supabase
                 setUser(localUser);
-                persistAuthData(localUser); // Garantir que está salvo
+                // NÃO chamar persistAuthData aqui - pode sobrescrever dados mais recentes
+                // Os dados já estão salvos no localStorage
               }
             } catch (e) {
               console.warn('Erro ao verificar dados locais:', e);
@@ -1338,17 +1335,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // CRÍTICO: Atualizar estado ANTES de salvar
     setUser(updatedUser);
     
-    // Salvar no localStorage IMEDIATAMENTE - MÚLTIPLAS VEZES para garantir
-    persistAuthData(updatedUser);
-    
-    // Salvar diretamente também (dupla verificação)
-    try {
+    // Salvar no localStorage IMEDIATAMENTE - FORÇAR salvamento múltiplas vezes
+    const saveToStorage = () => {
       const dataToSave = {
         user: {
           id: updatedUser.id,
           name: updatedUser.name,
           email: updatedUser.email,
-          avatar: updatedUser.avatar || null, // Salvar null se não houver avatar
+          avatar: updatedUser.avatar || null, // Salvar null se não houver avatar (não undefined)
           level: updatedUser.level || 'Bronze',
           points: updatedUser.points || 0,
           plan: updatedUser.plan || 'bronze',
@@ -1357,24 +1351,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         timestamp: Date.now(),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      return dataToSave;
+    };
+    
+    // Salvar múltiplas vezes para garantir
+    try {
+      saveToStorage();
+      persistAuthData(updatedUser); // Também usar a função helper
+      saveToStorage(); // Salvar novamente para garantir
       
       // Verificar se foi salvo corretamente
       const verify = localStorage.getItem(STORAGE_KEY);
       if (verify) {
         const parsed = JSON.parse(verify);
+        const savedName = parsed.user?.name;
+        const savedAvatar = parsed.user?.avatar;
+        const savedId = parsed.user?.id;
+        
         console.log('✅ Perfil salvo e verificado no localStorage:', {
-          name: parsed.user?.name,
-          avatar: parsed.user?.avatar ? 'sim' : 'não',
-          id: parsed.user?.id,
-          timestamp: new Date(parsed.timestamp).toISOString()
+          name: savedName,
+          avatar: savedAvatar ? 'sim' : 'não',
+          avatarValue: savedAvatar,
+          id: savedId,
+          timestamp: new Date(parsed.timestamp).toISOString(),
+          match: savedName === updatedUser.name && savedId === updatedUser.id
         });
+        
+        // Se não bateu, tentar salvar mais uma vez
+        if (savedName !== updatedUser.name || savedId !== updatedUser.id) {
+          console.warn('⚠️ Dados não batem, salvando novamente...');
+          saveToStorage();
+        }
       } else {
         console.error('❌ ERRO: Perfil não foi salvo corretamente!');
+        // Tentar salvar novamente
+        saveToStorage();
       }
     } catch (error) {
       console.error('❌ Erro ao salvar perfil no localStorage:', error);
       // Tentar novamente
       try {
+        saveToStorage();
         persistAuthData(updatedUser);
       } catch (retryError) {
         console.error('❌ Erro ao tentar salvar novamente:', retryError);
