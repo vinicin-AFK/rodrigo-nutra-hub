@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Message } from '@/types';
 import { safeSetItem, safeGetItem, ensureStorageSpace } from '@/lib/storage';
@@ -6,6 +6,12 @@ import { safeSetItem, safeGetItem, ensureStorageSpace } from '@/lib/storage';
 export function useCommunityMessages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const messagesRef = useRef<Message[]>([]);
+  
+  // Manter ref atualizada
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const loadMessages = async (showLoading: boolean = true) => {
     if (showLoading) {
