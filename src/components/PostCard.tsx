@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Flame, MessageCircle, Award, Heart, Trash2, Shield } from 'lucide-react';
+import { Flame, MessageCircle, Award, Trash2, Shield } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,7 +30,12 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
   const handleLike = async () => {
     const wasLiked = isLiked;
     
+    // ATUALIZAR IMEDIATAMENTE (antes de chamar a API)
+    setIsLiked(!wasLiked);
+    setLikes(prev => wasLiked ? Math.max(0, prev - 1) : prev + 1);
+    
     if (!wasLiked) {
+      // Animação de fogo ao curtir
       setIsAnimating(true);
       setParticles([1, 2, 3, 4, 5]);
       setTimeout(() => {
@@ -38,16 +43,18 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
         setParticles([]);
       }, 800);
       
-      // Adicionar 1 ponto por curtida
-      await addPoints(1);
+      // Adicionar 1 ponto por curtida (em background)
+      addPoints(1).catch(err => console.warn('Erro ao adicionar pontos:', err));
     }
     
-    setIsLiked(!isLiked);
-    setLikes(prev => wasLiked ? prev - 1 : prev + 1);
-    
-    // Notificar componente pai
+    // Notificar componente pai (atualiza no backend)
     if (onLike) {
-      await onLike(post.id, !wasLiked);
+      onLike(post.id, !wasLiked).catch(err => {
+        console.error('Erro ao curtir:', err);
+        // Reverter em caso de erro
+        setIsLiked(wasLiked);
+        setLikes(prev => wasLiked ? prev + 1 : Math.max(0, prev - 1));
+      });
     }
   };
 
@@ -213,9 +220,9 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
             ))}
             
             {isLiked ? (
-              <Heart className="w-6 h-6 text-red-500 fill-red-500 transition-all duration-300" />
+              <Flame className="w-6 h-6 text-primary fill-primary transition-all duration-300" />
             ) : (
-              <Heart className="w-6 h-6 text-muted-foreground hover:text-red-500 transition-all duration-300" />
+              <Flame className="w-6 h-6 text-muted-foreground hover:text-primary transition-all duration-300" />
             )}
           </button>
 
