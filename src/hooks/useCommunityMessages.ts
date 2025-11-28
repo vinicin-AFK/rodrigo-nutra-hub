@@ -33,31 +33,82 @@ export function useCommunityMessages() {
       }
     }
     
-    // PRIORIDADE: Se Supabase está configurado, tentar carregar DE LÁ PRIMEIRO (para novos usuários)
-    if (isSupabaseConfigured) {
+    // PRIORIDADE: Carregar do localStorage PRIMEIRO (mais rápido no mobile)
+    const savedMessages = safeGetItem('nutraelite_community_messages');
+    if (savedMessages) {
       try {
-        console.log('🔍 Buscando mensagens no Supabase (prioridade)...');
+        const parsed = JSON.parse(savedMessages);
+        const loadedMessages: Message[] = parsed.map((msg: any) => {
+          const authorId = msg.author?.id || null;
+          const isUser = currentUserId && authorId ? authorId === currentUserId : msg.isUser;
+          
+          return {
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+            isUser,
+            author: {
+              ...(msg.author || {
+                name: 'Usuário',
+                avatar: 'https://ui-avatars.com/api/?name=Usuario&background=random',
+              }),
+              id: msg.author?.id || authorId,
+            },
+          };
+        });
         
-        // Query simplificada para carregar mais rápido
-        const supabasePromise = supabase
-          .from('community_messages')
-          .select(`
-            id,
-            author_id,
-            content,
-            type,
-            image,
-            audio_duration,
-            audio_url,
-            created_at,
-            author:profiles(id, name, avatar, role)
-          `)
-          .order('created_at', { ascending: true })
-          .limit(200); // Reduzir limite para carregar mais rápido
+        setMessages(loadedMessages);
+        if (showLoading) {
+          setIsLoading(false);
+        }
+        console.log('✅ Mensagens carregadas do localStorage (instantâneo):', loadedMessages.length);
+        
+        // Sincronizar com Supabase em background (não bloqueia)
+        if (isSupabaseConfigured) {
+          syncWithSupabase(currentUserId, showLoading).catch(err => {
+            console.warn('⚠️ Erro ao sincronizar (não crítico):', err);
+          });
+        }
+        return;
+      } catch (error) {
+        console.warn('Erro ao carregar do localStorage:', error);
+      }
+    }
+    
+    // Se não há dados locais, tentar Supabase
+    if (isSupabaseConfigured) {
+      await syncWithSupabase(currentUserId, showLoading);
+    } else {
+      setMessages([]);
+      if (showLoading) {
+        setIsLoading(false);
+      }
+    }
+  };
 
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 5000)
-        );
+  const syncWithSupabase = async (currentUserId: string | null, showLoading: boolean) => {
+    try {
+      console.log('🔍 Sincronizando com Supabase...');
+      
+      // Query otimizada - apenas últimas 50 mensagens (mais rápido)
+      const supabasePromise = supabase
+        .from('community_messages')
+        .select(`
+          id,
+          author_id,
+          content,
+          type,
+          image,
+          audio_duration,
+          audio_url,
+          created_at,
+          author:profiles(id, name, avatar, role)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50); // Apenas últimas 50 mensagens para carregar rápido
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 3000) // Timeout reduzido para 3s
+      );
 
         const { data, error } = await Promise.race([
           supabasePromise,
