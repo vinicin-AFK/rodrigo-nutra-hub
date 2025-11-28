@@ -884,13 +884,23 @@ export function CommunityChat() {
                                       className="rounded-lg w-full"
                                     />
                                     {message.content && message.content !== '📷' && (
-                                      <p className="text-sm mt-2 break-words" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                                      <p className="text-sm mt-2" style={{ 
+                                        wordBreak: 'normal',
+                                        overflowWrap: 'anywhere',
+                                        whiteSpace: 'pre-wrap',
+                                        hyphens: 'none'
+                                      }}>
                                         {message.content}
                                       </p>
                                     )}
                                   </div>
                                 ) : (
-                                  <p className="text-sm break-words leading-relaxed" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                                  <p className="text-sm leading-relaxed" style={{ 
+                                    wordBreak: 'normal',
+                                    overflowWrap: 'anywhere',
+                                    whiteSpace: 'pre-wrap',
+                                    hyphens: 'none'
+                                  }}>
                                     {message.content}
                                   </p>
                                 )}
