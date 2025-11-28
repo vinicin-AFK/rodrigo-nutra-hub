@@ -189,21 +189,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profile) {
         console.log('✅ Perfil encontrado no Supabase:', profile.name);
         
-        // MESCLAR dados: priorizar localStorage se tiver dados mais atualizados
+        // Se temos dados locais, NÃO sobrescrever - apenas usar Supabase para campos que faltam
+        if (localUser) {
+          console.log('📦 Mantendo dados locais como prioridade, mesclando apenas campos faltantes');
+          const userData: User = {
+            id: localUser.id,
+            name: localUser.name || profile.name, // SEMPRE priorizar localStorage
+            email: profile.email || localUser.email,
+            avatar: localUser.avatar || profile.avatar || undefined, // SEMPRE priorizar localStorage
+            level: localUser.level || profile.level || 'Bronze',
+            points: localUser.points ?? profile.points ?? 0,
+            plan: localUser.plan || profile.plan || 'bronze',
+            role: localUser.role || profile.role || undefined,
+          };
+          
+          // Só atualizar se realmente mudou algo (evitar re-renders desnecessários)
+          if (JSON.stringify(userData) !== JSON.stringify(localUser)) {
+            console.log('🔄 Atualizando perfil com dados mesclados');
+            setUser(userData);
+            persistAuthData(userData);
+          } else {
+            console.log('✅ Perfil local já está atualizado, mantendo como está');
+            // Garantir que está salvo
+            persistAuthData(localUser);
+          }
+          return userData;
+        }
+        
+        // Se não temos dados locais, usar dados do Supabase
         const userData: User = {
           id: profile.id,
-          name: localUser?.name || profile.name, // Priorizar nome do localStorage
+          name: profile.name,
           email: profile.email,
-          avatar: localUser?.avatar || profile.avatar || undefined, // Priorizar avatar do localStorage
-          level: profile.level || localUser?.level || 'Bronze',
-          points: profile.points || localUser?.points || 0,
-          plan: profile.plan || localUser?.plan || 'bronze',
-          role: localUser?.role || profile.role || undefined,
+          avatar: profile.avatar || undefined,
+          level: profile.level || 'Bronze',
+          points: profile.points || 0,
+          plan: profile.plan || 'bronze',
+          role: profile.role || undefined,
         };
         
         setUser(userData);
-        persistAuthData(userData); // Salvar dados mesclados
-        console.log('✅ Perfil mesclado (Supabase + localStorage):', {
+        persistAuthData(userData);
+        console.log('✅ Perfil carregado do Supabase:', {
           name: userData.name,
           avatar: userData.avatar ? 'sim' : 'não'
         });
@@ -420,38 +447,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('📊 Sessão encontrada:', { hasSession: !!session, hasUser: !!session?.user });
 
         if (session?.user) {
-          console.log('👤 Carregando dados do usuário:', session.user.id);
+          console.log('👤 Verificando dados do usuário:', session.user.id);
           
-          // Verificar se já temos dados locais antes de carregar do Supabase
+          // CRÍTICO: Verificar se já temos dados locais ANTES de carregar do Supabase
           const savedAuth = localStorage.getItem(STORAGE_KEY);
           let hasLocalData = false;
+          let localUser: User | null = null;
+          
           if (savedAuth) {
             try {
               const authData = JSON.parse(savedAuth);
               if (authData.user && authData.user.id === session.user.id) {
+                localUser = authData.user;
                 hasLocalData = true;
-                console.log('📦 Dados locais encontrados, mesclando com Supabase');
+                console.log('📦 Dados locais encontrados:', {
+                  name: localUser.name,
+                  avatar: localUser.avatar ? 'sim' : 'não',
+                  timestamp: authData.timestamp ? new Date(authData.timestamp).toISOString() : 'sem timestamp'
+                });
+                
+                // Se temos dados locais, garantir que estão no estado ANTES de tentar Supabase
+                setUser(localUser);
+                persistAuthData(localUser); // Garantir que está salvo
               }
             } catch (e) {
               console.warn('Erro ao verificar dados locais:', e);
             }
           }
           
-          await Promise.all([
+          // Se temos dados locais, NÃO sobrescrever com Supabase durante carregamento inicial
+          // Apenas sincronizar em background (sem atualizar o estado se já temos dados locais)
+          if (hasLocalData && localUser) {
+            console.log('✅ Usando dados locais como fonte de verdade');
+            // Carregar stats e achievements em background, mas não sobrescrever perfil
+            Promise.all([
+              loadStats(session.user.id).catch(err => {
+                console.error('Erro ao carregar stats:', err);
+              }),
+              loadAchievements(session.user.id).catch(err => {
+                console.error('Erro ao carregar conquistas:', err);
+              }),
+            ]).then(() => {
+              console.log('✅ Stats e achievements carregados em background');
+            });
+            
+            // Tentar sincronizar perfil com Supabase em background (sem sobrescrever)
             loadProfile(session.user.id).catch(err => {
-              console.error('Erro ao carregar perfil:', err);
-              // Se falhar, manter dados do localStorage (já carregados antes)
-            }),
-            loadStats(session.user.id).catch(err => {
-              console.error('Erro ao carregar stats:', err);
-              // Se falhar, manter stats do localStorage
-            }),
-            loadAchievements(session.user.id).catch(err => {
-              console.error('Erro ao carregar conquistas:', err);
-              // Se falhar, manter conquistas do localStorage
-            }),
-          ]);
-          console.log('✅ Dados do usuário carregados');
+              console.error('Erro ao sincronizar perfil:', err);
+              // Manter dados locais mesmo se falhar
+            });
+          } else {
+            // Se não temos dados locais, carregar do Supabase normalmente
+            console.log('📥 Carregando dados do Supabase (sem dados locais)');
+            await Promise.all([
+              loadProfile(session.user.id).catch(err => {
+                console.error('Erro ao carregar perfil:', err);
+              }),
+              loadStats(session.user.id).catch(err => {
+                console.error('Erro ao carregar stats:', err);
+              }),
+              loadAchievements(session.user.id).catch(err => {
+                console.error('Erro ao carregar conquistas:', err);
+              }),
+            ]);
+            console.log('✅ Dados do usuário carregados do Supabase');
+          }
         } else {
           console.log('ℹ️ Nenhuma sessão ativa no Supabase, mantendo dados do localStorage');
           // NÃO limpar dados do localStorage se não houver sessão no Supabase
