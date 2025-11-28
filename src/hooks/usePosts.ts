@@ -268,36 +268,7 @@ export function usePosts() {
   };
 
   useEffect(() => {
-      try {
-        console.log('🔍 Buscando TODAS as postagens do feed global no Supabase...');
-        
-        // Timeout reduzido para 5 segundos - carregar mais rápido
-        // FEED GLOBAL: Buscar TODAS as postagens (sem filtro de usuário)
-        const supabasePromise = supabase
-          .from('posts')
-          .select(`
-            id,
-            author_id,
-            content,
-            image,
-            result_value,
-            type,
-            created_at,
-            author:profiles(id, name, avatar, level, points, rank, total_sales, role)
-          `)
-          .order('created_at', { ascending: false })
-          .limit(200); // FEED GLOBAL: Carregar mais posts para todos verem
-
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout ao carregar posts')), 5000)
-        );
-
-        const { data, error } = await Promise.race([
-          supabasePromise,
-          timeoutPromise,
-        ]) as any;
-
-        console.log('📊 Resultado Supabase:', { data: data?.length || 0, error });
+    loadPosts();
 
         if (!error && data && data.length > 0) {
           const { data: { user } } = await supabase.auth.getUser();
