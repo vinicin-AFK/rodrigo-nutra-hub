@@ -36,6 +36,8 @@ const Index = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedPostForComments, setSelectedPostForComments] = useState<Post | null>(null);
   const selectedPostIdRef = useRef<string | null>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const previousTabRef = useRef<Tab>('home');
 
   // Atualizar post selecionado automaticamente quando allPosts mudar
   useEffect(() => {
@@ -62,6 +64,25 @@ const Index = () => {
       }
     }
   }, [allPosts]);
+
+  // Scroll ao topo quando mudar de aba (exceto community)
+  useEffect(() => {
+    if (activeTab !== previousTabRef.current) {
+      previousTabRef.current = activeTab;
+      
+      // Se não for community, fazer scroll ao topo
+      if (activeTab !== 'community') {
+        setTimeout(() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          // Também tentar scroll no container principal
+          if (mainContentRef.current) {
+            mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }, 100);
+      }
+      // Se for community, o CommunityChat já faz scroll para última mensagem
+    }
+  }, [activeTab]);
 
   // Usar dados do usuário autenticado ou fallback
   const currentUser = user ? {
@@ -388,14 +409,17 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className={cn(
-        "max-w-lg mx-auto",
-        activeTab === 'community' ? "px-0" : "px-4 py-6"
-      )} style={{ 
-        color: 'hsl(40, 20%, 95%)',
-        minHeight: activeTab === 'community' ? 'calc(100vh - 64px - 64px)' : 'calc(100vh - 180px)',
-        paddingBottom: activeTab === 'community' ? '0' : 'calc(env(safe-area-inset-bottom, 0px) + 96px)'
-      }}>
+      <main 
+        ref={mainContentRef}
+        className={cn(
+          "max-w-lg mx-auto",
+          activeTab === 'community' ? "px-0" : "px-4 py-6"
+        )} 
+        style={{ 
+          color: 'hsl(40, 20%, 95%)',
+          minHeight: activeTab === 'community' ? 'calc(100vh - 64px - 64px)' : 'calc(100vh - 180px)',
+          paddingBottom: activeTab === 'community' ? '0' : 'calc(env(safe-area-inset-bottom, 0px) + 96px)'
+        }}>
         {renderContent()}
       </main>
 

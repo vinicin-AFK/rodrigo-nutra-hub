@@ -171,8 +171,22 @@ export function CommunityChat() {
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Scroll para última mensagem quando mensagens mudarem
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
   }, [messages]);
+
+  // Scroll ao abrir o chat
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 300);
+    }
+  }, []);
 
   useEffect(() => {
     if (isRecording) {

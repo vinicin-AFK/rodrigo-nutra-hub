@@ -560,55 +560,25 @@ export function usePosts() {
   };
 
   const likePost = async (postId: string) => {
-    // PRIORIZAR Supabase se estiver configurado
-    if (isSupabaseConfigured) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: existingLike } = await supabase
-            .from('post_likes')
-            .select('id')
-            .eq('post_id', postId)
-            .eq('user_id', user.id)
-            .single();
-
-          if (existingLike) {
-            await supabase
-              .from('post_likes')
-              .delete()
-              .eq('post_id', postId)
-              .eq('user_id', user.id);
-          } else {
-            await supabase
-              .from('post_likes')
-              .insert({
-                post_id: postId,
-                user_id: user.id,
-              });
-          }
-          // Recarregar do Supabase para sincronizar com todos
-          await loadPosts();
-          return;
+    // ATUALIZAR ESTADO IMEDIATAMENTE (antes de salvar)
+    setPosts(prevPosts => {
+      const updated = prevPosts.map(post => {
+        if (post.id === postId) {
+          const wasLiked = post.isLiked;
+          const updatedPost = {
+            ...post,
+            isLiked: !wasLiked,
+            likes: wasLiked ? Math.max(0, (post.likes || 0) - 1) : (post.likes || 0) + 1,
+          };
+          console.log('🔄 Like atualizado no estado:', { postId, isLiked: updatedPost.isLiked, likes: updatedPost.likes });
+          return updatedPost;
         }
-      } catch (error) {
-        console.error('Erro ao salvar like no Supabase:', error);
-        // Fallback para localStorage
-      }
-    }
+        return post;
+      });
+      return updated;
+    });
 
-    // Fallback: atualizar localmente
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id === postId) {
-        const wasLiked = post.isLiked;
-        return {
-          ...post,
-          isLiked: !wasLiked,
-          likes: wasLiked ? post.likes - 1 : post.likes + 1,
-        };
-      }
-      return post;
-    }));
-
+    // Salvar no localStorage IMEDIATAMENTE
     const savedPosts = safeGetItem('nutraelite_posts');
     if (savedPosts) {
       try {
@@ -619,15 +589,53 @@ export function usePosts() {
             return {
               ...post,
               isLiked: !wasLiked,
-              likes: wasLiked ? (post.likes || 0) - 1 : (post.likes || 0) + 1,
+              likes: wasLiked ? Math.max(0, (post.likes || 0) - 1) : (post.likes || 0) + 1,
             };
           }
           return post;
         });
         safeSetItem('nutraelite_posts', JSON.stringify(updated));
+        console.log('✅ Like salvo no localStorage');
       } catch (error) {
-        console.warn('Erro ao salvar like (não crítico):', error);
+        console.warn('⚠️ Erro ao salvar like (não crítico):', error);
       }
+    }
+
+    // Tentar sincronizar com Supabase em background (não bloqueia)
+    if (isSupabaseConfigured) {
+      (async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: existingLike } = await supabase
+              .from('post_likes')
+              .select('id')
+              .eq('post_id', postId)
+              .eq('user_id', user.id)
+              .single();
+
+            if (existingLike) {
+              await supabase
+                .from('post_likes')
+                .delete()
+                .eq('post_id', postId)
+                .eq('user_id', user.id);
+            } else {
+              await supabase
+                .from('post_likes')
+                .insert({
+                  post_id: postId,
+                  user_id: user.id,
+                });
+            }
+            console.log('✅ Like sincronizado com Supabase');
+            // Recarregar do Supabase em background para sincronizar com todos
+            loadPosts();
+          }
+        } catch (error) {
+          console.warn('⚠️ Erro ao sincronizar like com Supabase (não crítico):', error);
+        }
+      })();
     }
   };
 

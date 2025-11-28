@@ -42,6 +42,13 @@ export function CommentsModal({ isOpen, onClose, post, onAddComment, onDeleteCom
     }
   }, [isOpen, post.commentsList?.length]);
 
+  // Atualizar quando o post mudar (para pegar novos comentários)
+  useEffect(() => {
+    if (isOpen && post.commentsList) {
+      scrollToBottom();
+    }
+  }, [isOpen, post.commentsList]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!comment.trim()) {
