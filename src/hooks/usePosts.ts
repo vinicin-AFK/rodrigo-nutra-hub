@@ -635,7 +635,6 @@ export function usePosts() {
     console.log('💬 addComment chamado:', { postId, content: content.substring(0, 50) });
     
     // SEMPRE salvar no localStorage PRIMEIRO (para feedback imediato)
-    // Fallback: usar localStorage
     const savedAuth = localStorage.getItem('nutraelite_auth');
     if (!savedAuth) {
       console.error('❌ Usuário não autenticado');
@@ -665,23 +664,28 @@ export function usePosts() {
         totalSales: authorData.totalSales || 0,
         role: isSupportUser ? 'support' : undefined,
       },
-      content,
+      content: content.trim(),
       createdAt: new Date(),
     };
 
     console.log('✅ Comentário criado:', newComment.id);
 
-    // Atualizar estado local IMEDIATAMENTE
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          comments: (post.comments || 0) + 1,
-          commentsList: [...(post.commentsList || []), newComment],
-        };
-      }
-      return post;
-    }));
+    // ATUALIZAR ESTADO IMEDIATAMENTE (antes de salvar no localStorage)
+    setPosts(prevPosts => {
+      const updated = prevPosts.map(post => {
+        if (post.id === postId) {
+          const updatedPost = {
+            ...post,
+            comments: (post.comments || 0) + 1,
+            commentsList: [...(post.commentsList || []), newComment],
+          };
+          console.log('🔄 Post atualizado no estado:', updatedPost.id, 'comentários:', updatedPost.commentsList.length);
+          return updatedPost;
+        }
+        return post;
+      });
+      return updated;
+    });
 
     // Salvar no localStorage
     const savedPosts = safeGetItem('nutraelite_posts');

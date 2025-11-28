@@ -120,38 +120,33 @@ const Index = () => {
     try {
       console.log('💬 handleAddComment chamado:', { postId, content: content.substring(0, 50) });
       
-      // Adicionar comentário
+      // Adicionar comentário (já atualiza o estado imediatamente)
       const newComment = await addComment(postId, content);
       console.log('✅ Comentário adicionado com sucesso:', newComment?.id);
       
-      // Aguardar um pouco para o estado ser atualizado
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Buscar o post atualizado do estado
-      const updatedPost = allPosts.find(p => p.id === postId);
-      if (updatedPost) {
-        console.log('🔄 Atualizando post selecionado:', updatedPost.id, 'comentários:', updatedPost.commentsList?.length);
-        // Criar uma nova referência completa do objeto para forçar re-render
-        setSelectedPostForComments({
-          ...updatedPost,
-          commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
-        });
-      } else {
-        console.warn('⚠️ Post não encontrado, tentando novamente...');
-        // Tentar novamente após mais tempo
-        setTimeout(() => {
-          const retryPost = allPosts.find(p => p.id === postId);
-          if (retryPost) {
-            console.log('✅ Post encontrado na segunda tentativa');
-            setSelectedPostForComments({
-              ...retryPost,
-              commentsList: retryPost.commentsList ? [...retryPost.commentsList] : [],
-            });
-          } else {
-            console.error('❌ Post ainda não encontrado após múltiplas tentativas');
+      // ATUALIZAR IMEDIATAMENTE usando o comentário retornado
+      setSelectedPostForComments(prevPost => {
+        if (!prevPost || prevPost.id !== postId) {
+          // Se não temos o post selecionado, buscar do estado
+          const post = allPosts.find(p => p.id === postId);
+          if (post) {
+            return {
+              ...post,
+              commentsList: post.commentsList ? [...post.commentsList] : [],
+            };
           }
-        }, 300);
-      }
+          return prevPost;
+        }
+        
+        // Atualizar o post selecionado com o novo comentário
+        return {
+          ...prevPost,
+          comments: (prevPost.comments || 0) + 1,
+          commentsList: [...(prevPost.commentsList || []), newComment],
+        };
+      });
+      
+      console.log('✅ Post selecionado atualizado imediatamente');
     } catch (error) {
       console.error('❌ Erro ao adicionar comentário:', error);
       toast({
