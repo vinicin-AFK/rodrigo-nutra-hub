@@ -1387,8 +1387,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ...post,
               author: {
                 ...post.author,
-                ...(data.name !== undefined && { name: data.name }),
-                ...(data.avatar !== undefined && { avatar: data.avatar || undefined }),
+                name: updatedUser.name, // SEMPRE atualizar com o nome atualizado
+                avatar: updatedUser.avatar || null, // SEMPRE atualizar com o avatar atualizado
               },
             };
           }
@@ -1400,8 +1400,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   ...comment,
                   author: {
                     ...comment.author,
-                    ...(data.name !== undefined && { name: data.name }),
-                    ...(data.avatar !== undefined && { avatar: data.avatar || undefined }),
+                    name: updatedUser.name, // SEMPRE atualizar
+                    avatar: updatedUser.avatar || null, // SEMPRE atualizar
                   },
                 };
               }
@@ -1411,7 +1411,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return post;
         });
         localStorage.setItem('nutraelite_posts', JSON.stringify(updatedPosts));
-        console.log('✅ Posts atualizados com novo perfil');
+        console.log('✅ Posts atualizados com novo perfil:', {
+          nome: updatedUser.name,
+          avatar: updatedUser.avatar ? 'sim' : 'não'
+        });
       }
     } catch (error) {
       console.error('Erro ao atualizar posts com novo perfil:', error);
@@ -1429,24 +1432,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ...msg,
               author: {
                 ...msg.author,
-                ...(data.name !== undefined && { name: data.name }),
-                ...(data.avatar !== undefined && { avatar: data.avatar || undefined }),
+                name: updatedUser.name, // SEMPRE atualizar
+                avatar: updatedUser.avatar || null, // SEMPRE atualizar
               },
             };
           }
           return msg;
         });
         localStorage.setItem('nutraelite_community_messages', JSON.stringify(updatedMessages));
-        console.log('✅ Mensagens atualizadas com novo perfil');
+        console.log('✅ Mensagens atualizadas com novo perfil:', {
+          nome: updatedUser.name,
+          avatar: updatedUser.avatar ? 'sim' : 'não'
+        });
       }
     } catch (error) {
       console.error('Erro ao atualizar mensagens com novo perfil:', error);
     }
     
-    // Disparar evento para atualizar os hooks
+    // Disparar evento para atualizar os hooks - FORÇAR recarregamento
     window.dispatchEvent(new CustomEvent('profile-updated', {
       detail: updatedUser
     }));
+    
+    // Disparar eventos específicos para forçar recarregamento
+    window.dispatchEvent(new CustomEvent('posts-need-reload'));
+    window.dispatchEvent(new CustomEvent('messages-need-reload'));
     
     // Tentar sincronizar com Supabase em background (não bloqueia)
     if (isSupabaseConfigured) {
