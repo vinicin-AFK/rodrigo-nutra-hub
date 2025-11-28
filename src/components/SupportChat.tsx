@@ -500,7 +500,12 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
     : (user?.name || currentUser.name);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-background">
+    <div className="flex flex-col bg-white dark:bg-background" style={{ 
+      height: 'calc(100vh - 200px)',
+      minHeight: 'calc(100vh - 200px)',
+      maxHeight: 'calc(100vh - 200px)',
+      touchAction: 'pan-y'
+    }}>
       {/* Header - se for suporte, mostrar botão para voltar */}
       {isSupport && currentConversation && (
         <div className="p-3 border-b border-border/50 flex items-center gap-3 bg-white dark:bg-background">
@@ -529,7 +534,10 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-2 p-4">
+      <div className="flex-1 overflow-y-auto space-y-2 p-4" style={{ 
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'contain'
+      }}>
         {messages.length === 0 && !isSupport ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
             <MessageSquare className="w-16 h-16 mb-4 opacity-50" />
@@ -809,8 +817,11 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
       {/* Se não é suporte: sempre mostrar */}
       {(!isSupport || (isSupport && !!currentConversation)) && (
       <div 
-        className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-10 pb-safe"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 65px)' }}
+        className="p-3 border-t border-border/50 bg-white dark:bg-background relative z-20 pb-safe"
+        style={{ 
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 65px)',
+          touchAction: 'none'
+        }}
       >
         <div className="flex items-end gap-2 w-full">
           {/* Icons */}
@@ -841,8 +852,12 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
             <>
               <button
                 onMouseDown={handleStartRecording}
-                onTouchStart={handleStartRecording}
-                className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-secondary flex items-center justify-center hover:bg-gray-200 dark:hover:bg-secondary/80 transition-colors flex-shrink-0"
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  handleStartRecording();
+                }}
+                className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-secondary flex items-center justify-center hover:bg-gray-200 dark:hover:bg-secondary/80 active:bg-gray-300 dark:active:bg-secondary/70 transition-colors flex-shrink-0 touch-manipulation"
+                style={{ touchAction: 'manipulation' }}
               >
                 <Mic className="w-5 h-5 text-muted-foreground" />
               </button>
@@ -874,12 +889,13 @@ export function SupportChat({ initialMessage }: SupportChatProps) {
                 }}
                 disabled={!input.trim() && !selectedImage}
                 className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 min-w-[40px]",
+                  "w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 min-w-[40px] touch-manipulation",
                   input.trim() || selectedImage
-                    ? "bg-primary hover:bg-primary/90 cursor-pointer"
+                    ? "bg-primary hover:bg-primary/90 active:bg-primary/80 cursor-pointer"
                     : "bg-gray-300 dark:bg-secondary cursor-not-allowed opacity-50"
                 )}
                 type="button"
+                style={{ touchAction: 'manipulation' }}
               >
                 <Send className="w-5 h-5 text-white" />
               </button>

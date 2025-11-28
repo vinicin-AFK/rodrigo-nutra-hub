@@ -62,6 +62,16 @@
     font-family: 'Inter', system-ui, sans-serif;
     /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
+    /* Improve touch scrolling on mobile */
+    -webkit-overflow-scrolling: touch;
+    /* Prevent text selection on buttons */
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Improve button touch targets on mobile */
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
   
   /* Prevent zoom on input focus (iOS Safari) */

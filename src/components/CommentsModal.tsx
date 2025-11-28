@@ -85,7 +85,11 @@ export function CommentsModal({ isOpen, onClose, post, onAddComment, onDeleteCom
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-lg h-[80vh] glass-card rounded-t-3xl sm:rounded-3xl flex flex-col animate-slide-up">
+      <div className="relative w-full max-w-lg glass-card rounded-t-3xl sm:rounded-3xl flex flex-col animate-slide-up" style={{ 
+        height: '80vh',
+        maxHeight: '90vh',
+        touchAction: 'pan-y'
+      }}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="text-lg font-bold text-foreground">Comentários</h3>
@@ -98,7 +102,10 @@ export function CommentsModal({ isOpen, onClose, post, onAddComment, onDeleteCom
         </div>
 
         {/* Comments List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ 
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain'
+        }}>
           {post.commentsList && post.commentsList.length > 0 ? (
             post.commentsList.map((comment) => {
               const isSupportComment = comment.author?.role === 'support' || comment.author?.role === 'admin';

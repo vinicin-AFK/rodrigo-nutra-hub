@@ -28,9 +28,10 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               key={item.id}
               onClick={() => onTabChange(item.id)}
               className={cn(
-                "nav-item min-w-[60px] flex-shrink-0",
+                "nav-item min-w-[60px] flex-shrink-0 touch-manipulation",
                 isActive && "active"
               )}
+              style={{ touchAction: 'manipulation' }}
             >
               <Icon className={cn(
                 "w-5 h-5 transition-all duration-300",

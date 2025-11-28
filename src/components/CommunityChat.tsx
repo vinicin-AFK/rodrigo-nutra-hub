@@ -667,17 +667,25 @@ export function CommunityChat() {
   const commonEmojis = ['😀', '😂', '😍', '🔥', '💪', '🎉', '👍', '❤️', '😊', '👏'];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] bg-[#e5ddd5] dark:bg-[#0b141a] relative">
+    <div className="flex flex-col bg-[#e5ddd5] dark:bg-[#0b141a] relative" style={{ 
+      height: 'calc(100vh - 180px)',
+      minHeight: 'calc(100vh - 180px)',
+      maxHeight: 'calc(100vh - 180px)',
+      touchAction: 'pan-y'
+    }}>
       {/* Background pattern */}
       <div 
-        className="absolute inset-0 opacity-5"
+        className="absolute inset-0 opacity-5 pointer-events-none"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='grid' width='100' height='100' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 100 0 L 0 0 0 100' fill='none' stroke='%23000' stroke-width='1'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23grid)' /%3E%3C/svg%3E")`,
         }}
       />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-2 relative z-10">
+      <div className="flex-1 overflow-y-auto p-2 relative z-10" style={{ 
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'contain'
+      }}>
         {messagesLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -1021,7 +1029,7 @@ export function CommunityChat() {
 
       {/* Selected image preview */}
       {selectedImage && (
-        <div className="absolute bottom-20 left-2 z-20 max-w-[100px] sm:max-w-[150px]">
+        <div className="absolute bottom-20 left-2 z-30 max-w-[100px] sm:max-w-[150px]" style={{ touchAction: 'none' }}>
           <div className="bg-white dark:bg-[#202c33] rounded-lg p-1 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="relative">
               <img
@@ -1043,7 +1051,7 @@ export function CommunityChat() {
 
       {/* Emoji picker */}
       {showEmojiPicker && (
-        <div className="absolute bottom-20 left-0 right-0 bg-white dark:bg-[#202c33] border-t border-border p-4 z-20">
+        <div className="absolute bottom-20 left-0 right-0 bg-white dark:bg-[#202c33] border-t border-border p-4 z-30" style={{ touchAction: 'none' }}>
           <div className="grid grid-cols-10 gap-2">
             {commonEmojis.map((emoji) => (
               <button
@@ -1063,9 +1071,10 @@ export function CommunityChat() {
 
       {/* Input Bar */}
       <div
-        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-10"
+        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-20"
         style={{ 
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)'
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+          touchAction: 'none'
         }}
       >
         <div className="flex items-end gap-2 w-full">
@@ -1097,14 +1106,19 @@ export function CommunityChat() {
             <>
               <button
                 onMouseDown={handleStartRecording}
-                onTouchStart={handleStartRecording}
-                className="w-10 h-10 rounded-lg bg-white dark:bg-[#2a3942] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#323d45] transition-colors flex-shrink-0"
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  handleStartRecording();
+                }}
+                className="w-10 h-10 rounded-lg bg-white dark:bg-[#2a3942] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#323d45] active:bg-gray-200 dark:active:bg-[#3a454d] transition-colors flex-shrink-0 touch-manipulation"
+                style={{ touchAction: 'manipulation' }}
               >
                 <Mic className="w-5 h-5 text-[#54656f] dark:text-[#8696a0]" />
               </button>
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="w-10 h-10 rounded-lg bg-[#ffd93d] flex items-center justify-center hover:bg-[#ffd93d]/90 transition-colors flex-shrink-0"
+                className="w-10 h-10 rounded-lg bg-[#ffd93d] flex items-center justify-center hover:bg-[#ffd93d]/90 active:bg-[#ffd93d]/80 transition-colors flex-shrink-0 touch-manipulation"
+                style={{ touchAction: 'manipulation' }}
               >
                 <Smile className="w-5 h-5 text-yellow-900" />
               </button>
@@ -1126,11 +1140,12 @@ export function CommunityChat() {
                 disabled={!input.trim() && !selectedImage}
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0",
-                  "min-w-[40px]",
+                  "min-w-[40px] touch-manipulation",
                   input.trim() || selectedImage
-                    ? "bg-[#00a884] hover:bg-[#00a884]/90"
+                    ? "bg-[#00a884] hover:bg-[#00a884]/90 active:bg-[#00a884]/80"
                     : "bg-gray-300 dark:bg-[#2a3942] cursor-not-allowed"
                 )}
+                style={{ touchAction: 'manipulation' }}
               >
                 <Send className="w-5 h-5 text-white" />
               </button>
