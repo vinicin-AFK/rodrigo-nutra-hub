@@ -40,11 +40,12 @@ const Index = () => {
   const previousTabRef = useRef<Tab>('home');
 
   // Atualizar post selecionado automaticamente quando allPosts mudar
+  // Mas evitar atualizar durante a adição de comentário para não duplicar
   useEffect(() => {
     if (selectedPostIdRef.current) {
       const updatedPost = allPosts.find(p => p.id === selectedPostIdRef.current);
       if (updatedPost) {
-        // Só atualizar se realmente mudou (evitar loops)
+        // Só atualizar se realmente mudou (evitar loops e duplicações)
         setSelectedPostForComments(prev => {
           if (!prev || prev.id !== updatedPost.id) {
             return {
@@ -52,14 +53,25 @@ const Index = () => {
               commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
             };
           }
-          // Se o número de comentários mudou, atualizar
-          if ((prev.commentsList?.length || 0) !== (updatedPost.commentsList?.length || 0)) {
-            return {
-              ...updatedPost,
-              commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
-            };
+          // Se o número de comentários mudou, atualizar (mas verificar se não é duplicação)
+          const prevCommentsCount = prev.commentsList?.length || 0;
+          const newCommentsCount = updatedPost.commentsList?.length || 0;
+          
+          if (newCommentsCount > prevCommentsCount) {
+            // Verificar se os IDs dos comentários são diferentes para evitar duplicação
+            const prevCommentIds = new Set(prev.commentsList?.map(c => c.id) || []);
+            const newCommentIds = new Set(updatedPost.commentsList?.map(c => c.id) || []);
+            
+            // Só atualizar se houver comentários novos (não apenas duplicados)
+            if (newCommentIds.size > prevCommentIds.size || 
+                Array.from(newCommentIds).some(id => !prevCommentIds.has(id))) {
+              return {
+                ...updatedPost,
+                commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
+              };
+            }
           }
-          return prev; // Não mudou, manter como está
+          return prev; // Não mudou ou é duplicação, manter como está
         });
       }
     }
@@ -166,33 +178,22 @@ const Index = () => {
     try {
       console.log('💬 handleAddComment chamado:', { postId, content: content.substring(0, 50) });
       
-      // Adicionar comentário (já atualiza o estado imediatamente)
-      const newComment = await addComment(postId, content);
-      console.log('✅ Comentário adicionado com sucesso:', newComment?.id);
+      // Adicionar comentário (já atualiza o estado allPosts imediatamente)
+      await addComment(postId, content);
+      console.log('✅ Comentário adicionado com sucesso');
       
-      // ATUALIZAR IMEDIATAMENTE usando o comentário retornado
-      setSelectedPostForComments(prevPost => {
-        if (!prevPost || prevPost.id !== postId) {
-          // Se não temos o post selecionado, buscar do estado
-          const post = allPosts.find(p => p.id === postId);
-          if (post) {
-            return {
-              ...post,
-              commentsList: post.commentsList ? [...post.commentsList] : [],
-            };
-          }
-          return prevPost;
-        }
-        
-        // Atualizar o post selecionado com o novo comentário
-        return {
-          ...prevPost,
-          comments: (prevPost.comments || 0) + 1,
-          commentsList: [...(prevPost.commentsList || []), newComment],
-        };
-      });
+      // Aguardar um pouco para o estado ser atualizado
+      await new Promise(resolve => setTimeout(resolve, 50));
       
-      console.log('✅ Post selecionado atualizado imediatamente');
+      // Buscar o post atualizado do estado (não adicionar manualmente para evitar duplicação)
+      const updatedPost = allPosts.find(p => p.id === postId);
+      if (updatedPost) {
+        console.log('🔄 Atualizando post selecionado com dados do estado:', updatedPost.id, 'comentários:', updatedPost.commentsList?.length);
+        setSelectedPostForComments({
+          ...updatedPost,
+          commentsList: updatedPost.commentsList ? [...updatedPost.commentsList] : [],
+        });
+      }
     } catch (error) {
       console.error('❌ Erro ao adicionar comentário:', error);
       toast({
