@@ -208,6 +208,12 @@ export function useCommunityMessages() {
     // Listener para atualizar mensagens quando o perfil mudar
     const handleProfileUpdate = (event: CustomEvent) => {
       const updatedUser = event.detail;
+      console.log('🔄 Atualizando mensagens com novo perfil:', updatedUser.name);
+      
+      // Recarregar mensagens do localStorage para pegar as atualizações
+      loadMessages(false);
+      
+      // Também atualizar estado imediatamente
       setMessages(prevMessages => {
         const updated = prevMessages.map(msg => {
           // Se a mensagem é do usuário atual, atualizar o autor
@@ -217,7 +223,7 @@ export function useCommunityMessages() {
               author: {
                 ...msg.author,
                 name: updatedUser.name,
-                avatar: updatedUser.avatar || msg.author.avatar,
+                avatar: updatedUser.avatar || null, // Usar null se não houver avatar
               },
             };
           }
@@ -236,8 +242,15 @@ export function useCommunityMessages() {
         return updated;
       });
     };
+    
+    // Listener adicional para forçar recarregamento
+    const handleMessagesReload = () => {
+      console.log('🔄 Forçando recarregamento de mensagens...');
+      loadMessages(false);
+    };
 
     window.addEventListener('profile-updated', handleProfileUpdate as EventListener);
+    window.addEventListener('messages-need-reload', handleMessagesReload);
     
     // Timeout de segurança - sempre parar loading após 3 segundos (já carregou do localStorage)
     const safetyTimeout = setTimeout(() => {

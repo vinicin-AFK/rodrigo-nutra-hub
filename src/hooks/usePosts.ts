@@ -274,6 +274,12 @@ export function usePosts() {
     // Listener para atualizar posts quando o perfil mudar
     const handleProfileUpdate = (event: CustomEvent) => {
       const updatedUser = event.detail;
+      console.log('🔄 Atualizando posts com novo perfil:', updatedUser.name);
+      
+      // Recarregar posts do localStorage para pegar as atualizações
+      loadPosts();
+      
+      // Também atualizar estado imediatamente
       setPosts(prevPosts => {
         const updated = prevPosts.map(post => {
           // Se o post é do usuário atual, atualizar o autor
