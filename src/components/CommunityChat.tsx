@@ -895,7 +895,10 @@ export function CommunityChat() {
                                     )}
                                   </div>
                                 ) : (
-                                  <p className="text-sm leading-relaxed text-white" style={{ 
+                                  <p className={cn(
+                                    "text-sm leading-relaxed",
+                                    group.isCurrentUser ? "text-white" : "text-[#111b21] dark:text-[#e9edef]"
+                                  )} style={{ 
                                     wordBreak: 'normal',
                                     overflowWrap: 'anywhere',
                                     whiteSpace: 'pre-wrap',
