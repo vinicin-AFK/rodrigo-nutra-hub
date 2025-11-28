@@ -124,9 +124,18 @@ export function usePosts() {
           return; // Sair aqui se conseguiu carregar do Supabase
         } else if (error) {
           console.warn('⚠️ Erro ao buscar do Supabase, tentando localStorage:', error);
+        } else {
+          // Se não há dados mas também não há erro, pode ser que não existam posts ainda
+          console.log('ℹ️ Nenhuma postagem no Supabase ainda');
+          setPosts([]);
+          setIsLoading(false);
         }
       } catch (error: any) {
-        console.warn('⚠️ Erro ao carregar do Supabase, tentando localStorage:', error?.message || error);
+        if (error?.message === 'Timeout ao carregar posts') {
+          console.warn('⚠️ Timeout ao carregar do Supabase, tentando localStorage');
+        } else {
+          console.warn('⚠️ Erro ao carregar do Supabase, tentando localStorage:', error?.message || error);
+        }
       }
     }
     
