@@ -141,6 +141,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = async (userId: string) => {
     try {
       console.log('📥 Carregando perfil do usuário:', userId);
+      
+      // PRIMEIRO: Carregar perfil do localStorage para preservar dados atualizados
+      const savedAuth = localStorage.getItem(STORAGE_KEY);
+      let localUser: User | null = null;
+      if (savedAuth) {
+        try {
+          const authData = JSON.parse(savedAuth);
+          if (authData.user && authData.user.id === userId) {
+            localUser = authData.user;
+            console.log('📦 Perfil local encontrado:', localUser.name);
+          }
+        } catch (e) {
+          console.warn('Erro ao parsear auth local:', e);
+        }
+      }
+      
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
@@ -151,31 +167,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('❌ Erro ao buscar perfil:', error);
         // Se o perfil não existe (PGRST116), não é erro crítico
         if (error.code === 'PGRST116') {
-          console.log('ℹ️ Perfil não encontrado, será criado automaticamente');
+          console.log('ℹ️ Perfil não encontrado no Supabase, mantendo dados locais');
+          // Se temos dados locais, manter eles
+          if (localUser) {
+            setUser(localUser);
+            persistAuthData(localUser);
+            return localUser;
+          }
           return null;
+        }
+        // Se houver erro mas temos dados locais, manter eles
+        if (localUser) {
+          console.log('⚠️ Erro ao buscar do Supabase, mantendo dados locais');
+          setUser(localUser);
+          persistAuthData(localUser);
+          return localUser;
         }
         throw error;
       }
 
       if (profile) {
-        console.log('✅ Perfil encontrado:', profile.name);
+        console.log('✅ Perfil encontrado no Supabase:', profile.name);
+        
+        // MESCLAR dados: priorizar localStorage se tiver dados mais atualizados
         const userData: User = {
           id: profile.id,
-          name: profile.name,
+          name: localUser?.name || profile.name, // Priorizar nome do localStorage
           email: profile.email,
-          avatar: profile.avatar || undefined,
-          level: profile.level || 'Bronze',
-          points: profile.points || 0,
-          plan: profile.plan || 'bronze',
+          avatar: localUser?.avatar || profile.avatar || undefined, // Priorizar avatar do localStorage
+          level: profile.level || localUser?.level || 'Bronze',
+          points: profile.points || localUser?.points || 0,
+          plan: profile.plan || localUser?.plan || 'bronze',
+          role: localUser?.role || profile.role || undefined,
         };
+        
         setUser(userData);
-        persistAuthData(userData);
+        persistAuthData(userData); // Salvar dados mesclados
+        console.log('✅ Perfil mesclado (Supabase + localStorage):', {
+          name: userData.name,
+          avatar: userData.avatar ? 'sim' : 'não'
+        });
         return userData;
+      }
+      
+      // Se não há perfil no Supabase mas temos local, manter local
+      if (localUser) {
+        console.log('ℹ️ Nenhum perfil no Supabase, mantendo dados locais');
+        setUser(localUser);
+        persistAuthData(localUser);
+        return localUser;
       }
       
       return null;
     } catch (error: any) {
       console.error('❌ Erro ao carregar perfil:', error?.message || error);
+      
+      // Se houver erro mas temos dados locais, manter eles
+      const savedAuth = localStorage.getItem(STORAGE_KEY);
+      if (savedAuth) {
+        try {
+          const authData = JSON.parse(savedAuth);
+          if (authData.user && authData.user.id === userId) {
+            console.log('⚠️ Erro ao carregar do Supabase, mantendo dados locais');
+            setUser(authData.user);
+            persistAuthData(authData.user);
+            return authData.user;
+          }
+        } catch (e) {
+          console.warn('Erro ao parsear auth local:', e);
+        }
+      }
+      
       // Se for erro de perfil não encontrado, retornar null para criar
       if (error?.code === 'PGRST116') {
         return null;
