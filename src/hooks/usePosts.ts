@@ -750,8 +750,9 @@ export function usePosts() {
                 type: resultValue ? 'result' : 'post',
               })
               .select(`
-                *,
-                author:profiles(*)
+                id,
+                created_at,
+                author:profiles(id, name, avatar, level, points, rank, total_sales, role)
               `)
               .single();
 
