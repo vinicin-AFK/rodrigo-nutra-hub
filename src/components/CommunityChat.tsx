@@ -688,7 +688,8 @@ export function CommunityChat() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-2 relative z-10" style={{ 
         WebkitOverflowScrolling: 'touch',
-        overscrollBehavior: 'contain'
+        overscrollBehavior: 'contain',
+        paddingBottom: '80px' // Espaço para a barra de input
       }}>
         {messagesLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -1075,9 +1076,10 @@ export function CommunityChat() {
 
       {/* Input Bar */}
       <div
-        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-20"
+        className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-border/50 relative z-30"
         style={{ 
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 56px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)',
+          marginBottom: '0',
           touchAction: 'none'
         }}
       >
