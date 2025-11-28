@@ -31,13 +31,14 @@ export function usePosts() {
       }
     }
     
+    // FEED GLOBAL: Carregar TODAS as postagens sem filtrar por usuário
     // PRIORIDADE: Se Supabase está configurado, tentar carregar DE LÁ PRIMEIRO (para novos usuários)
     if (isSupabaseConfigured) {
       try {
-        console.log('🔍 Buscando postagens no Supabase (prioridade)...');
+        console.log('🔍 Buscando TODAS as postagens do feed global no Supabase...');
         
         // Timeout reduzido para 5 segundos - carregar mais rápido
-        // Primeiro carregar posts básicos (sem joins pesados)
+        // FEED GLOBAL: Buscar TODAS as postagens (sem filtro de usuário)
         const supabasePromise = supabase
           .from('posts')
           .select(`
@@ -51,7 +52,7 @@ export function usePosts() {
             author:profiles(id, name, avatar, level, points, rank, total_sales, role)
           `)
           .order('created_at', { ascending: false })
-          .limit(50); // Reduzir limite para carregar mais rápido
+          .limit(200); // FEED GLOBAL: Carregar mais posts para todos verem
 
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Timeout ao carregar posts')), 5000)

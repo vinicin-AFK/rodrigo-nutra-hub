@@ -294,17 +294,17 @@ const Index = () => {
             {/* Feed de postagens estilo Instagram - scroll infinito */}
             <div className="space-y-0 pb-4">
               {(() => {
-                // Filtrar posts válidos
+                // FEED GLOBAL: Filtrar apenas posts deletados/ocultos (todos os outros são válidos para todos)
                 const validPosts = allPosts.filter(post => {
                   if (!post || !post.author) {
                     console.warn('Post inválido encontrado:', post);
                     return false;
                   }
-                  // Filtrar apenas posts deletados ou ocultos (status undefined ou 'active' são válidos)
+                  // FEED GLOBAL: Apenas remover posts deletados/ocultos - todos veem o mesmo feed
                   if (post.status === 'deleted' || post.status === 'hidden') {
                     return false;
                   }
-                  return true;
+                  return true; // Todos os outros posts são válidos para TODOS os usuários
                 });
 
                 if (postsLoading) {
