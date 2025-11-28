@@ -456,6 +456,11 @@ export function usePosts() {
       };
     }
 
+    // VALIDAÇÃO: Post não pode existir sem usuário (regra da Comunidade)
+    if (!authorData || !authorData.id) {
+      throw new Error('Publicação não pode ser criada sem um usuário válido');
+    }
+
     // Verificar se é suporte
     const isSupportUser = authorData.role === 'support' || authorData.role === 'admin';
     
@@ -463,7 +468,7 @@ export function usePosts() {
     const newPost: Post = {
       id: `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       author: {
-        id: authorData.id || 'unknown',
+        id: authorData.id, // OBRIGATÓRIO - validado acima
         name: authorData.name || 'Usuário',
         avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'Usuario')}&background=random`,
         level: authorData.level || 'Bronze',
@@ -480,7 +485,13 @@ export function usePosts() {
       createdAt: new Date(),
       resultValue: resultValue || undefined,
       type: resultValue ? 'result' : 'post',
+      status: 'active', // Status padrão
       commentsList: [],
+      engagement: {
+        likes: 0,
+        comments: 0,
+        reactions: 0,
+      },
     };
 
     console.log('📝 Criando postagem...', { isSupabaseConfigured, content: content.substring(0, 50) });
@@ -642,6 +653,12 @@ export function usePosts() {
   const addComment = async (postId: string, content: string) => {
     console.log('💬 addComment chamado:', { postId, content: content.substring(0, 50) });
     
+    // VALIDAÇÃO: Comentário não pode existir sem publicação (regra da Comunidade)
+    const postExists = postsRef.current.find(p => p.id === postId);
+    if (!postExists) {
+      throw new Error('Comentário não pode ser criado sem uma publicação válida');
+    }
+    
     // SEMPRE salvar no localStorage PRIMEIRO (para feedback imediato)
     const savedAuth = localStorage.getItem('nutraelite_auth');
     if (!savedAuth) {
@@ -652,9 +669,10 @@ export function usePosts() {
     const authData = JSON.parse(savedAuth);
     const authorData = authData?.user;
     
-    if (!authorData) {
+    // VALIDAÇÃO: Comentário não pode existir sem usuário (regra da Comunidade)
+    if (!authorData || !authorData.id) {
       console.error('❌ Dados do usuário não encontrados');
-      throw new Error('Usuário não autenticado');
+      throw new Error('Comentário não pode ser criado sem um usuário válido');
     }
 
     // Verificar se é suporte
@@ -662,9 +680,9 @@ export function usePosts() {
     
     const newComment: Comment = {
       id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      postId: postId, // OBRIGATÓRIO - não pode existir sem publicação
+      postId: postId, // OBRIGATÓRIO - validado acima
       author: {
-        id: authorData.id || 'unknown',
+        id: authorData.id, // OBRIGATÓRIO - validado acima
         name: authorData.name || 'Usuário',
         avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'Usuario')}&background=random`,
         level: authorData.level || 'Bronze',
