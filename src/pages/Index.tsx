@@ -130,14 +130,18 @@ const Index = () => {
 
   const handleNewPost = async (content: string, resultValue?: number, image?: string) => {
     try {
-      // Mostrar notificação imediata
-      console.log('🔔 Chamando toast de criação...');
-      const toastResult = toast({
-        title: "📝 Criando publicação...",
-        description: "Aguarde enquanto sua publicação é processada.",
-        duration: 2000,
-      });
-      console.log('🔔 Toast chamado:', toastResult);
+      // Mostrar notificação imediata - TESTE VISUAL
+      console.log('🔔 TESTE: Chamando toast de criação...');
+      try {
+        toast({
+          title: "📝 TESTE: Criando publicação...",
+          description: "Se você vê isso, o toast está funcionando!",
+          duration: 5000, // 5 segundos para garantir que seja visível
+        });
+        console.log('✅ Toast chamado com sucesso');
+      } catch (toastError) {
+        console.error('❌ Erro ao chamar toast:', toastError);
+      }
       
       // Criar postagem - SEMPRE funciona, mesmo sem usuário autenticado
       await createPost(content, resultValue, image);
