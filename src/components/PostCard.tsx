@@ -101,7 +101,7 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
 
   return (
     <article className={cn(
-      "glass-card rounded-2xl overflow-hidden animate-fade-in mb-4",
+      "bg-card border border-border rounded-none sm:rounded-lg overflow-hidden animate-fade-in mb-0 sm:mb-4",
       isSupportPost 
         ? "ring-2 ring-[#ff6b35]/50 border-2 border-[#ff6b35]/30" 
         : ""

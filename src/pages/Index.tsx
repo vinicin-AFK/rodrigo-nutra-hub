@@ -231,38 +231,58 @@ const Index = () => {
     switch (activeTab) {
       case 'home':
         return (
-          <div className="space-y-4">
-            {/* Header estilo Instagram */}
-            <div className="text-center py-4">
-              <h2 className="text-2xl font-bold text-foreground mb-2">NutraHub</h2>
-              <p className="text-muted-foreground text-sm">
-                Faça postagens de seus resultados e ganhe pontos para resgatar prêmios
-              </p>
+          <div className="w-full max-w-2xl mx-auto">
+            {/* Header estilo Instagram - fixo no topo */}
+            <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 py-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">NutraHub</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Comunidade • {allPosts.length} publicações
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => setIsCreatePostOpen(true)} 
+                  variant="fire" 
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Criar
+                </Button>
+              </div>
             </div>
 
-            {/* Botão de criar postagem */}
-            <div className="flex justify-center mb-4">
-              <Button 
-                onClick={() => setIsCreatePostOpen(true)} 
-                variant="fire" 
-                className="w-full max-w-md"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Criar Postagem
-              </Button>
-            </div>
-
-            {/* Feed de postagens estilo Instagram */}
-            <div className="space-y-4">
-              {allPosts.filter(post => post && post.author).map((post) => (
-                <PostCard 
-                  key={post.id} 
-                  post={post} 
-                  onLike={handleLike}
-                  onComment={handleOpenComments}
-                  onDelete={deletePost}
-                />
-              ))}
+            {/* Feed de postagens estilo Instagram - scroll infinito */}
+            <div className="space-y-0 pb-4">
+              {postsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-muted-foreground">Carregando publicações...</div>
+                </div>
+              ) : allPosts.length === 0 ? (
+                <div className="text-center py-12 px-4">
+                  <p className="text-muted-foreground mb-4">Nenhuma publicação ainda</p>
+                  <Button 
+                    onClick={() => setIsCreatePostOpen(true)} 
+                    variant="fire"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Criar primeira publicação
+                  </Button>
+                </div>
+              ) : (
+                allPosts
+                  .filter(post => post && post.author && post.status !== 'deleted' && post.status !== 'hidden')
+                  .map((post) => (
+                    <PostCard 
+                      key={post.id} 
+                      post={post} 
+                      onLike={handleLike}
+                      onComment={handleOpenComments}
+                      onDelete={deletePost}
+                    />
+                  ))
+              )}
             </div>
           </div>
         );

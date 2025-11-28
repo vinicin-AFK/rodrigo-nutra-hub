@@ -694,6 +694,23 @@ export function CommunityChat() {
       maxHeight: 'calc(100vh - 64px - 64px)',
       touchAction: 'pan-y'
     }}>
+      {/* Header do Chat - estilo WhatsApp/Telegram */}
+      <div className="sticky top-0 z-20 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e4e6eb] dark:border-[#313d45] px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
+            <span className="text-lg">💬</span>
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-[#111b21] dark:text-[#e9edef]">
+              Comunidade NutraHub
+            </h3>
+            <p className="text-xs text-[#667781] dark:text-[#8696a0]">
+              {messages.length} {messages.length === 1 ? 'membro' : 'membros'} • Grupo
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Background pattern */}
       <div 
         className="absolute inset-0 opacity-5 pointer-events-none"
