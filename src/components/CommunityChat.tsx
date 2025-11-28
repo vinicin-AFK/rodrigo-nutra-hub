@@ -689,11 +689,9 @@ export function CommunityChat() {
       />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-2 relative z-10" style={{ 
+      <div className="flex-1 overflow-y-auto px-2 py-2 relative z-10" style={{ 
         WebkitOverflowScrolling: 'touch',
-        overscrollBehavior: 'contain',
-        paddingLeft: '4px',
-        paddingRight: '4px'
+        overscrollBehavior: 'contain'
       }}>
         {messagesLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -735,9 +733,9 @@ export function CommunityChat() {
                     
                     {/* Message Group */}
                     <div className={cn(
-                      "flex mb-2 animate-fade-in",
-                      group.isCurrentUser ? "flex-row-reverse justify-end" : "flex-row justify-start"
-                    )} style={{ gap: '4px' }}>
+                      "flex gap-2 mb-2 animate-fade-in",
+                      group.isCurrentUser ? "flex-row-reverse" : "flex-row"
+                    )}>
                       {/* Avatar - SEMPRE mostrar para mensagens de outros usuários (estilo grupo WhatsApp) */}
                       {!group.isCurrentUser && (
                         <div className="flex-shrink-0 w-10 h-10">
