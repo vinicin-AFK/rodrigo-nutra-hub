@@ -382,10 +382,10 @@ const Index = () => {
       {/* Main Content */}
       <main className={cn(
         "max-w-lg mx-auto",
-        activeTab === 'community' ? "px-0 pb-0" : "px-4 py-6 pb-24"
+        activeTab === 'community' ? "px-0" : "px-4 py-6"
       )} style={{ 
         color: 'hsl(40, 20%, 95%)',
-        minHeight: activeTab === 'community' ? 'calc(100vh - 180px)' : 'calc(100vh - 180px)',
+        minHeight: activeTab === 'community' ? 'calc(100vh - 64px - 64px)' : 'calc(100vh - 180px)',
         paddingBottom: activeTab === 'community' ? '0' : 'calc(env(safe-area-inset-bottom, 0px) + 96px)'
       }}>
         {renderContent()}
