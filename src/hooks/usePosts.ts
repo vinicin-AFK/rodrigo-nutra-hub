@@ -33,18 +33,36 @@ export function usePosts() {
     }
     
     // FEED GLOBAL: SEMPRE sincronizar com Supabase PRIMEIRO para garantir que todos veem o mesmo conteúdo
-    // Depois usar localStorage como cache
+    // IMPORTANTE: No mobile, conexões podem ser mais lentas - aumentar timeout e priorizar Supabase
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const syncTimeout = isMobile ? 15000 : 12000; // Mobile: 15s, Desktop: 12s
+    
     if (isSupabaseConfigured) {
-      // Tentar sincronizar com Supabase primeiro (com timeout curto)
+      // Tentar sincronizar com Supabase primeiro (com timeout maior no mobile)
       try {
+        console.log(`📱 ${isMobile ? 'Mobile' : 'Desktop'} detectado - timeout: ${syncTimeout}ms`);
         await Promise.race([
           syncWithSupabase(currentUser, true),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), syncTimeout))
         ]);
         console.log('✅ Feed global sincronizado do Supabase');
         return; // Se sincronizou com sucesso, não precisa carregar do localStorage
       } catch (error) {
         console.warn('⚠️ Erro ao sincronizar com Supabase, usando cache local:', error);
+        // No mobile, tentar novamente uma vez antes de usar cache
+        if (isMobile && error instanceof Error && error.message === 'Timeout') {
+          console.log('🔄 Mobile: Tentando sincronizar novamente após timeout...');
+          try {
+            await Promise.race([
+              syncWithSupabase(currentUser, false), // Não mostrar loading na segunda tentativa
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+            ]);
+            console.log('✅ Feed global sincronizado do Supabase (segunda tentativa)');
+            return;
+          } catch (retryError) {
+            console.warn('⚠️ Segunda tentativa falhou, usando cache local:', retryError);
+          }
+        }
         // Continuar para carregar do localStorage como fallback
       }
     }
@@ -184,8 +202,12 @@ export function usePosts() {
         .order('created_at', { ascending: false })
         .limit(500); // Limite alto para mostrar mais posts da comunidade
 
+      // Mobile: timeout maior devido a conexões mais lentas
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const queryTimeout = isMobile ? 15000 : 10000; // Mobile: 15s, Desktop: 10s
+      
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout ao carregar posts')), 10000) // Timeout de 10s para garantir sucesso
+        setTimeout(() => reject(new Error('Timeout ao carregar posts')), queryTimeout)
       );
 
       const { data, error } = await Promise.race([
