@@ -305,7 +305,14 @@ export function useCommunityMessages() {
     }
 
     // ============================================
-    // REAL-TIME: Sincronização Instantânea do Chat
+    // REALTIME: Equivalente ao socket.io do Prisma
+    // ============================================
+    // Prisma Backend:
+    //   io.emit('community-message', msg);
+    // ============================================
+    // Supabase Frontend:
+    //   Subscription automática para todas as mudanças na tabela
+    //   Quando alguém cria uma mensagem, todos os clientes recebem atualização
     // ============================================
     // ✅ Supabase Realtime notifica TODOS os usuários quando há novas mensagens
     // ✅ Garante que o chat global seja atualizado em tempo real
