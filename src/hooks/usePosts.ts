@@ -139,6 +139,12 @@ export function usePosts() {
       // ============================================
       // FEED GLOBAL - COMUNIDADE ÚNICA
       // ============================================
+      // Equivalente ao Prisma:
+      //   prisma.post.findMany({
+      //     orderBy: { createdAt: 'desc' },
+      //     include: { user: true, comments: { include: { user: true } }, likes: true }
+      //   })
+      // ============================================
       // ❌ NUNCA usar: .eq('author_id', userId) ou qualquer filtro por usuário
       // ✅ SEMPRE buscar: TODAS as postagens, ordenadas por data
       // ✅ RLS já filtra: Apenas posts ativos são visíveis
@@ -157,6 +163,7 @@ export function usePosts() {
           author:profiles(id, name, avatar, level, points, rank, total_sales, role)
         `)
         // FEED GLOBAL: Sem filtro de usuário - todos veem o mesmo conteúdo
+        // Equivalente a: orderBy: { createdAt: 'desc' }
         .order('created_at', { ascending: false })
         .limit(500); // Limite alto para mostrar mais posts da comunidade
 
@@ -178,18 +185,26 @@ export function usePosts() {
         // ============================================
         // COMENTÁRIOS E CURTIDAS GLOBAIS
         // ============================================
+        // Equivalente ao Prisma:
+        //   include: {
+        //     comments: { include: { user: true } },
+        //     likes: true
+        //   }
+        // ============================================
         // ✅ Comentários e curtidas pertencem ao POST, não ao usuário
         // ✅ Todos veem os mesmos comentários e curtidas para cada post
         // ============================================
         const postIds = data.map((p: any) => p.id);
         
         // Buscar TODAS as curtidas dos posts (globais - sem filtro por usuário)
+        // Equivalente a: include: { likes: true }
         const { data: likesData } = await supabase
           .from('post_likes')
           .select('post_id, user_id')
           .in('post_id', postIds); // Sem filtro por usuário - todas as curtidas
         
         // Buscar TODOS os comentários dos posts (globais - sem filtro por usuário)
+        // Equivalente a: include: { comments: { include: { user: true } } }
         const { data: commentsData } = await supabase
           .from('comments')
           .select(`
