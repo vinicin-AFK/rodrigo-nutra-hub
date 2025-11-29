@@ -139,11 +139,19 @@ export function usePosts() {
       // ============================================
       // FEED GLOBAL - COMUNIDADE ÚNICA
       // ============================================
-      // Equivalente ao Prisma:
-      //   prisma.post.findMany({
-      //     orderBy: { createdAt: 'desc' },
-      //     include: { user: true, comments: { include: { user: true } }, likes: true }
-      //   })
+      // ❌ ERRADO (exemplo do que NÃO fazer):
+      //   const posts = await prisma.post.findMany({
+      //     where: { userId: currentUser.id }  // ← ISOLAMENTO POR USUÁRIO
+      //   });
+      //   Isso faria cada usuário ver apenas suas próprias publicações!
+      // ============================================
+      // ✅ CORRETO (o que estamos fazendo):
+      //   Equivalente ao Prisma:
+      //     prisma.post.findMany({
+      //       orderBy: { createdAt: 'desc' },
+      //       include: { user: true, comments: { include: { user: true } }, likes: true }
+      //     })
+      //   SEM where: { userId: ... } - busca TODAS as postagens
       // ============================================
       // ❌ NUNCA usar: .eq('author_id', userId) ou qualquer filtro por usuário
       // ✅ SEMPRE buscar: TODAS as postagens, ordenadas por data
