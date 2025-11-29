@@ -1199,14 +1199,15 @@ export function usePosts() {
     }
   };
 
-  return {
-    posts,
-    isLoading,
-    createPost,
-    likePost,
-    addComment,
-    deletePost,
-    deleteComment,
-    refresh: loadPosts,
-  };
+    return {
+      posts,
+      isLoading,
+      createPost,
+      likePost,
+      addComment,
+      deletePost,
+      deleteComment,
+      refresh: loadPosts,
+      forceRefresh: () => loadPosts(true), // Forçar recarregamento do Supabase (limpa cache local)
+    };
 }
