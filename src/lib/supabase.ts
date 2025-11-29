@@ -45,8 +45,20 @@ export function isApiKeyInvalid(): boolean {
 // Criar cliente mesmo sem variáveis (modo fallback)
 // Isso permite que a aplicação carregue mesmo sem Supabase configurado
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl!, supabaseAnonKey!)
-  : createClient('https://placeholder.supabase.co', 'placeholder-key');
+  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+      auth: {
+        storage: localStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    })
+  : createClient('https://placeholder.supabase.co', 'placeholder-key', {
+      auth: {
+        storage: localStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    });
 
 if (!isSupabaseConfigured) {
   console.warn(
