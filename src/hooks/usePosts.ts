@@ -150,9 +150,9 @@ export function usePosts() {
           status,
           author:profiles(id, name, avatar, level, points, rank, total_sales, role)
         `)
-        .eq('status', 'active') // Apenas posts ativos (não deletados/ocultos)
+        // Remover filtro de status - RLS já filtra, e queremos ver tudo que o RLS permite
         .order('created_at', { ascending: false })
-        .limit(200); // Aumentar limite para mostrar mais posts
+        .limit(500); // Aumentar limite para mostrar mais posts
 
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout ao carregar posts')), 10000) // Timeout de 10s para garantir sucesso

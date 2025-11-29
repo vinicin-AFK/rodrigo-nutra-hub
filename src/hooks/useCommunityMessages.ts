@@ -116,12 +116,12 @@ export function useCommunityMessages() {
           status,
           author:profiles(id, name, avatar, role)
         `)
-        .eq('status', 'active') // Apenas mensagens ativas (não deletadas/ocultas)
+        // Remover filtro de status - RLS já filtra, e queremos ver tudo que o RLS permite
         .order('created_at', { ascending: false })
         .limit(500); // Aumentar limite para mostrar mais mensagens do chat global
 
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 3000) // Timeout reduzido para 3s
+        setTimeout(() => reject(new Error('Timeout')), 10000) // Timeout de 10s para garantir sucesso
       );
 
       const { data, error } = await Promise.race([
