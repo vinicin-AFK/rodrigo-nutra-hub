@@ -104,11 +104,19 @@ export function useCommunityMessages() {
       // ============================================
       // CHAT GLOBAL - COMUNIDADE ÚNICA
       // ============================================
-      // Equivalente ao Prisma:
-      //   prisma.communityMessage.findMany({
-      //     orderBy: { createdAt: 'asc' },
-      //     include: { user: true }
-      //   })
+      // ❌ ERRADO (exemplo do que NÃO fazer):
+      //   const messages = await prisma.communityMessage.findMany({
+      //     where: { userId: currentUser.id }  // ← ISOLAMENTO POR USUÁRIO
+      //   });
+      //   Isso faria cada usuário ver apenas suas próprias mensagens!
+      // ============================================
+      // ✅ CORRETO (o que estamos fazendo):
+      //   Equivalente ao Prisma:
+      //     prisma.communityMessage.findMany({
+      //       orderBy: { createdAt: 'asc' },
+      //       include: { user: true }
+      //     })
+      //   SEM where: { userId: ... } - busca TODAS as mensagens
       // ============================================
       // ❌ NUNCA usar: .eq('author_id', userId) ou criar rooms por usuário
       // ✅ SEMPRE buscar: TODAS as mensagens, ordenadas por data
