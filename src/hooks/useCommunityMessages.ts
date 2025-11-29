@@ -494,12 +494,23 @@ export function useCommunityMessages() {
           const { data: { user } } = await supabase.auth.getUser();
           
           if (user) {
-            console.log('💾 Sincronizando com Supabase...');
+            // ============================================
+            // CRIAR MENSAGEM NO CHAT GLOBAL
+            // ============================================
+            // Equivalente ao Prisma:
+            //   prisma.communityMessage.create({
+            //     data: { userId, message: content }
+            //   })
+            // ============================================
+            // ✅ Mensagem é criada no chat GLOBAL - visível para TODOS
+            // ✅ Não há rooms separados ou isolamento por usuário
+            // ============================================
+            console.log('💾 Criando mensagem no chat global...');
             const { data: insertedMessage, error } = await supabase
               .from('community_messages')
               .insert({
-                author_id: user.id,
-                content,
+                author_id: user.id,      // Equivalente a: userId
+                content,                 // Equivalente a: message
                 type,
                 image,
                 audio_url: audioUrl,

@@ -680,7 +680,18 @@ export function usePosts() {
               }
             }
             
-            console.log('📤 Tentando inserir no Supabase...', {
+            // ============================================
+            // CRIAR POST NO FEED GLOBAL
+            // ============================================
+            // Equivalente ao Prisma:
+            //   prisma.post.create({
+            //     data: { userId, content, imageUrl }
+            //   })
+            // ============================================
+            // ✅ Post é criado no feed GLOBAL - visível para TODOS
+            // ✅ Não há filtro ou isolamento por usuário
+            // ============================================
+            console.log('📤 Criando post no feed global...', {
               author_id: user.id,
               content_length: content.length,
               has_image: !!image,
@@ -690,12 +701,12 @@ export function usePosts() {
             const { data: insertedPost, error } = await supabase
               .from('posts')
               .insert({
-                author_id: user.id,
-                content,
-                image: image || null,
+                author_id: user.id,      // Equivalente a: userId
+                content,                 // Equivalente a: content
+                image: image || null,     // Equivalente a: imageUrl
                 result_value: resultValue || null,
                 type: resultValue ? 'result' : 'post',
-                status: 'active', // Garantir que o status seja 'active'
+                status: 'active',         // Garantir que o status seja 'active' (visível para todos)
               })
               .select(`
                 id,
