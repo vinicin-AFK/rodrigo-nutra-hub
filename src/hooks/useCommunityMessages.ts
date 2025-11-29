@@ -104,6 +104,12 @@ export function useCommunityMessages() {
       // ============================================
       // CHAT GLOBAL - COMUNIDADE ÚNICA
       // ============================================
+      // Equivalente ao Prisma:
+      //   prisma.communityMessage.findMany({
+      //     orderBy: { createdAt: 'asc' },
+      //     include: { user: true }
+      //   })
+      // ============================================
       // ❌ NUNCA usar: .eq('author_id', userId) ou criar rooms por usuário
       // ✅ SEMPRE buscar: TODAS as mensagens, ordenadas por data
       // ✅ RLS já filtra: Apenas mensagens ativas são visíveis
@@ -123,7 +129,8 @@ export function useCommunityMessages() {
           author:profiles(id, name, avatar, role)
         `)
         // CHAT GLOBAL: Sem filtro de usuário - todos veem o mesmo chat
-        .order('created_at', { ascending: false })
+        // Equivalente a: orderBy: { createdAt: 'asc' }
+        .order('created_at', { ascending: true })  // Ordem cronológica (mais antigas primeiro)
         .limit(500); // Limite alto para mostrar mais mensagens da comunidade
 
       const timeoutPromise = new Promise((_, reject) => 
@@ -142,8 +149,9 @@ export function useCommunityMessages() {
         const supabaseUserId = user?.id;
 
         // Transformação otimizada (sem processamento desnecessário)
+        // Equivalente ao Prisma: include: { user: true }
+        // Ordem já está correta (ascending: true) - não precisa reverter
         const transformed: Message[] = data
-          .reverse() // Reverter para ordem cronológica (mais antigas primeiro)
           .map((msg: any) => {
             const authorId = msg.author?.id || msg.author_id;
             const isUser = authorId === supabaseUserId || authorId === currentUserId;
