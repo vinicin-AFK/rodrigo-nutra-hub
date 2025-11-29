@@ -133,10 +133,16 @@ export function usePosts() {
       if (showLoading) {
         setIsLoading(true);
       }
-      console.log('🔍 Sincronizando FEED GLOBAL com Supabase (TODOS os usuários veem o mesmo conteúdo)...');
+      console.log('🌍 COMUNIDADE GLOBAL: Sincronizando FEED GLOBAL com Supabase...');
+      console.log('📌 PRINCÍPIO: Todos os usuários veem o mesmo feed - SEM filtro por usuário');
       
-      // FEED GLOBAL: Buscar TODAS as postagens ATIVAS (sem filtro de usuário)
-      // IMPORTANTE: Não usar .eq() ou qualquer filtro que limite por usuário
+      // ============================================
+      // FEED GLOBAL - COMUNIDADE ÚNICA
+      // ============================================
+      // ❌ NUNCA usar: .eq('author_id', userId) ou qualquer filtro por usuário
+      // ✅ SEMPRE buscar: TODAS as postagens, ordenadas por data
+      // ✅ RLS já filtra: Apenas posts ativos são visíveis
+      // ============================================
       const supabasePromise = supabase
         .from('posts')
         .select(`
@@ -150,9 +156,9 @@ export function usePosts() {
           status,
           author:profiles(id, name, avatar, level, points, rank, total_sales, role)
         `)
-        // Remover filtro de status - RLS já filtra, e queremos ver tudo que o RLS permite
+        // FEED GLOBAL: Sem filtro de usuário - todos veem o mesmo conteúdo
         .order('created_at', { ascending: false })
-        .limit(500); // Aumentar limite para mostrar mais posts
+        .limit(500); // Limite alto para mostrar mais posts da comunidade
 
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout ao carregar posts')), 10000) // Timeout de 10s para garantir sucesso
@@ -169,16 +175,21 @@ export function usePosts() {
         const { data: { user } } = await supabase.auth.getUser();
         const currentUserId = user?.id;
 
-        // Carregar curtidas e comentários em batch separado (mais rápido)
+        // ============================================
+        // COMENTÁRIOS E CURTIDAS GLOBAIS
+        // ============================================
+        // ✅ Comentários e curtidas pertencem ao POST, não ao usuário
+        // ✅ Todos veem os mesmos comentários e curtidas para cada post
+        // ============================================
         const postIds = data.map((p: any) => p.id);
         
-        // Buscar curtidas em batch
+        // Buscar TODAS as curtidas dos posts (globais - sem filtro por usuário)
         const { data: likesData } = await supabase
           .from('post_likes')
           .select('post_id, user_id')
-          .in('post_id', postIds);
+          .in('post_id', postIds); // Sem filtro por usuário - todas as curtidas
         
-        // Buscar comentários em batch
+        // Buscar TODOS os comentários dos posts (globais - sem filtro por usuário)
         const { data: commentsData } = await supabase
           .from('comments')
           .select(`
@@ -187,10 +198,11 @@ export function usePosts() {
             author_id,
             content,
             created_at,
+            status,
             author:profiles(id, name, avatar, level, points, rank, total_sales, role)
           `)
-          .in('post_id', postIds)
-          .order('created_at', { ascending: true });
+          .in('post_id', postIds) // Sem filtro por usuário - todos os comentários
+          .order('created_at', { ascending: true }); // Ordenar por data (mais antigos primeiro)
 
         // Agrupar curtidas e comentários por post
         const likesByPost = new Map<string, any[]>();
@@ -363,27 +375,40 @@ export function usePosts() {
       };
     }
 
+    // ============================================
+    // REAL-TIME: Sincronização Instantânea
+    // ============================================
+    // ✅ Supabase Realtime notifica TODOS os usuários quando há mudanças
+    // ✅ Garante que o feed global seja atualizado em tempo real
+    // ============================================
     const subscription = supabase
       .channel('posts_changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'posts' },
-        () => {
-          loadPosts();
+        (payload) => {
+          console.log('🔄 Real-time: Nova postagem detectada - atualizando feed global');
+          loadPosts(false); // Recarregar feed global sem mostrar loading
         }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'comments' },
-        () => {
-          loadPosts();
+        (payload) => {
+          console.log('🔄 Real-time: Novo comentário detectado - atualizando feed global');
+          loadPosts(false); // Recarregar feed global sem mostrar loading
         }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'post_likes' },
-        () => {
-          loadPosts();
+        (payload) => {
+          console.log('🔄 Real-time: Nova curtida detectada - atualizando feed global');
+          loadPosts(false); // Recarregar feed global sem mostrar loading
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Real-time ativo - feed global sincronizado');
+        }
+      });
 
     // Salvar posts no localStorage quando o app for fechado
     const handleBeforeUnload = () => {

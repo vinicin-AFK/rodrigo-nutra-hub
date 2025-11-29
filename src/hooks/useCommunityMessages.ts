@@ -98,10 +98,16 @@ export function useCommunityMessages() {
       if (showLoading) {
         setIsLoading(true);
       }
-      console.log('🔍 Sincronizando CHAT GLOBAL com Supabase (TODOS os usuários veem o mesmo conteúdo)...');
+      console.log('🌍 COMUNIDADE GLOBAL: Sincronizando CHAT GLOBAL com Supabase...');
+      console.log('📌 PRINCÍPIO: Todos os usuários usam o mesmo chat - SEM rooms separados');
       
-      // CHAT GLOBAL: Buscar TODAS as mensagens ATIVAS (sem filtrar por usuário)
-      // IMPORTANTE: Não usar .eq() ou qualquer filtro que limite por usuário
+      // ============================================
+      // CHAT GLOBAL - COMUNIDADE ÚNICA
+      // ============================================
+      // ❌ NUNCA usar: .eq('author_id', userId) ou criar rooms por usuário
+      // ✅ SEMPRE buscar: TODAS as mensagens, ordenadas por data
+      // ✅ RLS já filtra: Apenas mensagens ativas são visíveis
+      // ============================================
       const supabasePromise = supabase
         .from('community_messages')
         .select(`
@@ -116,9 +122,9 @@ export function useCommunityMessages() {
           status,
           author:profiles(id, name, avatar, role)
         `)
-        // Remover filtro de status - RLS já filtra, e queremos ver tudo que o RLS permite
+        // CHAT GLOBAL: Sem filtro de usuário - todos veem o mesmo chat
         .order('created_at', { ascending: false })
-        .limit(500); // Aumentar limite para mostrar mais mensagens do chat global
+        .limit(500); // Limite alto para mostrar mais mensagens da comunidade
 
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout')), 10000) // Timeout de 10s para garantir sucesso
@@ -290,24 +296,27 @@ export function useCommunityMessages() {
       };
     }
 
-    // Subscription para atualizações em tempo real
+    // ============================================
+    // REAL-TIME: Sincronização Instantânea do Chat
+    // ============================================
+    // ✅ Supabase Realtime notifica TODOS os usuários quando há novas mensagens
+    // ✅ Garante que o chat global seja atualizado em tempo real
+    // ============================================
     const subscription = supabase
       .channel('community_messages_changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'community_messages' },
         (payload) => {
-          console.log('🔄 Nova mensagem detectada via Realtime:', payload);
+          console.log('🔄 Real-time: Nova mensagem no chat global - atualizando para todos');
           // Aguardar um pouco para garantir que o Supabase processou
           setTimeout(() => {
-            // Recarregar sem mostrar loading (já temos mensagens)
-            loadMessages(false);
+            loadMessages(false); // Recarregar chat global sem mostrar loading
           }, 300);
         }
       )
       .subscribe((status) => {
-        console.log('📡 Status da subscription:', status);
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Subscription ativa - recebendo atualizações em tempo real');
+          console.log('✅ Real-time ativo - chat global sincronizado');
         }
       });
 

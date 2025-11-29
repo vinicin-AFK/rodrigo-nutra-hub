@@ -311,17 +311,24 @@ const Index = () => {
             {/* Feed de postagens estilo Instagram - scroll infinito */}
             <div className="space-y-0 pb-4">
               {(() => {
-                // FEED GLOBAL: Filtrar apenas posts deletados/ocultos (todos os outros são válidos para todos)
+                // ============================================
+                // FEED GLOBAL - COMUNIDADE ÚNICA
+                // ============================================
+                // ✅ Todos os usuários veem o mesmo feed
+                // ✅ Apenas remover posts deletados/ocultos
+                // ❌ NUNCA filtrar por usuário ou author_id
+                // ============================================
                 const validPosts = allPosts.filter(post => {
                   if (!post || !post.author) {
                     console.warn('Post inválido encontrado:', post);
                     return false;
                   }
-                  // FEED GLOBAL: Apenas remover posts deletados/ocultos - todos veem o mesmo feed
+                  // FEED GLOBAL: Apenas remover posts deletados/ocultos
+                  // Todos os outros posts são visíveis para TODOS os usuários
                   if (post.status === 'deleted' || post.status === 'hidden') {
                     return false;
                   }
-                  return true; // Todos os outros posts são válidos para TODOS os usuários
+                  return true; // Post válido - visível para toda a comunidade
                 });
 
                 if (postsLoading) {
