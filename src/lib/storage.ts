@@ -127,3 +127,91 @@ export function ensureStorageSpace(): void {
   }
 }
 
+/**
+ * Limpa todo o cache do aplicativo
+ * @param preserveAuth - Se true, preserva os dados de autenticação (login)
+ * @returns Objeto com informações sobre o que foi limpo
+ */
+export function clearAppCache(preserveAuth: boolean = true): {
+  cleared: string[];
+  preserved: string[];
+  totalCleared: number;
+} {
+  const cleared: string[] = [];
+  const preserved: string[] = [];
+  
+  try {
+    // Lista de todas as chaves do localStorage relacionadas ao app
+    const appKeys = [
+      'nutraelite_posts',
+      'nutraelite_community_messages',
+      'nutraelite_support_messages',
+      'nutraelite_users',
+      'nutraelite_stats',
+      'nutraelite_achievements',
+      'nutraelite_user_achievements',
+      'nutraelite_temp',
+      'nutraelite_cache',
+      '__storage_test__',
+    ];
+    
+    // Preservar autenticação se solicitado
+    let authData: string | null = null;
+    if (preserveAuth) {
+      authData = localStorage.getItem('nutraelite_auth');
+      if (authData) {
+        preserved.push('nutraelite_auth');
+      }
+    }
+    
+    // Limpar todas as chaves do app
+    appKeys.forEach(key => {
+      try {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key);
+          cleared.push(key);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Erro ao limpar ${key}:`, error);
+      }
+    });
+    
+    // Se não preservar auth, limpar tudo
+    if (!preserveAuth) {
+      try {
+        localStorage.clear();
+        console.log('✅ Cache completamente limpo (incluindo autenticação)');
+      } catch (error) {
+        console.error('❌ Erro ao limpar completamente:', error);
+      }
+    } else {
+      // Restaurar autenticação se foi preservada
+      if (authData) {
+        try {
+          localStorage.setItem('nutraelite_auth', authData);
+        } catch (error) {
+          console.warn('⚠️ Erro ao restaurar autenticação:', error);
+        }
+      }
+    }
+    
+    console.log(`✅ Cache limpo: ${cleared.length} itens removidos`);
+    if (preserved.length > 0) {
+      console.log(`ℹ️ Preservado: ${preserved.join(', ')}`);
+    }
+    
+    return {
+      cleared,
+      preserved,
+      totalCleared: cleared.length,
+    };
+  } catch (error) {
+    console.error('❌ Erro ao limpar cache:', error);
+    return {
+      cleared: [],
+      preserved: preserveAuth ? ['nutraelite_auth'] : [],
+      totalCleared: 0,
+    };
+  }
+}
+

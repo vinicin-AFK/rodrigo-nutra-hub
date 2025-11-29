@@ -34,6 +34,7 @@ const fallbackUser = {
 import { Post } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { clearAppCache } from '@/lib/storage';
 
 type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' | 'ai-creative';
 
