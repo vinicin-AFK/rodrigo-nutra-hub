@@ -322,7 +322,7 @@ export function useCommunityMessages() {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'community_messages' },
         (payload) => {
-          console.log('🔄 Real-time: Nova mensagem no chat global - atualizando para todos');
+          console.log('🔄 Nova mensagem detectada via Realtime (equivalente ao socket.io):', payload);
           // Aguardar um pouco para garantir que o Supabase processou
           setTimeout(() => {
             loadMessages(false); // Recarregar chat global sem mostrar loading
@@ -331,7 +331,7 @@ export function useCommunityMessages() {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Real-time ativo - chat global sincronizado');
+          console.log('✅ Subscription ativa - recebendo atualizações em tempo real (equivalente ao socket.io)');
         }
       });
 
