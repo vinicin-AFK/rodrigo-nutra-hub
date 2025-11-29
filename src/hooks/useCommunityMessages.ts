@@ -307,12 +307,18 @@ export function useCommunityMessages() {
     // ============================================
     // REALTIME: Equivalente ao socket.io do Prisma
     // ============================================
-    // Prisma Backend:
-    //   io.emit('community-message', msg);
+    // Prisma Backend (Socket.io):
+    //   io.on('connection', (socket) => {
+    //     socket.on('send-community-message', async (data) => {
+    //       const msg = await prisma.communityMessage.create({ data });
+    //       io.emit('community-message', msg);  // ← Emite para TODOS
+    //     });
+    //   });
     // ============================================
-    // Supabase Frontend:
-    //   Subscription automática para todas as mudanças na tabela
-    //   Quando alguém cria uma mensagem, todos os clientes recebem atualização
+    // Supabase Frontend (Realtime):
+    //   Quando alguém insere uma mensagem na tabela 'community_messages',
+    //   o Supabase automaticamente notifica TODOS os clientes inscritos
+    //   (equivalente ao io.emit('community-message', msg))
     // ============================================
     // ✅ Supabase Realtime notifica TODOS os usuários quando há novas mensagens
     // ✅ Garante que o chat global seja atualizado em tempo real
@@ -512,19 +518,16 @@ export function useCommunityMessages() {
             // ============================================
             // CRIAR MENSAGEM NO CHAT GLOBAL
             // ============================================
-            // Equivalente ao Prisma Backend:
-            //   app.post('/community-chat', async (req, res) => {
-            //     const { userId, message } = req.body;
-            //     const msg = await prisma.communityMessage.create({
-            //       data: { userId, message }
-            //     });
-            //     io.emit('community-message', msg);  // ← Realtime via Supabase subscription
-            //     return res.json(msg);
+            // Equivalente ao Prisma Backend (Socket.io):
+            //   socket.on('send-community-message', async (data) => {
+            //     const msg = await prisma.communityMessage.create({ data });
+            //     io.emit('community-message', msg);  // ← Emite para TODOS os clientes
             //   });
             // ============================================
             // ✅ Mensagem é criada no chat GLOBAL - visível para TODOS
             // ✅ Não há rooms separados ou isolamento por usuário
-            // ✅ Realtime: Supabase subscription emite automaticamente (equivalente ao socket.io)
+            // ✅ Realtime: Supabase subscription emite automaticamente para TODOS
+            //   (equivalente ao io.emit('community-message', msg))
             // ============================================
             console.log('💾 Criando mensagem no chat global...');
             const { data: insertedMessage, error } = await supabase
