@@ -505,28 +505,34 @@ export function useCommunityMessages() {
             // ============================================
             // CRIAR MENSAGEM NO CHAT GLOBAL
             // ============================================
-            // Equivalente ao Prisma:
-            //   prisma.communityMessage.create({
-            //     data: { userId, message: content }
-            //   })
+            // Equivalente ao Prisma Backend:
+            //   app.post('/community-chat', async (req, res) => {
+            //     const { userId, message } = req.body;
+            //     const msg = await prisma.communityMessage.create({
+            //       data: { userId, message }
+            //     });
+            //     io.emit('community-message', msg);  // ← Realtime via Supabase subscription
+            //     return res.json(msg);
+            //   });
             // ============================================
             // ✅ Mensagem é criada no chat GLOBAL - visível para TODOS
             // ✅ Não há rooms separados ou isolamento por usuário
+            // ✅ Realtime: Supabase subscription emite automaticamente (equivalente ao socket.io)
             // ============================================
             console.log('💾 Criando mensagem no chat global...');
             const { data: insertedMessage, error } = await supabase
               .from('community_messages')
               .insert({
-                author_id: user.id,      // Equivalente a: userId
-                content,                 // Equivalente a: message
-                type,
-                image,
-                audio_url: audioUrl,
-                audio_duration: audioDuration,
+                author_id: user.id,      // ✅ Equivalente a: userId (req.body.userId)
+                content,                 // ✅ Equivalente a: message (req.body.message)
+                type,                    // Tipo adicional (text, audio, image, emoji)
+                image,                   // Imagem adicional (se houver)
+                audio_url: audioUrl,     // URL do áudio (se houver)
+                audio_duration: audioDuration, // Duração do áudio (se houver)
               })
               .select(`
                 *,
-                author:profiles(*)
+                author:profiles(*)       // ✅ Equivalente a: include: { user: true }
               `)
               .single();
 
