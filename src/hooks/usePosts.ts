@@ -128,11 +128,15 @@ export function usePosts() {
     }
   };
 
-  const syncWithSupabase = async (currentUser: any) => {
+  const syncWithSupabase = async (currentUser: any, showLoading: boolean = true) => {
     try {
-      console.log('🔍 Sincronizando feed global com Supabase...');
+      if (showLoading) {
+        setIsLoading(true);
+      }
+      console.log('🔍 Sincronizando FEED GLOBAL com Supabase (TODOS os usuários veem o mesmo conteúdo)...');
       
-      // FEED GLOBAL: Buscar TODAS as postagens (sem filtro de usuário)
+      // FEED GLOBAL: Buscar TODAS as postagens ATIVAS (sem filtro de usuário)
+      // IMPORTANTE: Não usar .eq() ou qualquer filtro que limite por usuário
       const supabasePromise = supabase
         .from('posts')
         .select(`
@@ -143,10 +147,12 @@ export function usePosts() {
           result_value,
           type,
           created_at,
+          status,
           author:profiles(id, name, avatar, level, points, rank, total_sales, role)
         `)
+        .eq('status', 'active') // Apenas posts ativos (não deletados/ocultos)
         .order('created_at', { ascending: false })
-        .limit(100); // Reduzir para carregar mais rápido no mobile
+        .limit(200); // Aumentar limite para mostrar mais posts
 
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout ao carregar posts')), 3000) // Timeout reduzido para 3s

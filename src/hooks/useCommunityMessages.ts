@@ -87,9 +87,13 @@ export function useCommunityMessages() {
 
   const syncWithSupabase = async (currentUserId: string | null, showLoading: boolean) => {
     try {
-      console.log('🔍 Sincronizando CHAT GLOBAL com Supabase...');
+      if (showLoading) {
+        setIsLoading(true);
+      }
+      console.log('🔍 Sincronizando CHAT GLOBAL com Supabase (TODOS os usuários veem o mesmo conteúdo)...');
       
-      // CHAT GLOBAL: Buscar TODAS as mensagens (sem filtrar por usuário)
+      // CHAT GLOBAL: Buscar TODAS as mensagens ATIVAS (sem filtrar por usuário)
+      // IMPORTANTE: Não usar .eq() ou qualquer filtro que limite por usuário
       const supabasePromise = supabase
         .from('community_messages')
         .select(`
@@ -101,10 +105,12 @@ export function useCommunityMessages() {
           audio_duration,
           audio_url,
           created_at,
+          status,
           author:profiles(id, name, avatar, role)
         `)
+        .eq('status', 'active') // Apenas mensagens ativas (não deletadas/ocultas)
         .order('created_at', { ascending: false })
-        .limit(200); // Aumentar limite para mostrar mais mensagens do chat global
+        .limit(500); // Aumentar limite para mostrar mais mensagens do chat global
 
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout')), 3000) // Timeout reduzido para 3s
