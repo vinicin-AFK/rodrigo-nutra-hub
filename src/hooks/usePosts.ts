@@ -14,10 +14,10 @@ export function usePosts() {
     postsRef.current = posts;
   }, [posts]);
 
-  const loadPosts = async () => {
+  const loadPosts = async (forceFromSupabase: boolean = false) => {
     setIsLoading(true);
     
-    console.log('📥 Carregando postagens...', { isSupabaseConfigured });
+    console.log('📥 Carregando postagens...', { isSupabaseConfigured, forceFromSupabase });
     
     const savedAuth = safeGetItem('nutraelite_auth');
     let currentUser: any = null;
@@ -33,43 +33,70 @@ export function usePosts() {
     }
     
     // FEED GLOBAL: SEMPRE sincronizar com Supabase PRIMEIRO para garantir que todos veem o mesmo conteúdo
-    // IMPORTANTE: No mobile, conexões podem ser mais lentas - aumentar timeout e priorizar Supabase
+    // CRÍTICO: No mobile, NUNCA usar localStorage como fonte primária - sempre Supabase
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const syncTimeout = isMobile ? 15000 : 12000; // Mobile: 15s, Desktop: 12s
+    const syncTimeout = isMobile ? 20000 : 15000; // Mobile: 20s, Desktop: 15s (aumentado)
     
     if (isSupabaseConfigured) {
-      // Tentar sincronizar com Supabase primeiro (com timeout maior no mobile)
-      try {
-        console.log(`📱 ${isMobile ? 'Mobile' : 'Desktop'} detectado - timeout: ${syncTimeout}ms`);
-        await Promise.race([
-          syncWithSupabase(currentUser, true),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), syncTimeout))
-        ]);
-        console.log('✅ Feed global sincronizado do Supabase');
-        return; // Se sincronizou com sucesso, não precisa carregar do localStorage
-      } catch (error) {
-        console.warn('⚠️ Erro ao sincronizar com Supabase, usando cache local:', error);
-        // No mobile, tentar novamente uma vez antes de usar cache
-        if (isMobile && error instanceof Error && error.message === 'Timeout') {
-          console.log('🔄 Mobile: Tentando sincronizar novamente após timeout...');
-          try {
-            await Promise.race([
-              syncWithSupabase(currentUser, false), // Não mostrar loading na segunda tentativa
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
-            ]);
-            console.log('✅ Feed global sincronizado do Supabase (segunda tentativa)');
-            return;
-          } catch (retryError) {
-            console.warn('⚠️ Segunda tentativa falhou, usando cache local:', retryError);
+      // MOBILE: Tentar múltiplas vezes antes de desistir
+      let attempts = isMobile ? 3 : 2; // Mobile: 3 tentativas, Desktop: 2
+      let lastError: any = null;
+      
+      for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+          console.log(`📱 ${isMobile ? 'Mobile' : 'Desktop'} - Tentativa ${attempt}/${attempts} - timeout: ${syncTimeout}ms`);
+          
+          // Se for forçado ou primeira tentativa, limpar cache local primeiro
+          if (forceFromSupabase || attempt === 1) {
+            console.log('🗑️ Limpando cache local de posts para forçar sincronização...');
+            localStorage.removeItem('nutraelite_posts');
+          }
+          
+          await Promise.race([
+            syncWithSupabase(currentUser, attempt === 1), // Mostrar loading apenas na primeira tentativa
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), syncTimeout))
+          ]);
+          
+          console.log(`✅ Feed global sincronizado do Supabase (tentativa ${attempt})`);
+          return; // Sucesso - não precisa mais tentar
+        } catch (error) {
+          lastError = error;
+          console.warn(`⚠️ Tentativa ${attempt} falhou:`, error);
+          
+          // Se não for a última tentativa, aguardar um pouco antes de tentar novamente
+          if (attempt < attempts) {
+            const waitTime = isMobile ? 2000 : 1000; // Mobile: 2s, Desktop: 1s
+            console.log(`⏳ Aguardando ${waitTime}ms antes da próxima tentativa...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
           }
         }
-        // Continuar para carregar do localStorage como fallback
+      }
+      
+      // Se todas as tentativas falharam, mostrar erro mas NÃO usar localStorage
+      console.error('❌ Todas as tentativas de sincronização falharam:', lastError);
+      toast({
+        title: '⚠️ Erro ao carregar feed',
+        description: isMobile 
+          ? 'Não foi possível sincronizar. Verifique sua conexão e tente novamente.'
+          : 'Erro ao carregar publicações do servidor.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+      
+      // NO MOBILE: NUNCA usar localStorage como fallback se Supabase está configurado
+      // Isso garante que todos veem o mesmo conteúdo
+      if (isMobile) {
+        console.log('📱 Mobile: Supabase configurado - NÃO usando localStorage como fallback');
+        setPosts([]);
+        setIsLoading(false);
+        return;
       }
     }
     
-    // Fallback: Carregar do localStorage (cache local)
+    // DESKTOP: Fallback para localStorage apenas se Supabase não estiver configurado
+    // OU se for desktop e Supabase falhou (mas isso não deve acontecer)
     const savedPosts = safeGetItem('nutraelite_posts');
-    if (savedPosts) {
+    if (savedPosts && !isSupabaseConfigured) {
       try {
         const parsed = JSON.parse(savedPosts);
         const loadedPosts: Post[] = parsed.map((post: any) => {

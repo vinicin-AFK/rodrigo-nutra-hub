@@ -40,7 +40,7 @@ type Tab = 'home' | 'community' | 'ranking' | 'prizes' | 'support' | 'ai-copy' |
 
 const Index = () => {
   const { user, addPoints, userPoints, updateStats, stats, logout } = useAuth();
-  const { posts: allPosts, isLoading: postsLoading, createPost, likePost, addComment, deletePost, deleteComment } = usePosts();
+  const { posts: allPosts, isLoading: postsLoading, createPost, likePost, addComment, deletePost, deleteComment, forceRefresh } = usePosts();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
@@ -465,6 +465,29 @@ const Index = () => {
           
           {/* Botões no canto superior direito */}
           <div className="flex items-center gap-3">
+            {/* Botão de Forçar Sincronização (Mobile) */}
+            <button
+              onClick={() => {
+                toast({
+                  title: "🔄 Sincronizando...",
+                  description: "Forçando atualização do feed do servidor...",
+                  duration: 2000,
+                });
+                
+                // Limpar cache de posts e forçar recarregamento do Supabase
+                localStorage.removeItem('nutraelite_posts');
+                forceRefresh();
+              }}
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center",
+                "bg-blue-500/20 hover:bg-blue-500/40 transition-colors",
+                "text-blue-400"
+              )}
+              title="Forçar Sincronização"
+            >
+              🔄
+            </button>
+            
             {/* Botão de Limpar Cache */}
             <button
               onClick={() => {
