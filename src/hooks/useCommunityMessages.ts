@@ -311,12 +311,12 @@ export function useCommunityMessages() {
         }
       });
 
-    // Recarregar mensagens a cada 8 segundos para garantir sincronização (mobile precisa de sincronização mais frequente)
-    const intervalId = setInterval(() => {
-      console.log('🔄 Sincronização periódica de mensagens...');
-      // Recarregar sem mostrar loading (já temos mensagens)
-      loadMessages(false);
-    }, 8000);
+        // Recarregar mensagens a cada 20 segundos para garantir sincronização (reduzir frequência para estabilidade)
+        const intervalId = setInterval(() => {
+          console.log('🔄 Sincronização periódica de mensagens...');
+          // Recarregar sem mostrar loading (já temos mensagens)
+          loadMessages(false);
+        }, 20000); // 20 segundos para evitar sobrecarga e instabilidade
 
     // Salvar mensagens no localStorage quando o app for fechado
     const handleBeforeUnload = () => {
