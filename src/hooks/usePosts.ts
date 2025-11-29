@@ -38,8 +38,8 @@ export function usePosts() {
       // Tentar sincronizar com Supabase primeiro (com timeout curto)
       try {
         await Promise.race([
-          syncWithSupabase(currentUser),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+          syncWithSupabase(currentUser, true),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
         ]);
         console.log('✅ Feed global sincronizado do Supabase');
         return; // Se sincronizou com sucesso, não precisa carregar do localStorage
@@ -109,7 +109,7 @@ export function usePosts() {
         
         // Sincronizar com Supabase em background (não bloqueia)
         if (isSupabaseConfigured) {
-          syncWithSupabase(currentUser).catch(err => {
+          syncWithSupabase(currentUser, false).catch(err => {
             console.warn('⚠️ Erro ao sincronizar (não crítico):', err);
           });
         }
@@ -121,7 +121,7 @@ export function usePosts() {
     
     // Se não há dados locais, tentar Supabase
     if (isSupabaseConfigured) {
-      await syncWithSupabase(currentUser);
+      await syncWithSupabase(currentUser, true);
     } else {
       setPosts([]);
       setIsLoading(false);
