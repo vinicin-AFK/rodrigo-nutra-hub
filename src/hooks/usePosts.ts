@@ -145,13 +145,22 @@ export function usePosts() {
       //   });
       //   Isso faria cada usuário ver apenas suas próprias publicações!
       // ============================================
-      // ✅ CORRETO (o que estamos fazendo):
-      //   Equivalente ao Prisma:
-      //     prisma.post.findMany({
-      //       orderBy: { createdAt: 'desc' },
-      //       include: { user: true, comments: { include: { user: true } }, likes: true }
-      //     })
+      // ✅ CORRETO (exemplo Prisma - o que queremos):
+      //   const posts = await prisma.post.findMany({
+      //     orderBy: { createdAt: 'desc' },
+      //     include: {
+      //       user: true,
+      //       comments: true,
+      //       likes: true
+      //     }
+      //   });
       //   SEM where: { userId: ... } - busca TODAS as postagens
+      // ============================================
+      // ✅ NOSSA IMPLEMENTAÇÃO (equivalente ao Prisma acima):
+      //   - orderBy: { createdAt: 'desc' } → .order('created_at', { ascending: false })
+      //   - include: { user: true } → author:profiles(...)
+      //   - include: { comments: true } → Buscamos separadamente e agrupamos
+      //   - include: { likes: true } → Buscamos separadamente e agrupamos
       // ============================================
       // ❌ NUNCA usar: .eq('author_id', userId) ou qualquer filtro por usuário
       // ✅ SEMPRE buscar: TODAS as postagens, ordenadas por data
@@ -195,12 +204,13 @@ export function usePosts() {
         // ============================================
         // Equivalente ao Prisma:
         //   include: {
-        //     comments: { include: { user: true } },
-        //     likes: true
+        //     comments: true,  // ← Todos os comentários do post
+        //     likes: true     // ← Todas as curtidas do post
         //   }
         // ============================================
         // ✅ Comentários e curtidas pertencem ao POST, não ao usuário
         // ✅ Todos veem os mesmos comentários e curtidas para cada post
+        // ✅ Buscamos TODAS as curtidas e comentários (sem filtro por usuário)
         // ============================================
         const postIds = data.map((p: any) => p.id);
         
