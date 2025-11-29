@@ -7,8 +7,9 @@
 -- 1. CORRIGIR POLÍTICAS DE POSTS
 -- ============================================
 
--- Remover políticas existentes
+-- Remover políticas existentes (incluindo a nova que pode já existir)
 DROP POLICY IF EXISTS "Publicações ativas são públicas para leitura" ON posts;
+DROP POLICY IF EXISTS "Feed global - todos veem todas as publicações ativas" ON posts;
 DROP POLICY IF EXISTS "Usuários podem criar publicações" ON posts;
 DROP POLICY IF EXISTS "Usuários podem atualizar próprias publicações" ON posts;
 DROP POLICY IF EXISTS "Usuários podem deletar próprias publicações" ON posts;
@@ -42,8 +43,9 @@ CREATE POLICY "Usuários podem deletar próprias publicações"
 -- 2. CORRIGIR POLÍTICAS DE MENSAGENS
 -- ============================================
 
--- Remover políticas existentes
+-- Remover políticas existentes (incluindo a nova que pode já existir)
 DROP POLICY IF EXISTS "Mensagens ativas são públicas para leitura" ON community_messages;
+DROP POLICY IF EXISTS "Chat global - todos veem todas as mensagens ativas" ON community_messages;
 DROP POLICY IF EXISTS "Usuários podem criar mensagens" ON community_messages;
 DROP POLICY IF EXISTS "Usuários podem atualizar próprias mensagens" ON community_messages;
 DROP POLICY IF EXISTS "Usuários podem deletar próprias mensagens" ON community_messages;
