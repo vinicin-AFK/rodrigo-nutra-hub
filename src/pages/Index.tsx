@@ -465,26 +465,37 @@ const Index = () => {
           
           {/* Botões no canto superior direito */}
           <div className="flex items-center gap-3">
-            {/* Botão de Limpar Cache (apenas em desenvolvimento) */}
-            {import.meta.env.DEV && (
-              <button
-                onClick={() => {
-                  if (confirm('Limpar todo o cache do app (localStorage)? Isso irá recarregar a página.')) {
-                    localStorage.clear();
-                    window.location.reload();
-                  }
-                }}
-                className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center",
-                  "bg-secondary hover:bg-yellow-500/20 transition-colors",
-                  "text-foreground hover:text-yellow-500",
-                  "text-xs"
-                )}
-                title="Limpar Cache"
-              >
-                🗑️
-              </button>
-            )}
+            {/* Botão de Limpar Cache */}
+            <button
+              onClick={() => {
+                const preserveAuth = confirm(
+                  'Limpar cache do app?\n\n' +
+                  'OK = Limpar cache mas manter login\n' +
+                  'Cancelar = Limpar tudo (incluindo login)'
+                );
+                
+                const result = clearAppCache(preserveAuth);
+                
+                toast({
+                  title: "✅ Cache limpo!",
+                  description: `${result.totalCleared} itens removidos. ${result.preserved.length > 0 ? `Login preservado.` : 'Login removido.'}`,
+                  duration: 3000,
+                });
+                
+                // Recarregar após um breve delay para mostrar o toast
+                setTimeout(() => {
+                  window.location.reload();
+                }, 500);
+              }}
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center",
+                "bg-yellow-500/20 hover:bg-yellow-500/40 transition-colors",
+                "text-yellow-500"
+              )}
+              title="Limpar Cache"
+            >
+              🗑️
+            </button>
             {/* Botão de Suporte */}
             <button
               onClick={() => setActiveTab('support')}
