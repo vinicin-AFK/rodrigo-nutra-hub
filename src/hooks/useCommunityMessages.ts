@@ -33,7 +33,24 @@ export function useCommunityMessages() {
       }
     }
     
-    // PRIORIDADE: Carregar do localStorage PRIMEIRO (mais rápido no mobile)
+    // CHAT GLOBAL: SEMPRE sincronizar com Supabase PRIMEIRO para garantir que todos veem o mesmo conteúdo
+    // localStorage é apenas cache, não fonte primária
+    if (isSupabaseConfigured) {
+      // Tentar sincronizar com Supabase primeiro (com timeout maior para garantir sucesso)
+      try {
+        await Promise.race([
+          syncWithSupabase(currentUserId, showLoading),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000)) // Timeout de 8s
+        ]);
+        console.log('✅ Chat global sincronizado do Supabase - TODOS os usuários veem o mesmo conteúdo');
+        return; // Se sincronizou com sucesso, não precisa carregar do localStorage
+      } catch (error) {
+        console.warn('⚠️ Erro ao sincronizar chat com Supabase, tentando cache local:', error);
+        // Continuar para carregar do localStorage como fallback apenas se Supabase falhar
+      }
+    }
+    
+    // Fallback: Carregar do localStorage (cache local) apenas se Supabase falhar
     const savedMessages = safeGetItem('nutraelite_community_messages');
     if (savedMessages) {
       try {
@@ -56,28 +73,19 @@ export function useCommunityMessages() {
           };
         });
         
-            setMessages(loadedMessages);
-            if (showLoading) {
-              setIsLoading(false);
-            }
-            console.log('✅ Mensagens carregadas do localStorage (cache):', loadedMessages.length);
-            
-            // Sincronizar com Supabase em background para atualizar (não bloqueia)
-            if (isSupabaseConfigured) {
-              syncWithSupabase(currentUserId, showLoading).catch(err => {
-                console.warn('⚠️ Erro ao sincronizar em background (não crítico):', err);
-              });
-            }
-            return;
+        setMessages(loadedMessages);
+        if (showLoading) {
+          setIsLoading(false);
+        }
+        console.log('✅ Mensagens carregadas do localStorage (cache de fallback):', loadedMessages.length);
+        return;
       } catch (error) {
         console.warn('Erro ao carregar do localStorage:', error);
       }
     }
     
-    // Se não há dados locais, tentar Supabase
-    if (isSupabaseConfigured) {
-      await syncWithSupabase(currentUserId, showLoading);
-    } else {
+    // Se não há dados locais e Supabase não está configurado
+    if (!isSupabaseConfigured) {
       setMessages([]);
       if (showLoading) {
         setIsLoading(false);
