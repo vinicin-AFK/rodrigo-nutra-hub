@@ -736,7 +736,7 @@ export function usePosts() {
         });
         
         if (userError) {
-          console.error('❌ ERRO CRÍTICO ao buscar usuário do Supabase:', userError);
+          console.error('❌ ERRO ao buscar usuário do Supabase:', userError);
           console.error('📋 Detalhes completos:', {
             message: userError.message,
             code: userError.code,
@@ -744,12 +744,24 @@ export function usePosts() {
             name: userError.name,
           });
           
-          toast({
-            title: '❌ Erro de Autenticação',
-            description: `Não foi possível verificar sua autenticação: ${userError.message}. Faça login novamente.`,
-            variant: 'destructive',
-            duration: 10000,
-          });
+          // Se o erro for de sessão inválida (mudou de Supabase), não mostrar toast
+          // O usuário pode continuar usando dados locais
+          if (userError.message?.includes('session') || userError.message?.includes('JWT') || userError.message?.includes('Auth session missing')) {
+            console.warn('⚠️ Sessão inválida - continuando com dados locais se disponíveis');
+            // Não mostrar toast - o usuário pode continuar usando o app
+            // Apenas logar o aviso
+            return;
+          }
+          
+          // Para outros erros, mostrar toast apenas se for crítico
+          if (userError.code !== 'PGRST116') {
+            toast({
+              title: '⚠️ Aviso de Autenticação',
+              description: `Não foi possível verificar sua autenticação no Supabase. Continuando com dados locais.`,
+              variant: 'default',
+              duration: 5000,
+            });
+          }
           return;
         }
         

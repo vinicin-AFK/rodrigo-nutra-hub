@@ -483,10 +483,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (error) {
           console.error('❌ Erro ao buscar sessão:', error);
+          // Se o erro for de sessão inválida (porque mudou de Supabase), limpar e continuar
+          if (error.message?.includes('session') || error.message?.includes('JWT')) {
+            console.warn('⚠️ Sessão inválida detectada (provavelmente de Supabase antigo), limpando...');
+            await supabase.auth.signOut();
+            // Continuar sem sessão - usar dados locais se existirem
+            const savedAuth = localStorage.getItem(STORAGE_KEY);
+            if (savedAuth) {
+              try {
+                const authData = JSON.parse(savedAuth);
+                if (authData.user) {
+                  console.log('📦 Usando dados locais após sessão inválida');
+                  setUser(authData.user);
+                  setIsLoading(false);
+                  return;
+                }
+              } catch (e) {
+                console.warn('Erro ao carregar dados locais:', e);
+              }
+            }
+          }
           throw error;
         }
 
         console.log('📊 Sessão encontrada:', { hasSession: !!session, hasUser: !!session?.user });
+        
+        // Se não há sessão mas temos dados locais, usar dados locais
+        if (!session?.user) {
+          const savedAuth = localStorage.getItem(STORAGE_KEY);
+          if (savedAuth) {
+            try {
+              const authData = JSON.parse(savedAuth);
+              if (authData.user) {
+                console.log('📦 Sem sessão Supabase, mas temos dados locais - usando dados locais');
+                setUser(authData.user);
+                setIsLoading(false);
+                return;
+              }
+            } catch (e) {
+              console.warn('Erro ao carregar dados locais:', e);
+            }
+          }
+        }
 
         if (session?.user) {
           console.log('👤 Verificando dados do usuário:', session.user.id);
