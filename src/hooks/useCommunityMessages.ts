@@ -20,6 +20,30 @@ export function useCommunityMessages() {
     
     console.log('📥 Carregando mensagens...', { isSupabaseConfigured });
     
+    // ⚠️ PRIMEIRO: Tentar carregar do localStorage
+    const savedMessages = safeGetItem('nutraelite_community_messages');
+    if (savedMessages) {
+      try {
+        const parsed = JSON.parse(savedMessages);
+        const loadedMessages: Message[] = parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(loadedMessages);
+        if (showLoading) {
+          setIsLoading(false);
+        }
+        console.log('✅ Mensagens carregadas do localStorage primeiro:', loadedMessages.length);
+        // Depois sincronizar com Supabase em background
+        if (isSupabaseConfigured) {
+          syncWithSupabase(currentUserId, false).catch(() => {});
+        }
+        return;
+      } catch (e) {
+        console.warn('Erro ao carregar mensagens do localStorage:', e);
+      }
+    }
+    
     const savedAuth = safeGetItem('nutraelite_auth');
     let currentUserId: string | null = null;
     let currentUser: any = null;
@@ -252,21 +276,71 @@ export function useCommunityMessages() {
         console.log('✅ Mensagens sincronizadas do Supabase:', allMessages.length);
       } else if (error) {
         console.warn('⚠️ Erro ao buscar do Supabase:', error);
+        // ⚠️ Se Supabase falhar, tentar carregar do localStorage
+        const savedMessages = safeGetItem('nutraelite_community_messages');
+        if (savedMessages) {
+          try {
+            const parsed = JSON.parse(savedMessages);
+            const loadedMessages: Message[] = parsed.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp),
+            }));
+            setMessages(loadedMessages);
+            console.log('✅ Mensagens carregadas do localStorage após erro no Supabase:', loadedMessages.length);
+          } catch (e) {
+            console.warn('Erro ao carregar mensagens do localStorage:', e);
+            setMessages([]);
+          }
+        } else {
+          setMessages([]);
+        }
         if (showLoading) {
           setIsLoading(false);
         }
       } else {
-        // Sem dados mas sem erro
-        setMessages([]);
+        // Sem dados mas sem erro - tentar localStorage
+        const savedMessages = safeGetItem('nutraelite_community_messages');
+        if (savedMessages) {
+          try {
+            const parsed = JSON.parse(savedMessages);
+            const loadedMessages: Message[] = parsed.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp),
+            }));
+            setMessages(loadedMessages);
+            console.log('✅ Mensagens carregadas do localStorage (Supabase vazio):', loadedMessages.length);
+          } catch (e) {
+            setMessages([]);
+          }
+        } else {
+          setMessages([]);
+        }
         if (showLoading) {
           setIsLoading(false);
         }
       }
     } catch (error: any) {
       if (error?.message === 'Timeout') {
-        console.warn('⚠️ Timeout ao buscar do Supabase (3s)');
+        console.warn('⚠️ Timeout ao buscar do Supabase - tentando localStorage');
       } else {
         console.warn('⚠️ Erro ao sincronizar com Supabase:', error?.message || error);
+      }
+      // ⚠️ Se Supabase falhar, tentar localStorage
+      const savedMessages = safeGetItem('nutraelite_community_messages');
+      if (savedMessages) {
+        try {
+          const parsed = JSON.parse(savedMessages);
+          const loadedMessages: Message[] = parsed.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          }));
+          setMessages(loadedMessages);
+          console.log('✅ Mensagens carregadas do localStorage após erro:', loadedMessages.length);
+        } catch (e) {
+          setMessages([]);
+        }
+      } else {
+        setMessages([]);
       }
       if (showLoading) {
         setIsLoading(false);

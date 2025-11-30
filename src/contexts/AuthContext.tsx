@@ -110,8 +110,33 @@ const isSupportLogin = (email: string, password: string): boolean => {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // ⚠️ CRÍTICO: Carregar dados do localStorage IMEDIATAMENTE no estado inicial
+  // Isso garante que o login persista mesmo antes do useEffect executar
+  const getInitialUser = (): User | null => {
+    try {
+      const savedAuth = localStorage.getItem(STORAGE_KEY);
+      if (savedAuth) {
+        const authData = JSON.parse(savedAuth);
+        if (authData.user) {
+          console.log('🚀 [INIT] Usuário carregado do localStorage no estado inicial:', authData.user.name);
+          return authData.user;
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar usuário inicial:', e);
+    }
+    return null;
+  };
+  
+  const [user, setUser] = useState<User | null>(getInitialUser());
   const [isLoading, setIsLoading] = useState(true);
+  
+  // ⚠️ CRÍTICO: Salvar no localStorage SEMPRE que o user mudar
+  useEffect(() => {
+    if (user) {
+      persistAuthData(user);
+    }
+  }, [user]);
   
   // Salvar perfil antes de fechar o app (mobile)
   useEffect(() => {

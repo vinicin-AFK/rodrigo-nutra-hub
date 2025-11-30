@@ -385,17 +385,79 @@ export function usePosts() {
         console.log('✅ Feed global sincronizado do Supabase:', transformedPosts.length);
       } else if (error) {
         console.warn('⚠️ Erro ao buscar do Supabase:', error);
+        // ⚠️ Se Supabase falhar, tentar carregar do localStorage
+        const savedPosts = safeGetItem('nutraelite_posts');
+        if (savedPosts) {
+          try {
+            const parsed = JSON.parse(savedPosts);
+            const loadedPosts: Post[] = parsed.map((post: any) => ({
+              ...post,
+              createdAt: new Date(post.createdAt),
+              commentsList: post.commentsList?.map((c: any) => ({
+                ...c,
+                createdAt: new Date(c.createdAt),
+              })) || [],
+            }));
+            setPosts(loadedPosts);
+            console.log('✅ Posts carregados do localStorage após erro no Supabase:', loadedPosts.length);
+          } catch (e) {
+            console.warn('Erro ao carregar posts do localStorage:', e);
+            setPosts([]);
+          }
+        } else {
+          setPosts([]);
+        }
         setIsLoading(false);
       } else {
-        // Sem dados mas sem erro
-        setPosts([]);
+        // Sem dados mas sem erro - tentar localStorage
+        const savedPosts = safeGetItem('nutraelite_posts');
+        if (savedPosts) {
+          try {
+            const parsed = JSON.parse(savedPosts);
+            const loadedPosts: Post[] = parsed.map((post: any) => ({
+              ...post,
+              createdAt: new Date(post.createdAt),
+              commentsList: post.commentsList?.map((c: any) => ({
+                ...c,
+                createdAt: new Date(c.createdAt),
+              })) || [],
+            }));
+            setPosts(loadedPosts);
+            console.log('✅ Posts carregados do localStorage (Supabase vazio):', loadedPosts.length);
+          } catch (e) {
+            setPosts([]);
+          }
+        } else {
+          setPosts([]);
+        }
         setIsLoading(false);
       }
     } catch (error: any) {
       if (error?.message === 'Timeout ao carregar posts') {
-        console.warn('⚠️ Timeout ao buscar do Supabase (3s)');
+        console.warn('⚠️ Timeout ao buscar do Supabase - tentando localStorage');
       } else {
         console.warn('⚠️ Erro ao sincronizar com Supabase:', error?.message || error);
+      }
+      // ⚠️ Se Supabase falhar, tentar localStorage
+      const savedPosts = safeGetItem('nutraelite_posts');
+      if (savedPosts) {
+        try {
+          const parsed = JSON.parse(savedPosts);
+          const loadedPosts: Post[] = parsed.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+            commentsList: post.commentsList?.map((c: any) => ({
+              ...c,
+              createdAt: new Date(c.createdAt),
+            })) || [],
+          }));
+          setPosts(loadedPosts);
+          console.log('✅ Posts carregados do localStorage após erro:', loadedPosts.length);
+        } catch (e) {
+          setPosts([]);
+        }
+      } else {
+        setPosts([]);
       }
       setIsLoading(false);
     }
