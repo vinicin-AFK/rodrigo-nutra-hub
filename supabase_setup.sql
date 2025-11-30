@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- Habilitar RLS (Row Level Security)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
+-- Remover políticas existentes (se houver) antes de criar novas
+DROP POLICY IF EXISTS "Perfis são públicos para leitura" ON profiles;
+DROP POLICY IF EXISTS "Usuários podem atualizar próprio perfil" ON profiles;
+DROP POLICY IF EXISTS "Usuários podem inserir próprio perfil" ON profiles;
+
 -- Política: usuários podem ver todos os perfis
 CREATE POLICY "Perfis são públicos para leitura"
   ON profiles FOR SELECT
@@ -57,6 +62,11 @@ CREATE INDEX IF NOT EXISTS posts_created_at_idx ON posts(created_at DESC);
 -- RLS
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 
+-- Remover políticas existentes (se houver) antes de criar novas
+DROP POLICY IF EXISTS "Postagens são públicas para leitura" ON posts;
+DROP POLICY IF EXISTS "Usuários podem criar postagens" ON posts;
+DROP POLICY IF EXISTS "Usuários podem atualizar próprias postagens" ON posts;
+
 -- Política: todos podem ver postagens
 CREATE POLICY "Postagens são públicas para leitura"
   ON posts FOR SELECT
@@ -86,6 +96,11 @@ CREATE INDEX IF NOT EXISTS post_likes_user_id_idx ON post_likes(user_id);
 
 ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
 
+-- Remover políticas existentes (se houver) antes de criar novas
+DROP POLICY IF EXISTS "Curtidas são públicas para leitura" ON post_likes;
+DROP POLICY IF EXISTS "Usuários podem criar curtidas" ON post_likes;
+DROP POLICY IF EXISTS "Usuários podem deletar próprias curtidas" ON post_likes;
+
 CREATE POLICY "Curtidas são públicas para leitura"
   ON post_likes FOR SELECT
   USING (true);
@@ -112,6 +127,12 @@ CREATE INDEX IF NOT EXISTS comments_post_id_idx ON comments(post_id);
 CREATE INDEX IF NOT EXISTS comments_author_id_idx ON comments(author_id);
 
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+
+-- Remover políticas existentes (se houver) antes de criar novas
+DROP POLICY IF EXISTS "Comentários são públicos para leitura" ON comments;
+DROP POLICY IF EXISTS "Usuários podem criar comentários" ON comments;
+DROP POLICY IF EXISTS "Usuários podem atualizar próprios comentários" ON comments;
+DROP POLICY IF EXISTS "Usuários podem deletar próprios comentários" ON comments;
 
 CREATE POLICY "Comentários são públicos para leitura"
   ON comments FOR SELECT
@@ -145,6 +166,10 @@ CREATE INDEX IF NOT EXISTS community_messages_created_at_idx ON community_messag
 
 ALTER TABLE community_messages ENABLE ROW LEVEL SECURITY;
 
+-- Remover políticas existentes (se houver) antes de criar novas
+DROP POLICY IF EXISTS "Mensagens são públicas para leitura" ON community_messages;
+DROP POLICY IF EXISTS "Usuários autenticados podem criar mensagens" ON community_messages;
+
 CREATE POLICY "Mensagens são públicas para leitura"
   ON community_messages FOR SELECT
   USING (true);
@@ -166,6 +191,10 @@ CREATE INDEX IF NOT EXISTS achievements_user_id_idx ON achievements(user_id);
 
 ALTER TABLE achievements ENABLE ROW LEVEL SECURITY;
 
+-- Remover políticas existentes (se houver) antes de criar novas
+DROP POLICY IF EXISTS "Conquistas são públicas para leitura" ON achievements;
+DROP POLICY IF EXISTS "Usuários podem criar próprias conquistas" ON achievements;
+
 CREATE POLICY "Conquistas são públicas para leitura"
   ON achievements FOR SELECT
   USING (true);
@@ -184,6 +213,11 @@ CREATE TABLE IF NOT EXISTS user_stats (
 );
 
 ALTER TABLE user_stats ENABLE ROW LEVEL SECURITY;
+
+-- Remover políticas existentes (se houver) antes de criar novas
+DROP POLICY IF EXISTS "Stats são públicos para leitura" ON user_stats;
+DROP POLICY IF EXISTS "Usuários podem atualizar próprios stats" ON user_stats;
+DROP POLICY IF EXISTS "Usuários podem inserir próprios stats" ON user_stats;
 
 CREATE POLICY "Stats são públicos para leitura"
   ON user_stats FOR SELECT
