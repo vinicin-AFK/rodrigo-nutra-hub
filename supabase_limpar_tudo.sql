@@ -11,33 +11,82 @@
 -- ============================================
 
 -- Deletar curtidas primeiro (dependem de posts)
-DELETE FROM public.post_likes;
+-- Verificar se a tabela existe antes de deletar
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'post_likes') THEN
+    DELETE FROM public.post_likes;
+    RAISE NOTICE '✅ post_likes limpa';
+  END IF;
+END $$;
 
 -- Deletar comentários (dependem de posts)
-DELETE FROM public.comments;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'comments') THEN
+    DELETE FROM public.comments;
+    RAISE NOTICE '✅ comments limpa';
+  END IF;
+END $$;
 
 -- Deletar posts
-DELETE FROM public.posts;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'posts') THEN
+    DELETE FROM public.posts;
+    RAISE NOTICE '✅ posts limpa';
+  END IF;
+END $$;
 
 -- ============================================
 -- 2. DELETAR TODOS OS DADOS DE MENSAGENS
 -- ============================================
 
 -- Deletar mensagens da comunidade
-DELETE FROM public.community_messages;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'community_messages') THEN
+    DELETE FROM public.community_messages;
+    RAISE NOTICE '✅ community_messages limpa';
+  END IF;
+END $$;
 
--- Deletar mensagens de suporte
-DELETE FROM public.support_messages;
+-- Deletar mensagens de suporte (se existir)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'support_messages') THEN
+    DELETE FROM public.support_messages;
+    RAISE NOTICE '✅ support_messages limpa';
+  ELSE
+    RAISE NOTICE 'ℹ️ Tabela support_messages não existe (ignorando)';
+  END IF;
+END $$;
 
 -- ============================================
 -- 3. DELETAR DADOS DE ESTATÍSTICAS E CONQUISTAS
 -- ============================================
 
--- Deletar conquistas de usuários
-DELETE FROM public.user_achievements;
+-- Deletar conquistas de usuários (se existir)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_achievements') THEN
+    DELETE FROM public.user_achievements;
+    RAISE NOTICE '✅ user_achievements limpa';
+  ELSE
+    RAISE NOTICE 'ℹ️ Tabela user_achievements não existe (ignorando)';
+  END IF;
+END $$;
 
--- Deletar estatísticas de usuários
-DELETE FROM public.user_stats;
+-- Deletar estatísticas de usuários (se existir)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_stats') THEN
+    DELETE FROM public.user_stats;
+    RAISE NOTICE '✅ user_stats limpa';
+  ELSE
+    RAISE NOTICE 'ℹ️ Tabela user_stats não existe (ignorando)';
+  END IF;
+END $$;
 
 -- ============================================
 -- 4. RESETAR SEQUÊNCIAS (OPCIONAL)
@@ -69,41 +118,48 @@ END $$;
 -- 5. VERIFICAÇÃO FINAL
 -- ============================================
 
--- Verificar quantos registros restam em cada tabela
-SELECT 
-  'posts' as tabela,
-  COUNT(*) as total
-FROM posts
-UNION ALL
-SELECT 
-  'comments' as tabela,
-  COUNT(*) as total
-FROM comments
-UNION ALL
-SELECT 
-  'post_likes' as tabela,
-  COUNT(*) as total
-FROM post_likes
-UNION ALL
-SELECT 
-  'community_messages' as tabela,
-  COUNT(*) as total
-FROM community_messages
-UNION ALL
-SELECT 
-  'support_messages' as tabela,
-  COUNT(*) as total
-FROM support_messages
-UNION ALL
-SELECT 
-  'user_achievements' as tabela,
-  COUNT(*) as total
-FROM user_achievements
-UNION ALL
-SELECT 
-  'user_stats' as tabela,
-  COUNT(*) as total
-FROM user_stats;
+-- Verificar quantos registros restam em cada tabela (apenas se existirem)
+DO $$
+DECLARE
+  result_text TEXT := '';
+BEGIN
+  -- Posts
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'posts') THEN
+    SELECT result_text || 'posts: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM posts;
+  END IF;
+  
+  -- Comments
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'comments') THEN
+    SELECT result_text || 'comments: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM comments;
+  END IF;
+  
+  -- Post likes
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'post_likes') THEN
+    SELECT result_text || 'post_likes: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM post_likes;
+  END IF;
+  
+  -- Community messages
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'community_messages') THEN
+    SELECT result_text || 'community_messages: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM community_messages;
+  END IF;
+  
+  -- Support messages (se existir)
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'support_messages') THEN
+    SELECT result_text || 'support_messages: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM support_messages;
+  END IF;
+  
+  -- User achievements (se existir)
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_achievements') THEN
+    SELECT result_text || 'user_achievements: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM user_achievements;
+  END IF;
+  
+  -- User stats (se existir)
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_stats') THEN
+    SELECT result_text || 'user_stats: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM user_stats;
+  END IF;
+  
+  RAISE NOTICE E'\n📊 Verificação Final:\n%', result_text;
+END $$;
 
 -- ============================================
 -- NOTA: PERFIS DE USUÁRIOS NÃO SÃO DELETADOS
