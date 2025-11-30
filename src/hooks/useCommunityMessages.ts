@@ -548,10 +548,7 @@ export function useCommunityMessages() {
                 audio_url: audioUrl,     // URL do áudio (se houver)
                 audio_duration: audioDuration, // Duração do áudio (se houver)
               })
-              .select(`
-                *,
-                author:profiles(*)       // ✅ Equivalente a: include: { user: true }
-              `)
+        .select(`*, author:profiles(*)`)
               .single();
 
             if (!error && insertedMessage) {

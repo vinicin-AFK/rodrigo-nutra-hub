@@ -55,12 +55,21 @@ export function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
     
     // Notificar componente pai (atualiza no backend)
     if (onLike) {
-      onLike(post.id, !wasLiked).catch(err => {
+      try {
+        const result = onLike(post.id, !wasLiked);
+        // Verificar se é uma Promise e tratar o erro
+        Promise.resolve(result).catch((err: any) => {
+          console.error('Erro ao curtir:', err);
+          // Reverter em caso de erro
+          setIsLiked(wasLiked);
+          setLikes(prev => wasLiked ? prev + 1 : Math.max(0, prev - 1));
+        });
+      } catch (err) {
         console.error('Erro ao curtir:', err);
         // Reverter em caso de erro
         setIsLiked(wasLiked);
         setLikes(prev => wasLiked ? prev + 1 : Math.max(0, prev - 1));
-      });
+      }
     }
   };
 

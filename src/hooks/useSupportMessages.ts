@@ -100,14 +100,16 @@ export function useSupportMessages(userId?: string) {
                       isUser: !msg.is_from_support,
                       timestamp: new Date(msg.created_at),
                       type: msg.type || 'text',
-                      author: msg.is_from_support ? {
-                        name: msg.support_name || 'Suporte',
-                        avatar: msg.support_avatar || '',
-                        role: 'support',
-                      } : {
-                        name: msg.user_name || 'Usuário',
-                        avatar: msg.user_avatar || '',
-                      },
+            author: msg.is_from_support ? {
+              id: 'support',
+              name: msg.support_name || 'Suporte',
+              avatar: msg.support_avatar || '',
+              role: 'support',
+            } : {
+              id: msg.user_id,
+              name: msg.user_name || 'Usuário',
+              avatar: msg.user_avatar || '',
+            },
                     })),
                   };
                 });
@@ -253,10 +255,12 @@ export function useSupportMessages(userId?: string) {
       audioUrl: audioUrl || undefined,
       audioDuration: audioDuration || undefined,
       author: isFromSupport ? {
+        id: 'support',
         name: 'Suporte',
         avatar: '',
         role: 'support',
       } : {
+        id: currentUserId,
         name: authorName,
         avatar: authorAvatar,
       },

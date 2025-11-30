@@ -307,7 +307,7 @@ export function CommunityChat() {
         }
         currentGroup = {
           messages: [message],
-          author: message.author || { name: currentUser.name, avatar: currentUser.avatar },
+          author: message.author || { id: currentUser.id, name: currentUser.name, avatar: currentUser.avatar },
           isCurrentUser,
           date: messageDate,
         };
