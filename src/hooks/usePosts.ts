@@ -693,11 +693,12 @@ export function usePosts() {
       });
     }
     
+    // CRÍTICO: Tentar salvar no Supabase de forma SÍNCRONA (aguardar resultado)
+    // Não fazer em background - precisamos saber se salvou ou não
     if (isSupabaseConfigured) {
-      (async () => {
-        try {
-          console.log('🔐 Buscando usuário autenticado...');
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
+      try {
+        console.log('🔐 Buscando usuário autenticado...');
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
           
           console.log('👤 Resultado da autenticação:', { 
             hasUser: !!user, 
