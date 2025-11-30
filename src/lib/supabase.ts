@@ -82,5 +82,21 @@ if (isSupabaseDisabled) {
 } else {
   console.log('✅ Supabase configurado:', supabaseUrl?.substring(0, 30) + '...');
   console.log('🔑 Chave configurada:', supabaseAnonKey?.substring(0, 20) + '...');
+  
+  // ⚠️ VALIDAÇÃO: Garantir que não está usando localhost ou URLs locais
+  if (supabaseUrl && (
+    supabaseUrl.includes('localhost') ||
+    supabaseUrl.includes('127.0.0.1') ||
+    supabaseUrl.includes('192.168.') ||
+    supabaseUrl.includes('10.0.') ||
+    supabaseUrl.startsWith('http://')
+  )) {
+    console.error('❌ ERRO CRÍTICO: URL do Supabase contém localhost ou IP local!');
+    console.error('❌ Isso fará com que cada dispositivo use um servidor diferente!');
+    console.error('❌ Use uma URL pública do Supabase (https://xxx.supabase.co)');
+    console.error('❌ URL atual:', supabaseUrl);
+  } else {
+    console.log('✅ URL do Supabase é pública - todos os dispositivos usarão o mesmo backend');
+  }
 }
 

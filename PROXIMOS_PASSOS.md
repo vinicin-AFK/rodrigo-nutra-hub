@@ -1,3 +1,4 @@
+
 # ✅ Próximos Passos - Integração Supabase
 
 ## ✅ Passo 1: Banco de Dados Configurado

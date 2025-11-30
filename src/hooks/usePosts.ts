@@ -83,18 +83,26 @@ export function usePosts() {
         duration: 5000,
       });
       
-      // NO MOBILE: NUNCA usar localStorage como fallback se Supabase está configurado
-      // Isso garante que todos veem o mesmo conteúdo
-      if (isMobile) {
-        console.log('📱 Mobile: Supabase configurado - NÃO usando localStorage como fallback');
-        setPosts([]);
-        setIsLoading(false);
-        return;
-      }
+      // ⚠️ CRÍTICO: NUNCA usar localStorage como fallback se Supabase está configurado
+      // localStorage é isolado por dispositivo e causaria feeds diferentes
+      // Se Supabase falhou, mostrar erro e tentar novamente, não usar cache local
+      console.log('❌ Supabase configurado mas falhou - NÃO usando localStorage (garantir feed global)');
+      setPosts([]);
+      setIsLoading(false);
+      
+      // Tentar novamente após 5 segundos
+      setTimeout(() => {
+        console.log('🔄 Tentando recarregar feed após falha...');
+        loadPosts(true);
+      }, 5000);
+      
+      return;
     }
     
-    // DESKTOP: Fallback para localStorage apenas se Supabase não estiver configurado
-    // OU se for desktop e Supabase falhou (mas isso não deve acontecer)
+    // ⚠️ CRÍTICO: localStorage é APENAS cache, NÃO fonte primária
+    // Se Supabase está configurado mas falhou, NÃO usar localStorage
+    // Isso garante que todos os dispositivos veem o mesmo conteúdo
+    // localStorage isolado por dispositivo causaria feeds diferentes
     const savedPosts = safeGetItem('nutraelite_posts');
     if (savedPosts && !isSupabaseConfigured) {
       try {

@@ -45,14 +45,32 @@ export function useCommunityMessages() {
         console.log('✅ Chat global sincronizado do Supabase - TODOS os usuários veem o mesmo conteúdo');
         return; // Se sincronizou com sucesso, não precisa carregar do localStorage
       } catch (error) {
-        console.warn('⚠️ Erro ao sincronizar chat com Supabase, tentando cache local:', error);
-        // Continuar para carregar do localStorage como fallback apenas se Supabase falhar
+        console.warn('⚠️ Erro ao sincronizar chat com Supabase:', error);
+        // ⚠️ CRÍTICO: NÃO usar localStorage como fallback se Supabase está configurado
+        // localStorage é isolado por dispositivo e causaria chats diferentes
+        // Se Supabase falhou, mostrar erro e tentar novamente
+        console.log('❌ Supabase configurado mas falhou - NÃO usando localStorage (garantir chat global)');
+        
+        // Tentar novamente após 5 segundos
+        setTimeout(() => {
+          console.log('🔄 Tentando recarregar chat após falha...');
+          loadMessages(true);
+        }, 5000);
+        
+        // NÃO continuar para localStorage - garantir que todos veem o mesmo chat
+        if (showLoading) {
+          setIsLoading(false);
+        }
+        return;
       }
     }
     
-    // Fallback: Carregar do localStorage (cache local) apenas se Supabase falhar
+    // ⚠️ CRÍTICO: localStorage é APENAS cache, NÃO fonte primária
+    // Se Supabase está configurado, NUNCA usar localStorage como fallback
+    // Isso garante que todos os dispositivos veem o mesmo chat
+    // localStorage isolado por dispositivo causaria chats diferentes
     const savedMessages = safeGetItem('nutraelite_community_messages');
-    if (savedMessages) {
+    if (savedMessages && !isSupabaseConfigured) {
       try {
         const parsed = JSON.parse(savedMessages);
         const loadedMessages: Message[] = parsed.map((msg: any) => {
