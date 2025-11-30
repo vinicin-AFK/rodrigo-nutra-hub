@@ -178,8 +178,13 @@ export function validateSupabaseEnv(): EnvValidationError {
   }
   
   console.log('✅ Validação passou!');
-  console.log('✅ URL:', normalizedEnvUrl);
+  console.log('✅ URL (forçada):', normalizedFinalUrl);
   console.log('✅ Key length:', normalizedKey.length);
+  
+  return {
+    hasError: false,
+    message: 'Configuração válida',
+  };
 
   return {
     hasError: false,
