@@ -70,21 +70,45 @@ export function useCommunityMessages() {
         return; // Se sincronizou com sucesso, não precisa carregar do localStorage
       } catch (error) {
         console.warn('⚠️ Erro ao sincronizar chat com Supabase:', error);
-        // ⚠️ CRÍTICO: NÃO usar localStorage como fallback se Supabase está configurado
-        // localStorage é isolado por dispositivo e causaria chats diferentes
-        // Se Supabase falhou, mostrar erro e tentar novamente
-        console.log('❌ Supabase configurado mas falhou - NÃO usando localStorage (garantir chat global)');
+        // ⚠️ Se Supabase falhou, usar localStorage como fallback
+        // É melhor mostrar dados locais do que não mostrar nada
+        console.log('⚠️ Supabase falhou - usando dados do localStorage como fallback');
+        const savedMessages = safeGetItem('nutraelite_community_messages');
+        if (savedMessages) {
+          try {
+            const parsed = JSON.parse(savedMessages);
+            const loadedMessages: Message[] = parsed.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp),
+            }));
+            setMessages(loadedMessages);
+            if (showLoading) {
+              setIsLoading(false);
+            }
+            console.log('✅ Mensagens carregadas do localStorage após falha do Supabase:', loadedMessages.length);
+            
+            // Tentar sincronizar novamente em background após 5 segundos
+            setTimeout(() => {
+              console.log('🔄 Tentando sincronizar novamente em background...');
+              syncWithSupabase(currentUserId, false).catch(() => {});
+            }, 5000);
+            return;
+          } catch (e) {
+            console.warn('Erro ao carregar mensagens do localStorage:', e);
+          }
+        }
+        
+        // Se não há dados locais, mostrar vazio mas tentar novamente
+        setMessages([]);
+        if (showLoading) {
+          setIsLoading(false);
+        }
         
         // Tentar novamente após 5 segundos
         setTimeout(() => {
           console.log('🔄 Tentando recarregar chat após falha...');
-          loadMessages(true);
+          loadMessages(false); // Não forçar - pode usar localStorage
         }, 5000);
-        
-        // NÃO continuar para localStorage - garantir que todos veem o mesmo chat
-        if (showLoading) {
-          setIsLoading(false);
-        }
         return;
       }
     }

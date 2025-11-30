@@ -33,56 +33,63 @@ export function safeGetItem(key: string): string | null {
 
 function clearOldData() {
   try {
-    // Limpar postagens antigas (manter apenas as 20 mais recentes)
+    // ⚠️ NÃO limpar posts e mensagens - são dados importantes
+    // Apenas limpar dados temporários
+    console.log('⚠️ localStorage cheio - limpando apenas dados temporários');
+    
+    // Limpar apenas dados temporários, NÃO posts/mensagens/auth
+    const tempKeys = ['nutraelite_temp', 'nutraelite_cache', '__storage_test__'];
+    tempKeys.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        // Ignorar
+      }
+    });
+    
+    // Se ainda não tiver espaço, tentar reduzir posts/mensagens (mas não limpar completamente)
     const postsKey = 'nutraelite_posts';
     const posts = safeGetItem(postsKey);
     if (posts) {
       try {
         const parsed = JSON.parse(posts);
-        if (Array.isArray(parsed) && parsed.length > 20) {
-          const recent = parsed.slice(0, 20); // Manter apenas as 20 mais recentes
+        if (Array.isArray(parsed) && parsed.length > 100) {
+          // Manter apenas as 100 mais recentes (não 20)
+          const recent = parsed.slice(0, 100);
           try {
             localStorage.setItem(postsKey, JSON.stringify(recent));
-            console.log('✅ Limpou postagens antigas, manteve as 20 mais recentes');
+            console.log('✅ Reduziu postagens para 100 mais recentes');
           } catch (e) {
-            // Se ainda não conseguir, limpar tudo
-            localStorage.removeItem(postsKey);
-            console.log('⚠️ Limpou todas as postagens devido a falta de espaço');
+            // Se ainda não conseguir, manter como está (não limpar)
+            console.warn('⚠️ Não foi possível reduzir posts, mantendo como está');
           }
         }
       } catch (e) {
-        // Se não conseguir parsear, limpar tudo
-        try {
-          localStorage.removeItem(postsKey);
-        } catch (e2) {
-          // Ignorar
-        }
+        // Não limpar se não conseguir parsear
+        console.warn('⚠️ Erro ao processar posts, mantendo como está');
       }
     }
 
-    // Limpar mensagens antigas (manter apenas as 50 mais recentes)
+    // Limpar mensagens antigas (manter apenas as 200 mais recentes, não 50)
     const messagesKey = 'nutraelite_community_messages';
     const messages = safeGetItem(messagesKey);
     if (messages) {
       try {
         const parsed = JSON.parse(messages);
-        if (Array.isArray(parsed) && parsed.length > 50) {
-          const recent = parsed.slice(-50); // Manter apenas as 50 mais recentes
+        if (Array.isArray(parsed) && parsed.length > 200) {
+          // Manter apenas as 200 mais recentes (não 50)
+          const recent = parsed.slice(-200);
           try {
             localStorage.setItem(messagesKey, JSON.stringify(recent));
-            console.log('✅ Limpou mensagens antigas, manteve as 50 mais recentes');
+            console.log('✅ Reduziu mensagens para 200 mais recentes');
           } catch (e) {
-            // Se ainda não conseguir, limpar tudo
-            localStorage.removeItem(messagesKey);
-            console.log('⚠️ Limpou todas as mensagens devido a falta de espaço');
+            // Se ainda não conseguir, manter como está (não limpar)
+            console.warn('⚠️ Não foi possível reduzir mensagens, mantendo como está');
           }
         }
       } catch (e) {
-        try {
-          localStorage.removeItem(messagesKey);
-        } catch (e2) {
-          // Ignorar
-        }
+        // Não limpar se não conseguir parsear
+        console.warn('⚠️ Erro ao processar mensagens, mantendo como está');
       }
     }
 
@@ -97,16 +104,33 @@ function clearOldData() {
     });
   } catch (error) {
     console.error('❌ Erro ao limpar dados antigos:', error);
-    // Último recurso - limpar tudo exceto auth
+    // ⚠️ ÚLTIMO RECURSO: Apenas se realmente necessário
+    // Preservar auth, posts e mensagens
     try {
       const auth = localStorage.getItem('nutraelite_auth');
-      localStorage.clear();
+      const posts = localStorage.getItem('nutraelite_posts');
+      const messages = localStorage.getItem('nutraelite_community_messages');
+      
+      // Limpar apenas temporários
+      localStorage.removeItem('nutraelite_temp');
+      localStorage.removeItem('nutraelite_cache');
+      localStorage.removeItem('__storage_test__');
+      
+      // Restaurar dados importantes
       if (auth) {
         localStorage.setItem('nutraelite_auth', auth);
       }
-      console.log('⚠️ Limpeza completa do localStorage (exceto auth)');
+      if (posts) {
+        localStorage.setItem('nutraelite_posts', posts);
+      }
+      if (messages) {
+        localStorage.setItem('nutraelite_community_messages', messages);
+      }
+      
+      console.log('⚠️ Limpeza parcial do localStorage (preservou auth, posts e mensagens)');
     } catch (e) {
       console.error('❌ Erro crítico ao limpar localStorage:', e);
+      // Não fazer nada - manter dados como estão
     }
   }
 }

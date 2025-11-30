@@ -74,11 +74,12 @@ export function usePosts() {
         try {
           console.log(`📱 ${isMobile ? 'Mobile' : 'Desktop'} - Tentativa ${attempt}/${attempts} - timeout: ${syncTimeout}ms`);
           
-          // Se for forçado ou primeira tentativa, limpar cache local primeiro
-          if (forceFromSupabase || attempt === 1) {
-            console.log('🗑️ Limpando cache local de posts para forçar sincronização...');
-            localStorage.removeItem('nutraelite_posts');
-          }
+          // ⚠️ NÃO limpar cache local - manter dados mesmo durante sincronização
+          // Isso garante que se Supabase falhar, ainda temos os dados locais
+          // if (forceFromSupabase || attempt === 1) {
+          //   console.log('🗑️ Limpando cache local de posts para forçar sincronização...');
+          //   localStorage.removeItem('nutraelite_posts');
+          // }
           
           await Promise.race([
             syncWithSupabase(currentUser, attempt === 1), // Mostrar loading apenas na primeira tentativa
