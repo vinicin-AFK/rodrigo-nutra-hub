@@ -217,7 +217,7 @@ if (isSupabaseConfigured) {
 // ============================================
 // EXPORTS
 // ============================================
-export { isSupabaseConfigured };
+// isSupabaseConfigured já está exportado acima (linha 157)
 
 // Funções auxiliares (mantidas para compatibilidade)
 export function isInvalidApiKeyError(error: any): boolean {
