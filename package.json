@@ -19,7 +19,8 @@
     "verify:prod": "node scripts/verify-env.js",
     "verify:env": "node scripts/verify-env.js",
     "build:apk:verified": "npm run verify:env && rm -rf dist build android/app/build 2>/dev/null || true && npm run build",
-    "clean:build": "rm -rf dist build android/app/build"
+    "clean:build": "rm -rf dist build android/app/build",
+    "start:debug-server": "node functions/debug-supabase/index.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

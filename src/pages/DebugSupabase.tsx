@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { supabase, isSupabaseConfigured, validateSupabaseEnv } from '@/lib/supabaseClient';
+import { supabase, isSupabaseConfigured, validateSupabaseEnv, getSupabaseDebugInfo } from '@/lib/supabaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,15 +44,13 @@ export default function DebugSupabase() {
     setIsLoading(true);
     
     try {
-      const SUPABASE_URL_REQUIRED = 'https://kfyzcqaerlwqcmlbcgts.supabase.co';
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'NÃO CONFIGURADO';
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY 
-        ? import.meta.env.VITE_SUPABASE_ANON_KEY.slice(0, 20) + '...' 
-        : 'NÃO CONFIGURADO';
+      const debugInfo = getSupabaseDebugInfo();
+      const supabaseUrl = debugInfo.url;
+      const supabaseKey = debugInfo.keyPrefix + '...';
       
       // Validar configuração
       const validation = validateSupabaseEnv();
-      const urlMatches = supabaseUrl === SUPABASE_URL_REQUIRED;
+      const urlMatches = debugInfo.url === debugInfo.expectedUrl;
 
       let connectionStatus: 'connected' | 'error' | 'checking' = 'checking';
       let lastPosts: any[] = [];

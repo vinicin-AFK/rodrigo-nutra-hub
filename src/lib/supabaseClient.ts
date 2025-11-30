@@ -9,36 +9,80 @@
  * NÃO criar instâncias separadas do Supabase em outros arquivos!
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// ============================================
-// VARIÁVEIS DE AMBIENTE OBRIGATÓRIAS
-// ============================================
-// ⚠️ CRÍTICO: Use APENAS estas variáveis no .env.local:
-//   VITE_SUPABASE_URL=https://kfyzcqaerlwqcmlbcgts.supabase.co
-//   VITE_SUPABASE_ANON_KEY=sua_chave_aqui
-// ============================================
+const GLOBAL_SUPABASE_URL = 'https://kfyzcqaerlwqcmlbcgts.supabase.co';
 
-const SUPABASE_URL_REQUIRED = 'https://kfyzcqaerlwqcmlbcgts.supabase.co';
-const MIN_KEY_LENGTH = 20;
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const envUrl = (import.meta.env.VITE_SUPABASE_URL as string) || '';
+const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '';
 
 // ============================================
 // VALIDAÇÃO AUTOMÁTICA NO BOOT
 // ============================================
-// ⚠️ OBRIGATÓRIO: Logs para confirmar que todos os builds usam a mesma URL
 console.log('🔍 ============================================');
 console.log('🔍 VALIDAÇÃO SUPABASE - BOOT DO APP');
 console.log('🔍 ============================================');
-console.log('🔍 SUPABASE_URL:', SUPABASE_URL || '❌ NÃO CONFIGURADO');
-console.log('🔍 SUPABASE_KEY:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.slice(0, 10) + '...' : '❌ NÃO CONFIGURADO');
-console.log('🔍 URL completa:', SUPABASE_URL);
+console.log('🔍 SUPABASE_URL:', envUrl || '❌ NÃO CONFIGURADO');
+console.log('🔍 SUPABASE_KEY:', envKey ? envKey.slice(0, 10) + '...' : '❌ NÃO CONFIGURADO');
 console.log('🔍 ============================================');
 
+export function isSupabaseValid(url: string | undefined, key: string | undefined) {
+  if (!url || !key) return false;
+  if (!url.includes('supabase.co')) return false;
+  if (key.length < 20) return false;
+  if (url !== GLOBAL_SUPABASE_URL) return false;
+  return true;
+}
+
+const finalUrl = (() => {
+  if (!envUrl) return GLOBAL_SUPABASE_URL;
+  const lower = envUrl.toLowerCase();
+  // block localhost/http fallback
+  if (lower.includes('localhost') || lower.startsWith('http://') || lower.includes('127.0.0.1')) {
+    console.warn('⚠️ URL local detectada no env; forçando URL GLOBAL');
+    return GLOBAL_SUPABASE_URL;
+  }
+  return envUrl;
+})();
+
+const finalKey = envKey || '';
+
+export const isSupabaseConfigured = isSupabaseValid(finalUrl, finalKey);
+
+if (!isSupabaseConfigured) {
+  console.warn('⚠️ Supabase não configurado corretamente. finalUrl=', finalUrl, 'keyLen=', finalKey.length);
+  console.warn('⚠️ URL esperada:', GLOBAL_SUPABASE_URL);
+  console.warn('⚠️ URL atual:', finalUrl);
+} else {
+  console.log('✅ Supabase configurado corretamente');
+  console.log('✅ URL:', finalUrl);
+  console.log('✅ TODOS os dispositivos usarão o MESMO backend');
+}
+
+export const supabase: SupabaseClient = createClient(finalUrl, finalKey, {
+  auth: {
+    persistSession: true,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    autoRefreshToken: true,
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
+});
+
+export function getSupabaseDebugInfo() {
+  return {
+    url: finalUrl,
+    keyPrefix: finalKey ? finalKey.substring(0, 10) : '',
+    valid: isSupabaseConfigured,
+    expectedUrl: GLOBAL_SUPABASE_URL,
+  };
+}
+
 // ============================================
-// VALIDAÇÃO RIGOROSA - BLOQUEIA APP SE ERRADO
+// VALIDAÇÃO RIGOROSA - EXPORT PARA COMPONENTES
 // ============================================
 export interface EnvValidationError {
   hasError: boolean;
@@ -49,8 +93,7 @@ export interface EnvValidationError {
 }
 
 export function validateSupabaseEnv(): EnvValidationError {
-  // Verificar se URL está vazia
-  if (!SUPABASE_URL || SUPABASE_URL.trim() === '') {
+  if (!envUrl || envUrl.trim() === '') {
     return {
       hasError: true,
       type: 'missing_url',
@@ -59,35 +102,32 @@ export function validateSupabaseEnv(): EnvValidationError {
     };
   }
 
-  // Verificar se URL é diferente da requerida
-  if (SUPABASE_URL !== SUPABASE_URL_REQUIRED) {
+  if (envUrl !== GLOBAL_SUPABASE_URL) {
     return {
       hasError: true,
       type: 'wrong_url',
-      message: `URL do Supabase incorreta. Use APENAS: ${SUPABASE_URL_REQUIRED}`,
-      currentUrl: SUPABASE_URL,
+      message: `URL do Supabase incorreta. Use APENAS: ${GLOBAL_SUPABASE_URL}`,
+      currentUrl: envUrl,
     };
   }
 
-  // Verificar se URL contém localhost ou IP local
   const isLocalUrl = 
-    SUPABASE_URL.includes('localhost') ||
-    SUPABASE_URL.includes('127.0.0.1') ||
-    SUPABASE_URL.includes('192.168.') ||
-    SUPABASE_URL.includes('10.0.') ||
-    SUPABASE_URL.startsWith('http://');
+    envUrl.includes('localhost') ||
+    envUrl.includes('127.0.0.1') ||
+    envUrl.includes('192.168.') ||
+    envUrl.includes('10.0.') ||
+    envUrl.startsWith('http://');
   
   if (isLocalUrl) {
     return {
       hasError: true,
       type: 'local_url',
       message: 'URL local detectada. Use APENAS a URL pública do Supabase',
-      currentUrl: SUPABASE_URL,
+      currentUrl: envUrl,
     };
   }
 
-  // Verificar se Key está vazia
-  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.trim() === '') {
+  if (!envKey || envKey.trim() === '') {
     return {
       hasError: true,
       type: 'missing_key',
@@ -96,27 +136,24 @@ export function validateSupabaseEnv(): EnvValidationError {
     };
   }
 
-  // Verificar se Key é muito curta
-  if (SUPABASE_ANON_KEY.length < MIN_KEY_LENGTH) {
+  if (envKey.length < 20) {
     return {
       hasError: true,
       type: 'invalid_key',
-      message: `VITE_SUPABASE_ANON_KEY muito curta (${SUPABASE_ANON_KEY.length} caracteres, mínimo ${MIN_KEY_LENGTH})`,
-      currentKey: SUPABASE_ANON_KEY,
+      message: `VITE_SUPABASE_ANON_KEY muito curta (${envKey.length} caracteres, mínimo 20)`,
+      currentKey: envKey,
     };
   }
 
-  // Verificar se Key parece inválida
-  if (SUPABASE_ANON_KEY.includes('localhost') || SUPABASE_ANON_KEY.includes('placeholder')) {
+  if (envKey.includes('localhost') || envKey.includes('placeholder')) {
     return {
       hasError: true,
       type: 'invalid_key',
       message: 'VITE_SUPABASE_ANON_KEY parece ser inválida (contém localhost ou placeholder)',
-      currentKey: SUPABASE_ANON_KEY,
+      currentKey: envKey,
     };
   }
 
-  // Tudo OK
   return {
     hasError: false,
     message: 'Configuração válida',
@@ -124,7 +161,7 @@ export function validateSupabaseEnv(): EnvValidationError {
 }
 
 // Executar validação
-const envValidation = validateSupabaseEnv();
+export const envValidation = validateSupabaseEnv();
 
 // Se houver erro, armazenar para exibir tela de erro
 if (envValidation.hasError) {
@@ -144,80 +181,10 @@ if (envValidation.hasError) {
   console.error('❌ ============================================');
   
   // Armazenar erro globalmente para o componente EnvErrorScreen
-  (window as any).__SUPABASE_ENV_ERROR__ = envValidation;
+  if (typeof window !== 'undefined') {
+    (window as any).__SUPABASE_ENV_ERROR__ = envValidation;
+  }
 }
-
-// Exportar validação para uso em componentes
-export { envValidation };
-
-// ============================================
-// VERIFICAÇÃO DE CONFIGURAÇÃO
-// ============================================
-// ⚠️ Só considerar configurado se não houver erros de validação
-export const isSupabaseConfigured = !envValidation.hasError && !!(
-  SUPABASE_URL && 
-  SUPABASE_ANON_KEY && 
-  SUPABASE_URL.trim() !== '' && 
-  SUPABASE_ANON_KEY.trim() !== '' &&
-  SUPABASE_URL.includes('supabase.co') &&
-  SUPABASE_URL === SUPABASE_URL_REQUIRED
-);
-
-if (!isSupabaseConfigured) {
-  console.error('❌ ============================================');
-  console.error('❌ SUPABASE NÃO CONFIGURADO!');
-  console.error('❌ ============================================');
-  console.error('❌ Configure no .env.local:');
-  console.error('❌   VITE_SUPABASE_URL=https://kfyzcqaerlwqcmlbcgts.supabase.co');
-  console.error('❌   VITE_SUPABASE_ANON_KEY=sua_chave_aqui');
-  console.error('❌ ============================================');
-}
-
-// ============================================
-// CRIAÇÃO DO CLIENT SUPABASE
-// ============================================
-// ⚠️ ÚNICA INSTÂNCIA - TODOS OS ARQUIVOS USAM ESTA
-export const supabase = isSupabaseConfigured
-  ? createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
-      auth: {
-        storage: localStorage,
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-      // Configurações adicionais para garantir sincronização
-      realtime: {
-        params: {
-          eventsPerSecond: 10,
-        },
-      },
-    })
-  : createClient('https://placeholder.supabase.co', 'placeholder-key', {
-      auth: {
-        storage: localStorage,
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    });
-
-// ============================================
-// LOG FINAL DE CONFIRMAÇÃO
-// ============================================
-if (isSupabaseConfigured) {
-  console.log('✅ ============================================');
-  console.log('✅ SUPABASE CONFIGURADO COM SUCESSO');
-  console.log('✅ ============================================');
-  console.log('✅ URL:', SUPABASE_URL);
-  console.log('✅ Key:', SUPABASE_ANON_KEY?.slice(0, 20) + '...');
-  console.log('✅ TODOS os dispositivos usarão o MESMO backend');
-  console.log('✅ ============================================');
-} else {
-  console.warn('⚠️ Supabase não configurado - app funcionará em modo offline');
-}
-
-// ============================================
-// EXPORTS
-// ============================================
-// isSupabaseConfigured já está exportado acima (linha 157)
 
 // Funções auxiliares (mantidas para compatibilidade)
 export function isInvalidApiKeyError(error: any): boolean {
@@ -244,4 +211,3 @@ export function markApiKeyAsInvalid() {
 export function isApiKeyInvalid(): boolean {
   return apiKeyInvalid;
 }
-

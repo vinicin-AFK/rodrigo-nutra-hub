@@ -5,7 +5,7 @@ import "./index.css";
 // ⚠️ CRÍTICO: Importar supabaseClient no início para garantir que os logs de validação apareçam
 // Isso garante que a validação do Supabase seja executada antes de qualquer outro código
 import '@/lib/supabaseClient';
-import { envValidation } from '@/lib/supabaseClient';
+import { envValidation, getSupabaseDebugInfo } from '@/lib/supabaseClient';
 import EnvErrorScreen from '@/components/EnvErrorScreen';
 
 const rootElement = document.getElementById("root");
@@ -22,7 +22,14 @@ try {
   // ⚠️ BLOQUEAR APP SE SUPABASE ESTIVER CONFIGURADO INCORRETAMENTE
   if (envValidation.hasError) {
     console.error('🚫 APP BLOQUEADO: Configuração do Supabase incorreta');
-    createRoot(rootElement).render(<EnvErrorScreen error={envValidation} />);
+    const debugInfo = getSupabaseDebugInfo();
+    createRoot(rootElement).render(
+      <EnvErrorScreen 
+        expectedUrl={debugInfo.expectedUrl} 
+        keyPrefix={debugInfo.keyPrefix}
+        onRetry={() => window.location.reload()}
+      />
+    );
   } else {
     createRoot(rootElement).render(<App />);
   }

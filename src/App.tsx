@@ -15,10 +15,18 @@ import Status from "./pages/Status";
 
 // ⚠️ CRÍTICO: Importar supabaseClient no início para garantir que os logs de validação apareçam
 import '@/lib/supabaseClient';
+import { sendInstanceLog } from '@/lib/instanceLogger';
+import { useEffect } from 'react';
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  // Enviar log de instância após app carregar (não crítico)
+  useEffect(() => {
+    sendInstanceLog().catch(err => console.warn('Erro ao enviar log de instância:', err));
+  }, []);
+
+  return (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -47,6 +55,7 @@ const App = () => (
       </TooltipProvider>
     </QueryClientProvider>
   </ErrorBoundary>
-);
+  );
+};
 
 export default App;
