@@ -645,10 +645,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Se não há dados locais também, então não há usuário
           if (!user && !savedAuth) {
             console.log('ℹ️ Nenhum usuário encontrado (nem Supabase nem localStorage)');
-              }
-            } catch (error) {
-              console.error('Erro ao restaurar usuário:', error);
-            }
           }
         }
       } catch (error: any) {
