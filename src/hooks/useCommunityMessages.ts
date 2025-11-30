@@ -293,7 +293,12 @@ export function useCommunityMessages() {
           ...m,
           timestamp: m.timestamp.toISOString(),
         })));
-        safeSetItem('nutraelite_community_messages', serialized);
+        const saved = safeSetItem('nutraelite_community_messages', serialized);
+        if (saved) {
+          console.log('💾 Mensagens salvas no localStorage:', allMessages.length);
+        } else {
+          console.error('❌ ERRO: Não foi possível salvar mensagens no localStorage!');
+        }
         if (showLoading) {
           setIsLoading(false);
         }
