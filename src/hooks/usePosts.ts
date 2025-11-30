@@ -77,7 +77,22 @@ export function usePosts() {
       }
     }
     
-    // ⚠️ PRIMEIRO: Tentar carregar do localStorage se não for forçado do Supabase
+    // ⚠️ MOBILE: Carregar do localStorage PRIMEIRO (já carregado no estado inicial)
+    // Depois sincronizar com Supabase em background
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Se já temos posts no estado (carregados do localStorage no init), não precisamos recarregar
+    if (posts.length > 0 && !forceFromSupabase) {
+      console.log('✅ Posts já carregados do localStorage (estado inicial):', posts.length);
+      setIsLoading(false);
+      // Sincronizar com Supabase em background
+      if (isSupabaseConfigured) {
+        syncWithSupabase(currentUser, false).catch(() => {});
+      }
+      return;
+    }
+    
+    // Se não temos posts no estado, tentar carregar do localStorage
     if (!forceFromSupabase) {
       const savedPosts = safeGetItem('nutraelite_posts');
       if (savedPosts) {
@@ -93,7 +108,7 @@ export function usePosts() {
           }));
           setPosts(loadedPosts);
           setIsLoading(false);
-          console.log('✅ Posts carregados do localStorage primeiro:', loadedPosts.length);
+          console.log('✅ Posts carregados do localStorage:', loadedPosts.length);
           // Depois sincronizar com Supabase em background
           if (isSupabaseConfigured) {
             syncWithSupabase(currentUser, false).catch(() => {});
@@ -104,10 +119,6 @@ export function usePosts() {
         }
       }
     }
-    
-    // FEED GLOBAL: SEMPRE sincronizar com Supabase PRIMEIRO para garantir que todos veem o mesmo conteúdo
-    // CRÍTICO: No mobile, NUNCA usar localStorage como fonte primária - sempre Supabase
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const syncTimeout = isMobile ? 20000 : 15000; // Mobile: 20s, Desktop: 15s (aumentado)
     
     if (isSupabaseConfigured) {
