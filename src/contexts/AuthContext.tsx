@@ -149,9 +149,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
   
-  // Salvar perfil antes de fechar o app (mobile)
+  // ⚠️ MOBILE: Salvar perfil ANTES de fechar o app (crítico no mobile)
+  // Mobile pode fechar o app sem avisar, então salvamos em múltiplos eventos
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const saveUserData = () => {
       if (user) {
         try {
           const dataToSave = {
@@ -168,19 +169,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             timestamp: Date.now(),
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-          console.log('💾 Perfil salvo antes de fechar app');
+          console.log('💾 [MOBILE] Perfil salvo antes de fechar app');
         } catch (error) {
           console.error('Erro ao salvar antes de fechar:', error);
         }
       }
     };
     
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('pagehide', handleBeforeUnload); // Mobile
+    // Múltiplos eventos para garantir salvamento no mobile
+    window.addEventListener('beforeunload', saveUserData);
+    window.addEventListener('pagehide', saveUserData); // Mobile - quando app vai para background
+    window.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        saveUserData(); // Mobile - quando app vai para background
+      }
+    });
+    
+    // Salvar periodicamente no mobile (a cada 30 segundos)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    let saveInterval: NodeJS.Timeout | null = null;
+    if (isMobile) {
+      saveInterval = setInterval(() => {
+        if (user) {
+          saveUserData();
+        }
+      }, 30000); // A cada 30 segundos
+    }
     
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('pagehide', handleBeforeUnload);
+      window.removeEventListener('beforeunload', saveUserData);
+      window.removeEventListener('pagehide', saveUserData);
+      window.removeEventListener('visibilitychange', saveUserData);
+      if (saveInterval) {
+        clearInterval(saveInterval);
+      }
     };
   }, [user]);
   
