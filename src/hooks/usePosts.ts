@@ -840,27 +840,67 @@ export function usePosts() {
               await loadPosts(false);
               console.log('✅ Feed global atualizado - publicação visível para TODOS os usuários');
             } else {
-              console.error('❌ Erro ao sincronizar com Supabase:', error);
-              console.error('📋 Detalhes do erro:', {
+              // ERRO CRÍTICO: Mostrar todos os detalhes
+              console.error('❌ ERRO CRÍTICO ao salvar post no Supabase:', error);
+              console.error('📋 Detalhes completos do erro:', {
                 message: error?.message,
                 code: error?.code,
                 details: error?.details,
                 hint: error?.hint,
                 userId: user.id,
+                userEmail: user.email,
                 content: content.substring(0, 50),
+                hasImage: !!image,
+                type: resultValue ? 'result' : 'post',
               });
               
-              // Mostrar notificação de erro (visível no mobile)
-              const errorMessage = error?.message || 'Erro desconhecido';
-              const errorHint = error?.hint || '';
+              // Verificar se é erro de RLS (política bloqueando)
+              const isRLSError = error?.code === '42501' || 
+                                error?.message?.includes('permission denied') ||
+                                error?.message?.includes('row-level security') ||
+                                error?.message?.includes('policy violation');
               
+              // Verificar se é erro de autenticação
+              const isAuthError = error?.code === 'PGRST301' ||
+                                 error?.message?.includes('JWT') ||
+                                 error?.message?.includes('authentication');
+              
+              // Construir mensagem de erro detalhada
+              let errorTitle = '❌ Erro ao salvar no servidor';
+              let errorDescription = error?.message || 'Erro desconhecido';
+              
+              if (isRLSError) {
+                errorTitle = '🔒 Erro de Permissão (RLS)';
+                errorDescription = 'As políticas de segurança estão bloqueando a criação do post. Execute o script supabase_fix_insert_posts.sql no Supabase.';
+              } else if (isAuthError) {
+                errorTitle = '🔐 Erro de Autenticação';
+                errorDescription = 'Você não está autenticado corretamente. Faça login novamente.';
+              }
+              
+              if (error?.hint) {
+                errorDescription += `\n\n💡 Dica: ${error.hint}`;
+              }
+              
+              // Mostrar notificação de erro (visível no mobile) com mais detalhes
               toast({
-                title: '⚠️ Erro ao salvar no servidor',
-                description: `A publicação foi salva localmente, mas não foi sincronizada. ${errorMessage}${errorHint ? ` (${errorHint})` : ''}`,
+                title: errorTitle,
+                description: errorDescription,
                 variant: 'destructive',
-                duration: 5000,
+                duration: 15000, // 15 segundos para garantir que seja lido
               });
-              // Não é crítico - já está salvo localmente
+              
+              // Log adicional para debug
+              console.error('🔍 DEBUG: Verificando autenticação...');
+              const { data: { user: verifyUser }, error: verifyError } = await supabase.auth.getUser();
+              console.error('🔍 DEBUG: Usuário verificado:', {
+                hasUser: !!verifyUser,
+                userId: verifyUser?.id,
+                email: verifyUser?.email,
+                verifyError: verifyError?.message,
+              });
+              
+              // Não lançar erro - apenas mostrar notificação
+              // O post já foi salvo localmente, então não é crítico
             }
           } else {
             console.warn('⚠️ Usuário não autenticado no Supabase!');
