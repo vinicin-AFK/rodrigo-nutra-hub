@@ -5,13 +5,58 @@ import { safeSetItem, safeGetItem, ensureStorageSpace } from '@/lib/storage';
 import { toast } from '@/hooks/use-toast';
 
 export function usePosts() {
-  const [posts, setPosts] = useState<Post[]>([]);
+  // ⚠️ CRÍTICO: Carregar posts do localStorage IMEDIATAMENTE no estado inicial
+  const getInitialPosts = (): Post[] => {
+    try {
+      const savedPosts = safeGetItem('nutraelite_posts');
+      if (savedPosts) {
+        const parsed = JSON.parse(savedPosts);
+        const loadedPosts: Post[] = parsed.map((post: any) => ({
+          ...post,
+          createdAt: new Date(post.createdAt),
+          commentsList: post.commentsList?.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt),
+          })) || [],
+        }));
+        console.log('🚀 [INIT] Posts carregados do localStorage no estado inicial:', loadedPosts.length);
+        return loadedPosts;
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar posts iniciais:', e);
+    }
+    return [];
+  };
+  
+  const [posts, setPosts] = useState<Post[]>(getInitialPosts());
   const [isLoading, setIsLoading] = useState(true);
   const postsRef = useRef<Post[]>([]);
   
   // Manter ref atualizada
   useEffect(() => {
     postsRef.current = posts;
+  }, [posts]);
+  
+  // ⚠️ CRÍTICO: Salvar posts no localStorage SEMPRE que mudarem
+  useEffect(() => {
+    if (posts.length > 0) {
+      try {
+        const serialized = JSON.stringify(posts.map(p => ({
+          ...p,
+          createdAt: p.createdAt.toISOString(),
+          commentsList: p.commentsList?.map(c => ({
+            ...c,
+            createdAt: c.createdAt.toISOString(),
+          })) || [],
+        })));
+        const saved = safeSetItem('nutraelite_posts', serialized);
+        if (saved) {
+          console.log('💾 [AUTO-SAVE] Posts salvos automaticamente:', posts.length);
+        }
+      } catch (e) {
+        console.warn('Erro ao salvar posts automaticamente:', e);
+      }
+    }
   }, [posts]);
 
   const loadPosts = async (forceFromSupabase: boolean = false) => {
