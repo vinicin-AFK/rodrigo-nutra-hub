@@ -3,8 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Variável para desabilitar Supabase completamente (modo offline forçado)
+// Defina VITE_DISABLE_SUPABASE=true no .env.local para desabilitar
+const isSupabaseDisabled = import.meta.env.VITE_DISABLE_SUPABASE === 'true';
+
 // Verificar se está realmente configurado (não apenas se existe, mas se tem valor válido)
-export const isSupabaseConfigured = !!(
+export const isSupabaseConfigured = !isSupabaseDisabled && !!(
   supabaseUrl && 
   supabaseAnonKey && 
   supabaseUrl.trim() !== '' && 
@@ -60,7 +64,10 @@ export const supabase = isSupabaseConfigured
       }
     });
 
-if (!isSupabaseConfigured) {
+if (isSupabaseDisabled) {
+  console.warn('🚫 Supabase DESABILITADO manualmente (VITE_DISABLE_SUPABASE=true)');
+  console.warn('📱 Aplicação funcionando em modo OFFLINE completo');
+} else if (!isSupabaseConfigured) {
   console.warn(
     '⚠️ Supabase não configurado! ' +
     'A aplicação funcionará em modo offline. ' +
