@@ -1,12 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * ⚠️ DEPRECATED: Este arquivo está sendo substituído por supabaseClient.ts
+ * 
+ * Por favor, use:
+ * import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
+ * 
+ * Este arquivo será removido em breve.
+ */
 
-// ⚠️ CRÍTICO: URL ÚNICA E GLOBAL - TODOS OS DISPOSITIVOS DEVEM USAR A MESMA URL
-// Não usar localhost, IPs locais ou URLs diferentes para dev/prod
-const SUPABASE_URL_GLOBAL = 'https://kfyzcqaerlwqcmlbcgts.supabase.co';
-
-// Variáveis de ambiente (devem apontar para a mesma URL global)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL_GLOBAL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Re-exportar do novo arquivo para compatibilidade
+export { supabase, isSupabaseConfigured, isInvalidApiKeyError, markApiKeyAsInvalid, isApiKeyInvalid } from './supabaseClient';
 
 // Variável para desabilitar Supabase completamente (modo offline forçado)
 // Defina VITE_DISABLE_SUPABASE=true no .env.local para desabilitar

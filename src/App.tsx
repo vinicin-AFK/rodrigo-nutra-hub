@@ -10,6 +10,10 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
+import DebugSupabase from "./pages/DebugSupabase";
+
+// ⚠️ CRÍTICO: Importar supabaseClient no início para garantir que os logs de validação apareçam
+import '@/lib/supabaseClient';
 
 const queryClient = new QueryClient();
 
@@ -32,6 +36,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route path="/debug/supabase" element={<DebugSupabase />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

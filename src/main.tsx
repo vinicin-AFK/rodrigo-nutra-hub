@@ -2,6 +2,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+// ⚠️ CRÍTICO: Importar supabaseClient no início para garantir que os logs de validação apareçam
+// Isso garante que a validação do Supabase seja executada antes de qualquer outro código
+import '@/lib/supabaseClient';
+
 const rootElement = document.getElementById("root");
 
 if (!rootElement) {
