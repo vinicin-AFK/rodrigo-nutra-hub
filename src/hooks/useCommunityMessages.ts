@@ -20,7 +20,20 @@ export function useCommunityMessages() {
     
     console.log('📥 Carregando mensagens...', { isSupabaseConfigured });
     
-    // ⚠️ PRIMEIRO: Tentar carregar do localStorage
+    const savedAuth = safeGetItem('nutraelite_auth');
+    let currentUserId: string | null = null;
+    let currentUser: any = null;
+    if (savedAuth) {
+      try {
+        const authData = JSON.parse(savedAuth);
+        currentUserId = authData?.user?.id || null;
+        currentUser = authData?.user || null;
+      } catch (e) {
+        console.warn('Erro ao parsear auth:', e);
+      }
+    }
+    
+    // ⚠️ PRIMEIRO: Tentar carregar do localStorage para mostrar rápido
     const savedMessages = safeGetItem('nutraelite_community_messages');
     if (savedMessages) {
       try {
@@ -41,19 +54,6 @@ export function useCommunityMessages() {
         return;
       } catch (e) {
         console.warn('Erro ao carregar mensagens do localStorage:', e);
-      }
-    }
-    
-    const savedAuth = safeGetItem('nutraelite_auth');
-    let currentUserId: string | null = null;
-    let currentUser: any = null;
-    if (savedAuth) {
-      try {
-        const authData = JSON.parse(savedAuth);
-        currentUserId = authData?.user?.id || null;
-        currentUser = authData?.user || null;
-      } catch (e) {
-        console.warn('Erro ao parsear auth:', e);
       }
     }
     
@@ -93,8 +93,8 @@ export function useCommunityMessages() {
     // Se Supabase está configurado, NUNCA usar localStorage como fallback
     // Isso garante que todos os dispositivos veem o mesmo chat
     // localStorage isolado por dispositivo causaria chats diferentes
-    const savedMessages = safeGetItem('nutraelite_community_messages');
-    if (savedMessages && !isSupabaseConfigured) {
+    // (savedMessages já foi verificado acima, não verificar novamente)
+    if (!isSupabaseConfigured && savedMessages) {
       try {
         const parsed = JSON.parse(savedMessages);
         const loadedMessages: Message[] = parsed.map((msg: any) => {
