@@ -766,32 +766,69 @@ export function usePosts() {
               type: resultValue ? 'result' : 'post',
             });
             
-            const { data: insertedPost, error } = await supabase
-              .from('posts')
-              .insert({
-                author_id: user.id,      // Equivalente a: userId
-                content,                 // Equivalente a: content
-                image: image || null,     // Equivalente a: imageUrl
-                result_value: resultValue || null,
+            // CRÍTICO: Tentar inserir com retry em caso de falha
+            let insertedPost: any = null;
+            let error: any = null;
+            const maxAttempts = 3;
+            
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              console.log(`📤 Tentativa ${attempt}/${maxAttempts} de inserir post no Supabase...`);
+              console.log(`📋 Dados:`, {
+                author_id: user.id,
+                content_length: content.length,
+                has_image: !!image,
                 type: resultValue ? 'result' : 'post',
-                status: 'active',         // Garantir que o status seja 'active' (visível para todos)
-              })
-              .select(`
-                id,
-                created_at,
-                author:profiles(id, name, avatar, level, points, rank, total_sales, role)
-              `)
-              .single();
-
-            console.log('📥 Resposta do Supabase:', {
-              hasData: !!insertedPost,
-              hasError: !!error,
-              postId: insertedPost?.id,
-              errorMessage: error?.message,
-              errorCode: error?.code,
-              errorDetails: error?.details,
-              errorHint: error?.hint,
-            });
+              });
+              
+              const result = await supabase
+                .from('posts')
+                .insert({
+                  author_id: user.id,      // Equivalente a: userId
+                  content,                 // Equivalente a: content
+                  image: image || null,     // Equivalente a: imageUrl
+                  result_value: resultValue || null,
+                  type: resultValue ? 'result' : 'post',
+                  status: 'active',         // Garantir que o status seja 'active' (visível para todos)
+                })
+                .select(`
+                  id,
+                  created_at,
+                  author:profiles(id, name, avatar, level, points, rank, total_sales, role)
+                `)
+                .single();
+              
+              insertedPost = result.data;
+              error = result.error;
+              
+              console.log(`📥 Resposta do Supabase (tentativa ${attempt}):`, {
+                hasData: !!insertedPost,
+                hasError: !!error,
+                postId: insertedPost?.id,
+                errorMessage: error?.message,
+                errorCode: error?.code,
+                errorDetails: error?.details,
+                errorHint: error?.hint,
+              });
+              
+              if (!error && insertedPost) {
+                console.log(`✅ Post inserido com sucesso na tentativa ${attempt}!`);
+                break; // Sucesso - sair do loop
+              } else {
+                console.error(`❌ Tentativa ${attempt} falhou:`, {
+                  error: error?.message,
+                  code: error?.code,
+                  details: error?.details,
+                  hint: error?.hint,
+                });
+                
+                if (attempt < maxAttempts) {
+                  // Aguardar antes de tentar novamente
+                  const waitTime = attempt * 1000; // 1s, 2s, 3s
+                  console.log(`⏳ Aguardando ${waitTime}ms antes da próxima tentativa...`);
+                  await new Promise(resolve => setTimeout(resolve, waitTime));
+                }
+              }
+            }
 
             if (!error && insertedPost) {
               console.log('✅ Postagem sincronizada com Supabase:', insertedPost.id);
