@@ -851,13 +851,38 @@ export function usePosts() {
                   code: error?.code,
                   details: error?.details,
                   hint: error?.hint,
+                  fullError: JSON.stringify(error, null, 2),
                 });
+                
+                // Se for erro de RLS, mostrar mensagem específica
+                if (error?.code === '42501' || error?.message?.includes('row-level security') || error?.message?.includes('permission denied')) {
+                  console.error('🔒 ERRO DE RLS DETECTADO!');
+                  console.error('💡 Execute o script supabase_fix_posts_definitivo.sql no Supabase SQL Editor');
+                  
+                  if (attempt === maxAttempts) {
+                    toast({
+                      title: '🔒 Erro de Permissão (RLS)',
+                      description: 'As políticas de segurança estão bloqueando. Execute o script supabase_fix_posts_definitivo.sql no Supabase.',
+                      variant: 'destructive',
+                      duration: 15000,
+                    });
+                  }
+                }
                 
                 if (attempt < maxAttempts) {
                   // Aguardar antes de tentar novamente
                   const waitTime = attempt * 1000; // 1s, 2s, 3s
                   console.log(`⏳ Aguardando ${waitTime}ms antes da próxima tentativa...`);
                   await new Promise(resolve => setTimeout(resolve, waitTime));
+                } else {
+                  // Última tentativa falhou - mostrar erro final
+                  console.error('❌ TODAS AS TENTATIVAS FALHARAM!');
+                  console.error('📋 Erro final:', {
+                    message: error?.message,
+                    code: error?.code,
+                    details: error?.details,
+                    hint: error?.hint,
+                  });
                 }
               }
             }
