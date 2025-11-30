@@ -253,8 +253,16 @@ export function usePosts() {
       console.log('📊 Resultado Supabase:', { data: data?.length || 0, error });
 
       if (!error && data && data.length > 0) {
-        const { data: { user } } = await supabase.auth.getUser();
-        const currentUserId = user?.id;
+        // ⚠️ Posts são GLOBAIS - não precisam de autenticação para visualizar
+        // Tentar pegar usuário, mas não bloquear se não houver sessão
+        let currentUserId: string | null = null;
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          currentUserId = user?.id || null;
+        } catch (authError) {
+          // Não é crítico - posts são públicos
+          console.log('ℹ️ Sem sessão ativa, mas posts são globais - continuando...');
+        }
 
         // ============================================
         // COMENTÁRIOS E CURTIDAS GLOBAIS

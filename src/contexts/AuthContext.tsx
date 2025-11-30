@@ -470,6 +470,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initializeSession = async () => {
       try {
+        // PRIMEIRO: Carregar dados locais IMEDIATAMENTE para não perder login
+        const savedAuth = localStorage.getItem(STORAGE_KEY);
+        if (savedAuth) {
+          try {
+            const authData = JSON.parse(savedAuth);
+            if (authData.user) {
+              console.log('📦 Carregando dados locais primeiro:', authData.user.name);
+              setUser(authData.user);
+              // Não esperar Supabase - já temos dados locais
+              // Carregar stats e achievements em background
+              Promise.all([
+                loadStats(authData.user.id).catch(() => {}),
+                loadAchievements(authData.user.id).catch(() => {}),
+              ]);
+            }
+          } catch (e) {
+            console.warn('Erro ao carregar dados locais:', e);
+          }
+        }
+        
         console.log('🔍 Buscando sessão do Supabase...');
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) => 
@@ -482,28 +502,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ]) as any;
 
         if (error) {
-          console.error('❌ Erro ao buscar sessão:', error);
-          // Se o erro for de sessão inválida (porque mudou de Supabase), limpar e continuar
+          console.warn('⚠️ Erro ao buscar sessão do Supabase:', error);
+          // Se o erro for de sessão inválida, não é crítico - já temos dados locais
           if (error.message?.includes('session') || error.message?.includes('JWT')) {
-            console.warn('⚠️ Sessão inválida detectada (provavelmente de Supabase antigo), limpando...');
-            await supabase.auth.signOut();
-            // Continuar sem sessão - usar dados locais se existirem
-            const savedAuth = localStorage.getItem(STORAGE_KEY);
-            if (savedAuth) {
-              try {
-                const authData = JSON.parse(savedAuth);
-                if (authData.user) {
-                  console.log('📦 Usando dados locais após sessão inválida');
-                  setUser(authData.user);
-                  setIsLoading(false);
-                  return;
-                }
-              } catch (e) {
-                console.warn('Erro ao carregar dados locais:', e);
+            console.warn('⚠️ Sessão inválida - usando dados locais');
+            // Limpar sessão inválida silenciosamente
+            supabase.auth.signOut().catch(() => {});
+          }
+          // Continuar com dados locais se existirem
+          if (savedAuth) {
+            try {
+              const authData = JSON.parse(savedAuth);
+              if (authData.user) {
+                console.log('✅ Mantendo dados locais após erro na sessão');
+                setIsLoading(false);
+                return;
               }
+            } catch (e) {
+              // Ignorar
             }
           }
-          throw error;
+          // Se não há dados locais, continuar sem usuário
+          setIsLoading(false);
+          return;
         }
 
         console.log('📊 Sessão encontrada:', { hasSession: !!session, hasUser: !!session?.user });
@@ -599,17 +620,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.log('✅ Dados do usuário carregados do Supabase');
           }
         } else {
-          console.log('ℹ️ Nenhuma sessão ativa no Supabase, mantendo dados do localStorage');
-          // NÃO limpar dados do localStorage se não houver sessão no Supabase
-          // Manter o usuário que já foi carregado do localStorage
-          // Se não há user no estado mas há no localStorage, carregar novamente
+          console.log('ℹ️ Nenhuma sessão ativa no Supabase, carregando dados do localStorage');
+          // SEMPRE carregar dados do localStorage se não houver sessão Supabase
           const savedAuth = localStorage.getItem(STORAGE_KEY);
-          if (!user && savedAuth) {
+          if (savedAuth) {
             try {
               const authData = JSON.parse(savedAuth);
               if (authData.user) {
+                console.log('✅ Usuário restaurado do localStorage:', authData.user.name);
                 setUser(authData.user);
-                console.log('✅ Usuário restaurado do localStorage após verificação Supabase');
+                // Carregar stats e achievements em background
+                Promise.all([
+                  loadStats(authData.user.id).catch(err => console.error('Erro ao carregar stats:', err)),
+                  loadAchievements(authData.user.id).catch(err => console.error('Erro ao carregar achievements:', err)),
+                ]);
+                setIsLoading(false);
+                return;
+              }
+            } catch (e) {
+              console.warn('Erro ao parsear auth do localStorage:', e);
+            }
+          }
+          
+          // Se não há dados locais também, então não há usuário
+          if (!user && !savedAuth) {
+            console.log('ℹ️ Nenhum usuário encontrado (nem Supabase nem localStorage)');
               }
             } catch (error) {
               console.error('Erro ao restaurar usuário:', error);

@@ -117,6 +117,7 @@ export function useCommunityMessages() {
         setIsLoading(true);
       }
       console.log('🌍 COMUNIDADE GLOBAL: Sincronizando CHAT GLOBAL com Supabase...');
+      // ⚠️ Mensagens são GLOBAIS - não precisam de autenticação para visualizar
       console.log('📌 PRINCÍPIO: Todos os usuários usam o mesmo chat - SEM rooms separados');
       
       // ============================================
