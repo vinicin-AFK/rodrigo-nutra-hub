@@ -409,7 +409,12 @@ export function usePosts() {
             createdAt: c.createdAt.toISOString(),
           })) || [],
         })));
-        safeSetItem('nutraelite_posts', serialized);
+        const saved = safeSetItem('nutraelite_posts', serialized);
+        if (saved) {
+          console.log('💾 Posts salvos no localStorage:', transformedPosts.length);
+        } else {
+          console.error('❌ ERRO: Não foi possível salvar posts no localStorage!');
+        }
         setIsLoading(false);
         console.log('✅ Feed global sincronizado do Supabase:', transformedPosts.length);
       } else if (error) {

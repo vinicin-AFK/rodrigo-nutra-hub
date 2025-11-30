@@ -134,7 +134,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ⚠️ CRÍTICO: Salvar no localStorage SEMPRE que o user mudar
   useEffect(() => {
     if (user) {
+      console.log('💾 [AUTO-SAVE] Salvando usuário no localStorage:', user.name);
       persistAuthData(user);
+      
+      // Verificar se foi salvo corretamente
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        console.log('✅ [AUTO-SAVE] Usuário salvo com sucesso');
+      } else {
+        console.error('❌ [AUTO-SAVE] ERRO: Usuário NÃO foi salvo!');
+      }
+    } else {
+      console.log('⚠️ [AUTO-SAVE] Usuário é null, não salvando');
     }
   }, [user]);
   
