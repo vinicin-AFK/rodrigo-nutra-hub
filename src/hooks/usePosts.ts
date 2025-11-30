@@ -953,11 +953,22 @@ export function usePosts() {
               duration: 5000,
             });
           }
-        } catch (error: any) {
-          console.error('❌ Erro ao sincronizar com Supabase:', error?.message || error);
-          // Não é crítico - já está salvo localmente
-        }
-      })();
+      } catch (error: any) {
+        console.error('❌ Erro crítico ao sincronizar com Supabase:', error?.message || error);
+        console.error('📋 Stack trace:', error?.stack);
+        
+        // Mostrar notificação de erro crítico
+        toast({
+          title: '❌ Erro crítico ao salvar',
+          description: `Erro inesperado: ${error?.message || 'Erro desconhecido'}. Verifique o console para mais detalhes.`,
+          variant: 'destructive',
+          duration: 10000,
+        });
+        
+        // Não propagar erro - post já está salvo localmente
+      }
+    } else {
+      console.warn('⚠️ Supabase não configurado - publicação salva apenas localmente');
     }
 
     return newPost;
