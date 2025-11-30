@@ -32,6 +32,34 @@ export function usePosts() {
       }
     }
     
+    // ⚠️ PRIMEIRO: Tentar carregar do localStorage se não for forçado do Supabase
+    if (!forceFromSupabase) {
+      const savedPosts = safeGetItem('nutraelite_posts');
+      if (savedPosts) {
+        try {
+          const parsed = JSON.parse(savedPosts);
+          const loadedPosts: Post[] = parsed.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+            commentsList: post.commentsList?.map((c: any) => ({
+              ...c,
+              createdAt: new Date(c.createdAt),
+            })) || [],
+          }));
+          setPosts(loadedPosts);
+          setIsLoading(false);
+          console.log('✅ Posts carregados do localStorage primeiro:', loadedPosts.length);
+          // Depois sincronizar com Supabase em background
+          if (isSupabaseConfigured) {
+            syncWithSupabase(currentUser, false).catch(() => {});
+          }
+          return;
+        } catch (e) {
+          console.warn('Erro ao carregar posts do localStorage:', e);
+        }
+      }
+    }
+    
     // FEED GLOBAL: SEMPRE sincronizar com Supabase PRIMEIRO para garantir que todos veem o mesmo conteúdo
     // CRÍTICO: No mobile, NUNCA usar localStorage como fonte primária - sempre Supabase
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
