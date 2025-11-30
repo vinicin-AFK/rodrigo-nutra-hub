@@ -681,16 +681,26 @@ export function usePosts() {
     console.log('🔍 Verificando Supabase...', { 
       isSupabaseConfigured,
       willSync: isSupabaseConfigured,
+      supabaseUrl: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...',
+      hasAnonKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
     });
     
     if (!isSupabaseConfigured) {
+      console.error('❌ CRÍTICO: Supabase NÃO está configurado!');
+      console.error('📋 Variáveis de ambiente:', {
+        url: import.meta.env.VITE_SUPABASE_URL,
+        hasKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+        keyLength: import.meta.env.VITE_SUPABASE_ANON_KEY?.length || 0,
+      });
+      
       // Mostrar aviso se Supabase não estiver configurado
       toast({
         title: '⚠️ Modo offline',
-        description: 'Supabase não configurado. A publicação foi salva apenas localmente.',
+        description: 'Supabase não configurado. A publicação foi salva apenas localmente. Verifique o .env.local e reinicie o servidor.',
         variant: 'destructive',
-        duration: 5000,
+        duration: 10000,
       });
+      return newPost; // Retornar sem tentar sincronizar
     }
     
     // CRÍTICO: Tentar salvar no Supabase de forma SÍNCRONA (aguardar resultado)
