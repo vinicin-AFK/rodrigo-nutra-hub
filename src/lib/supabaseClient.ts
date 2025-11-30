@@ -19,12 +19,25 @@ const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '';
 // ============================================
 // VALIDAÇÃO AUTOMÁTICA NO BOOT
 // ============================================
-console.log('🔍 ============================================');
-console.log('🔍 VALIDAÇÃO SUPABASE - BOOT DO APP');
-console.log('🔍 ============================================');
-console.log('🔍 SUPABASE_URL:', envUrl || '❌ NÃO CONFIGURADO');
-console.log('🔍 SUPABASE_KEY:', envKey ? envKey.slice(0, 10) + '...' : '❌ NÃO CONFIGURADO');
-console.log('🔍 ============================================');
+// ⚠️ LOGS OBRIGATÓRIOS - Executar IMEDIATAMENTE
+// Usar setTimeout para garantir que apareçam mesmo se houver erro
+setTimeout(() => {
+  console.log('🔍 ============================================');
+  console.log('🔍 VALIDAÇÃO SUPABASE - BOOT DO APP');
+  console.log('🔍 ============================================');
+  console.log('🔍 SUPABASE_URL:', envUrl || '❌ NÃO CONFIGURADO');
+  console.log('🔍 SUPABASE_KEY:', envKey ? envKey.slice(0, 10) + '...' : '❌ NÃO CONFIGURADO');
+  console.log('🔍 envUrl type:', typeof envUrl);
+  console.log('🔍 envUrl length:', envUrl?.length || 0);
+  console.log('🔍 envKey type:', typeof envKey);
+  console.log('🔍 envKey length:', envKey?.length || 0);
+  console.log('🔍 import.meta.env:', import.meta.env);
+  console.log('🔍 ============================================');
+}, 0);
+
+// Logs síncronos também (para garantir)
+console.log('🔍 [SYNC] SUPABASE_URL:', envUrl || '❌ NÃO CONFIGURADO');
+console.log('🔍 [SYNC] SUPABASE_KEY:', envKey ? envKey.slice(0, 10) + '...' : '❌ NÃO CONFIGURADO');
 
 export function isSupabaseValid(url: string | undefined, key: string | undefined) {
   if (!url || !key) return false;

@@ -65,6 +65,13 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      // ⚠️ LOGS IMEDIATOS - Antes do JavaScript carregar
+      console.log('🚀 [HTML] Página carregada');
+      console.log('🚀 [HTML] Root element:', document.getElementById('root'));
+      console.log('🚀 [HTML] User agent:', navigator.userAgent);
+      console.log('🚀 [HTML] URL:', window.location.href);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
