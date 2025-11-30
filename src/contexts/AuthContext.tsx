@@ -208,9 +208,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           avatar: userData.avatar ? 'sim' : 'não',
           avatarValue: userData.avatar || null
         });
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
       }
+      // ⚠️ CRÍTICO: NÃO limpar localStorage quando userData é null
+      // Isso pode acontecer temporariamente e não significa logout
+      // Só limpar no logout explícito
     } catch (error) {
       console.error('Erro ao persistir dados de autenticação:', error);
     }
@@ -539,27 +540,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (error) {
           console.warn('⚠️ Erro ao buscar sessão do Supabase:', error);
-          // Se o erro for de sessão inválida, não é crítico - já temos dados locais
-          if (error.message?.includes('session') || error.message?.includes('JWT')) {
-            console.warn('⚠️ Sessão inválida - usando dados locais');
-            // Limpar sessão inválida silenciosamente
-            supabase.auth.signOut().catch(() => {});
-          }
-          // Continuar com dados locais se existirem
+          // ⚠️ CRÍTICO: NÃO limpar localStorage quando há erro
+          // Apenas usar dados locais e continuar
           if (savedAuth) {
             try {
               const authData = JSON.parse(savedAuth);
               if (authData.user) {
-                console.log('✅ Mantendo dados locais após erro na sessão');
+                console.log('✅ Mantendo dados locais após erro na sessão do Supabase');
+                setUser(authData.user);
                 setIsLoading(false);
+                hasInitialized = true;
                 return;
               }
             } catch (e) {
-              // Ignorar
+              console.warn('Erro ao parsear dados locais:', e);
             }
           }
-          // Se não há dados locais, continuar sem usuário
+          // Se não há dados locais, continuar sem usuário mas NÃO limpar nada
           setIsLoading(false);
+          hasInitialized = true;
           return;
         }
 
