@@ -93,41 +93,65 @@ export interface EnvValidationError {
 }
 
 export function validateSupabaseEnv(): EnvValidationError {
-  if (!envUrl || envUrl.trim() === '') {
+  // Normalizar URL (remover espaços, trailing slash, etc)
+  const normalizedEnvUrl = envUrl ? envUrl.trim().replace(/\/$/, '') : '';
+  const normalizedGlobalUrl = GLOBAL_SUPABASE_URL.trim().replace(/\/$/, '');
+  
+  console.log('🔍 Validação detalhada:');
+  console.log('🔍 envUrl original:', envUrl);
+  console.log('🔍 envUrl normalizada:', normalizedEnvUrl);
+  console.log('🔍 URL esperada:', normalizedGlobalUrl);
+  console.log('🔍 envKey length:', envKey?.length || 0);
+  
+  if (!normalizedEnvUrl || normalizedEnvUrl === '') {
     return {
       hasError: true,
       type: 'missing_url',
-      message: 'VITE_SUPABASE_URL não está configurada. Configure no .env.local',
+      message: 'VITE_SUPABASE_URL não está configurada. Configure no Vercel Dashboard → Settings → Environment Variables',
       currentUrl: undefined,
     };
   }
 
-  if (envUrl !== GLOBAL_SUPABASE_URL) {
-    return {
-      hasError: true,
-      type: 'wrong_url',
-      message: `URL do Supabase incorreta. Use APENAS: ${GLOBAL_SUPABASE_URL}`,
-      currentUrl: envUrl,
-    };
+  // Comparar URLs normalizadas (mais tolerante)
+  if (normalizedEnvUrl !== normalizedGlobalUrl) {
+    console.warn('⚠️ URL diferente da esperada:');
+    console.warn('   Esperada:', normalizedGlobalUrl);
+    console.warn('   Recebida:', normalizedEnvUrl);
+    console.warn('   Diferença:', normalizedEnvUrl !== normalizedGlobalUrl);
+    
+    // Se a URL contém o domínio correto mas tem diferenças menores, permitir
+    if (normalizedEnvUrl.includes('kfyzcqaerlwqcmlbcgts.supabase.co')) {
+      console.warn('⚠️ URL contém domínio correto, mas formato diferente. Permitindo...');
+      // Não retornar erro se contém o domínio correto
+    } else {
+      return {
+        hasError: true,
+        type: 'wrong_url',
+        message: `URL do Supabase incorreta. Use APENAS: ${GLOBAL_SUPABASE_URL}. URL atual: ${normalizedEnvUrl}`,
+        currentUrl: normalizedEnvUrl,
+      };
+    }
   }
 
   const isLocalUrl = 
-    envUrl.includes('localhost') ||
-    envUrl.includes('127.0.0.1') ||
-    envUrl.includes('192.168.') ||
-    envUrl.includes('10.0.') ||
-    envUrl.startsWith('http://');
+    normalizedEnvUrl.includes('localhost') ||
+    normalizedEnvUrl.includes('127.0.0.1') ||
+    normalizedEnvUrl.includes('192.168.') ||
+    normalizedEnvUrl.includes('10.0.') ||
+    normalizedEnvUrl.startsWith('http://');
   
   if (isLocalUrl) {
     return {
       hasError: true,
       type: 'local_url',
       message: 'URL local detectada. Use APENAS a URL pública do Supabase',
-      currentUrl: envUrl,
+      currentUrl: normalizedEnvUrl,
     };
   }
 
-  if (!envKey || envKey.trim() === '') {
+  const normalizedKey = envKey ? envKey.trim() : '';
+  
+  if (!normalizedKey || normalizedKey === '') {
     return {
       hasError: true,
       type: 'missing_key',
@@ -136,23 +160,27 @@ export function validateSupabaseEnv(): EnvValidationError {
     };
   }
 
-  if (envKey.length < 20) {
+  if (normalizedKey.length < 20) {
     return {
       hasError: true,
       type: 'invalid_key',
-      message: `VITE_SUPABASE_ANON_KEY muito curta (${envKey.length} caracteres, mínimo 20)`,
-      currentKey: envKey,
+      message: `VITE_SUPABASE_ANON_KEY muito curta (${normalizedKey.length} caracteres, mínimo 20). Configure no Vercel Dashboard → Settings → Environment Variables`,
+      currentKey: normalizedKey,
     };
   }
 
-  if (envKey.includes('localhost') || envKey.includes('placeholder')) {
+  if (normalizedKey.includes('localhost') || normalizedKey.includes('placeholder')) {
     return {
       hasError: true,
       type: 'invalid_key',
-      message: 'VITE_SUPABASE_ANON_KEY parece ser inválida (contém localhost ou placeholder)',
-      currentKey: envKey,
+      message: 'VITE_SUPABASE_ANON_KEY parece ser inválida (contém localhost ou placeholder). Configure a chave correta no Vercel',
+      currentKey: normalizedKey.slice(0, 20) + '...',
     };
   }
+  
+  console.log('✅ Validação passou!');
+  console.log('✅ URL:', normalizedEnvUrl);
+  console.log('✅ Key length:', normalizedKey.length);
 
   return {
     hasError: false,
