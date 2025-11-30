@@ -172,8 +172,16 @@ export function useCommunityMessages() {
       console.log('📊 Resultado Supabase:', { data: data?.length || 0, error });
 
       if (!error && data && data.length > 0) {
-        const { data: { user } } = await supabase.auth.getUser();
-        const supabaseUserId = user?.id;
+        // ⚠️ Mensagens são GLOBAIS - não precisam de autenticação para visualizar
+        // Tentar pegar usuário, mas não bloquear se não houver sessão
+        let supabaseUserId: string | null = null;
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          supabaseUserId = user?.id || null;
+        } catch (authError) {
+          // Não é crítico - mensagens são públicas
+          console.log('ℹ️ Sem sessão ativa, mas mensagens são globais - continuando...');
+        }
 
         // Transformação otimizada (sem processamento desnecessário)
         // Equivalente ao Prisma: include: { user: true }
