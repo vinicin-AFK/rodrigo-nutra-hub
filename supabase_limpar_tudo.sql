@@ -99,18 +99,22 @@ BEGIN
   -- Verificar e resetar sequências se existirem
   IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'posts_id_seq') THEN
     PERFORM setval('public.posts_id_seq', 1, false);
+    RAISE NOTICE '✅ Sequência posts_id_seq resetada';
   END IF;
   
   IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'comments_id_seq') THEN
     PERFORM setval('public.comments_id_seq', 1, false);
+    RAISE NOTICE '✅ Sequência comments_id_seq resetada';
   END IF;
   
   IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'community_messages_id_seq') THEN
     PERFORM setval('public.community_messages_id_seq', 1, false);
+    RAISE NOTICE '✅ Sequência community_messages_id_seq resetada';
   END IF;
   
   IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'support_messages_id_seq') THEN
     PERFORM setval('public.support_messages_id_seq', 1, false);
+    RAISE NOTICE '✅ Sequência support_messages_id_seq resetada';
   END IF;
 END $$;
 
@@ -122,40 +126,48 @@ END $$;
 DO $$
 DECLARE
   result_text TEXT := '';
+  count_val INTEGER;
 BEGIN
   -- Posts
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'posts') THEN
-    SELECT result_text || 'posts: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM posts;
+    SELECT COUNT(*) INTO count_val FROM posts;
+    result_text := result_text || 'posts: ' || count_val::TEXT || E'\n';
   END IF;
   
   -- Comments
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'comments') THEN
-    SELECT result_text || 'comments: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM comments;
+    SELECT COUNT(*) INTO count_val FROM comments;
+    result_text := result_text || 'comments: ' || count_val::TEXT || E'\n';
   END IF;
   
   -- Post likes
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'post_likes') THEN
-    SELECT result_text || 'post_likes: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM post_likes;
+    SELECT COUNT(*) INTO count_val FROM post_likes;
+    result_text := result_text || 'post_likes: ' || count_val::TEXT || E'\n';
   END IF;
   
   -- Community messages
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'community_messages') THEN
-    SELECT result_text || 'community_messages: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM community_messages;
+    SELECT COUNT(*) INTO count_val FROM community_messages;
+    result_text := result_text || 'community_messages: ' || count_val::TEXT || E'\n';
   END IF;
   
   -- Support messages (se existir)
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'support_messages') THEN
-    SELECT result_text || 'support_messages: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM support_messages;
+    SELECT COUNT(*) INTO count_val FROM support_messages;
+    result_text := result_text || 'support_messages: ' || count_val::TEXT || E'\n';
   END IF;
   
   -- User achievements (se existir)
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_achievements') THEN
-    SELECT result_text || 'user_achievements: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM user_achievements;
+    SELECT COUNT(*) INTO count_val FROM user_achievements;
+    result_text := result_text || 'user_achievements: ' || count_val::TEXT || E'\n';
   END IF;
   
   -- User stats (se existir)
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_stats') THEN
-    SELECT result_text || 'user_stats: ' || COUNT(*)::TEXT || E'\n' INTO result_text FROM user_stats;
+    SELECT COUNT(*) INTO count_val FROM user_stats;
+    result_text := result_text || 'user_stats: ' || count_val::TEXT || E'\n';
   END IF;
   
   RAISE NOTICE E'\n📊 Verificação Final:\n%', result_text;
