@@ -157,33 +157,7 @@ export function validateSupabaseEnv(): EnvValidationError {
   
   // ⚠️ Se chegou aqui, a URL está correta (forçada) e a key existe
   // Só validar se a key é válida
-
-  const isLocalUrl = 
-    normalizedEnvUrl.includes('localhost') ||
-    normalizedEnvUrl.includes('127.0.0.1') ||
-    normalizedEnvUrl.includes('192.168.') ||
-    normalizedEnvUrl.includes('10.0.') ||
-    normalizedEnvUrl.startsWith('http://');
-  
-  if (isLocalUrl) {
-    return {
-      hasError: true,
-      type: 'local_url',
-      message: 'URL local detectada. Use APENAS a URL pública do Supabase',
-      currentUrl: normalizedEnvUrl,
-    };
-  }
-
-  const normalizedKey = envKey ? envKey.trim() : '';
-  
-  if (!normalizedKey || normalizedKey === '') {
-    return {
-      hasError: true,
-      type: 'missing_key',
-      message: 'VITE_SUPABASE_ANON_KEY não está configurada. Configure no .env.local',
-      currentKey: undefined,
-    };
-  }
+  const normalizedKey = finalKey ? finalKey.trim() : '';
 
   if (normalizedKey.length < 20) {
     return {
