@@ -700,21 +700,53 @@ export function usePosts() {
         console.log('🔐 Buscando usuário autenticado...');
         const { data: { user }, error: userError } = await supabase.auth.getUser();
           
-          console.log('👤 Resultado da autenticação:', { 
-            hasUser: !!user, 
-            userId: user?.id,
-            error: userError?.message,
+        console.log('👤 Resultado da autenticação:', { 
+          hasUser: !!user, 
+          userId: user?.id,
+          userEmail: user?.email,
+          error: userError?.message,
+          errorCode: userError?.code,
+        });
+        
+        // Verificar também a sessão
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log('🔑 Sessão:', {
+          hasSession: !!session,
+          userId: session?.user?.id,
+          expiresAt: session?.expires_at,
+          sessionError: sessionError?.message,
+        });
+        
+        if (userError) {
+          console.error('❌ ERRO CRÍTICO ao buscar usuário do Supabase:', userError);
+          console.error('📋 Detalhes completos:', {
+            message: userError.message,
+            code: userError.code,
+            status: userError.status,
+            name: userError.name,
           });
           
-          if (userError) {
-            console.warn('⚠️ Erro ao buscar usuário do Supabase:', userError);
-            console.warn('📋 Detalhes:', {
-              message: userError.message,
-              code: userError.code,
-              status: userError.status,
-            });
-            return;
-          }
+          toast({
+            title: '❌ Erro de Autenticação',
+            description: `Não foi possível verificar sua autenticação: ${userError.message}. Faça login novamente.`,
+            variant: 'destructive',
+            duration: 10000,
+          });
+          return;
+        }
+        
+        if (!user) {
+          console.error('❌ ERRO CRÍTICO: Usuário não autenticado!');
+          console.error('📋 Isso significa que o post NÃO será salvo no Supabase.');
+          
+          toast({
+            title: '⚠️ Não autenticado',
+            description: 'Você não está autenticado. Faça login para salvar posts no servidor.',
+            variant: 'destructive',
+            duration: 10000,
+          });
+          return;
+        }
           
           if (user) {
             console.log('💾 Sincronizando com Supabase...', { 
