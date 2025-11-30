@@ -4,13 +4,50 @@ import { Message } from '@/types';
 import { safeSetItem, safeGetItem, ensureStorageSpace } from '@/lib/storage';
 
 export function useCommunityMessages() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  // ⚠️ CRÍTICO: Carregar mensagens do localStorage IMEDIATAMENTE no estado inicial
+  const getInitialMessages = (): Message[] => {
+    try {
+      const savedMessages = safeGetItem('nutraelite_community_messages');
+      if (savedMessages) {
+        const parsed = JSON.parse(savedMessages);
+        const loadedMessages: Message[] = parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        console.log('🚀 [INIT] Mensagens carregadas do localStorage no estado inicial:', loadedMessages.length);
+        return loadedMessages;
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar mensagens iniciais:', e);
+    }
+    return [];
+  };
+  
+  const [messages, setMessages] = useState<Message[]>(getInitialMessages());
   const [isLoading, setIsLoading] = useState(true);
   const messagesRef = useRef<Message[]>([]);
   
   // Manter ref atualizada
   useEffect(() => {
     messagesRef.current = messages;
+  }, [messages]);
+  
+  // ⚠️ CRÍTICO: Salvar mensagens no localStorage SEMPRE que mudarem
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        const serialized = JSON.stringify(messages.map(m => ({
+          ...m,
+          timestamp: m.timestamp.toISOString(),
+        })));
+        const saved = safeSetItem('nutraelite_community_messages', serialized);
+        if (saved) {
+          console.log('💾 [AUTO-SAVE] Mensagens salvas automaticamente:', messages.length);
+        }
+      } catch (e) {
+        console.warn('Erro ao salvar mensagens automaticamente:', e);
+      }
+    }
   }, [messages]);
 
   const loadMessages = async (showLoading: boolean = true) => {
