@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
 import DebugSupabase from "./pages/DebugSupabase";
+import Status from "./pages/Status";
 
 // ⚠️ CRÍTICO: Importar supabaseClient no início para garantir que os logs de validação apareçam
 import '@/lib/supabaseClient';
@@ -37,6 +38,7 @@ const App = () => (
                 }
               />
               <Route path="/debug/supabase" element={<DebugSupabase />} />
+              <Route path="/status" element={<Status />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

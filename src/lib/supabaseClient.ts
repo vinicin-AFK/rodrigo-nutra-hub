@@ -19,6 +19,9 @@ import { createClient } from '@supabase/supabase-js';
 //   VITE_SUPABASE_ANON_KEY=sua_chave_aqui
 // ============================================
 
+const SUPABASE_URL_REQUIRED = 'https://kfyzcqaerlwqcmlbcgts.supabase.co';
+const MIN_KEY_LENGTH = 20;
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -35,35 +38,129 @@ console.log('🔍 URL completa:', SUPABASE_URL);
 console.log('🔍 ============================================');
 
 // ============================================
-// VALIDAÇÃO DE URL
+// VALIDAÇÃO RIGOROSA - BLOQUEIA APP SE ERRADO
 // ============================================
-// ⚠️ BLOQUEAR: localhost, IPs locais, URLs diferentes
-if (SUPABASE_URL) {
-  const isInvalidUrl = 
+export interface EnvValidationError {
+  hasError: boolean;
+  type?: 'missing_url' | 'missing_key' | 'wrong_url' | 'invalid_key' | 'local_url';
+  message: string;
+  currentUrl?: string;
+  currentKey?: string;
+}
+
+export function validateSupabaseEnv(): EnvValidationError {
+  // Verificar se URL está vazia
+  if (!SUPABASE_URL || SUPABASE_URL.trim() === '') {
+    return {
+      hasError: true,
+      type: 'missing_url',
+      message: 'VITE_SUPABASE_URL não está configurada. Configure no .env.local',
+      currentUrl: undefined,
+    };
+  }
+
+  // Verificar se URL é diferente da requerida
+  if (SUPABASE_URL !== SUPABASE_URL_REQUIRED) {
+    return {
+      hasError: true,
+      type: 'wrong_url',
+      message: `URL do Supabase incorreta. Use APENAS: ${SUPABASE_URL_REQUIRED}`,
+      currentUrl: SUPABASE_URL,
+    };
+  }
+
+  // Verificar se URL contém localhost ou IP local
+  const isLocalUrl = 
     SUPABASE_URL.includes('localhost') ||
     SUPABASE_URL.includes('127.0.0.1') ||
     SUPABASE_URL.includes('192.168.') ||
     SUPABASE_URL.includes('10.0.') ||
-    SUPABASE_URL.startsWith('http://') ||
-    !SUPABASE_URL.includes('supabase.co');
+    SUPABASE_URL.startsWith('http://');
   
-  if (isInvalidUrl) {
-    console.error('❌ ERRO CRÍTICO: URL do Supabase inválida!');
-    console.error('❌ URL detectada:', SUPABASE_URL);
-    console.error('❌ Use APENAS: https://kfyzcqaerlwqcmlbcgts.supabase.co');
-    throw new Error('URL do Supabase inválida. Use apenas a URL pública do Supabase.');
+  if (isLocalUrl) {
+    return {
+      hasError: true,
+      type: 'local_url',
+      message: 'URL local detectada. Use APENAS a URL pública do Supabase',
+      currentUrl: SUPABASE_URL,
+    };
   }
+
+  // Verificar se Key está vazia
+  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.trim() === '') {
+    return {
+      hasError: true,
+      type: 'missing_key',
+      message: 'VITE_SUPABASE_ANON_KEY não está configurada. Configure no .env.local',
+      currentKey: undefined,
+    };
+  }
+
+  // Verificar se Key é muito curta
+  if (SUPABASE_ANON_KEY.length < MIN_KEY_LENGTH) {
+    return {
+      hasError: true,
+      type: 'invalid_key',
+      message: `VITE_SUPABASE_ANON_KEY muito curta (${SUPABASE_ANON_KEY.length} caracteres, mínimo ${MIN_KEY_LENGTH})`,
+      currentKey: SUPABASE_ANON_KEY,
+    };
+  }
+
+  // Verificar se Key parece inválida
+  if (SUPABASE_ANON_KEY.includes('localhost') || SUPABASE_ANON_KEY.includes('placeholder')) {
+    return {
+      hasError: true,
+      type: 'invalid_key',
+      message: 'VITE_SUPABASE_ANON_KEY parece ser inválida (contém localhost ou placeholder)',
+      currentKey: SUPABASE_ANON_KEY,
+    };
+  }
+
+  // Tudo OK
+  return {
+    hasError: false,
+    message: 'Configuração válida',
+  };
 }
+
+// Executar validação
+const envValidation = validateSupabaseEnv();
+
+// Se houver erro, armazenar para exibir tela de erro
+if (envValidation.hasError) {
+  console.error('❌ ============================================');
+  console.error('❌ ERRO CRÍTICO DE CONFIGURAÇÃO DO SUPABASE');
+  console.error('❌ ============================================');
+  console.error('❌ Tipo:', envValidation.type);
+  console.error('❌ Mensagem:', envValidation.message);
+  if (envValidation.currentUrl) {
+    console.error('❌ URL atual:', envValidation.currentUrl);
+  }
+  if (envValidation.currentKey) {
+    console.error('❌ Key atual:', envValidation.currentKey.slice(0, 20) + '...');
+  }
+  console.error('❌ ============================================');
+  console.error('❌ O APP SERÁ BLOQUEADO ATÉ QUE A CONFIGURAÇÃO SEJA CORRIGIDA');
+  console.error('❌ ============================================');
+  
+  // Armazenar erro globalmente para o componente EnvErrorScreen
+  (window as any).__SUPABASE_ENV_ERROR__ = envValidation;
+}
+
+// Exportar validação para uso em componentes
+export { envValidation };
 
 // ============================================
 // VERIFICAÇÃO DE CONFIGURAÇÃO
 // ============================================
-export const isSupabaseConfigured = !!(
+// ⚠️ Só considerar configurado se não houver erros de validação
+export const isSupabaseConfigured = !envValidation.hasError && !!(
   SUPABASE_URL && 
   SUPABASE_ANON_KEY && 
   SUPABASE_URL.trim() !== '' && 
   SUPABASE_ANON_KEY.trim() !== '' &&
-  SUPABASE_URL.includes('supabase.co')
+  SUPABASE_URL.includes('supabase.co') &&
+  SUPABASE_URL === SUPABASE_URL_REQUIRED
 );
 
 if (!isSupabaseConfigured) {

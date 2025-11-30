@@ -5,6 +5,8 @@ import "./index.css";
 // ⚠️ CRÍTICO: Importar supabaseClient no início para garantir que os logs de validação apareçam
 // Isso garante que a validação do Supabase seja executada antes de qualquer outro código
 import '@/lib/supabaseClient';
+import { envValidation } from '@/lib/supabaseClient';
+import EnvErrorScreen from '@/components/EnvErrorScreen';
 
 const rootElement = document.getElementById("root");
 
@@ -17,7 +19,13 @@ rootElement.style.minHeight = "100vh";
 rootElement.style.backgroundColor = "hsl(220, 20%, 8%)";
 
 try {
-  createRoot(rootElement).render(<App />);
+  // ⚠️ BLOQUEAR APP SE SUPABASE ESTIVER CONFIGURADO INCORRETAMENTE
+  if (envValidation.hasError) {
+    console.error('🚫 APP BLOQUEADO: Configuração do Supabase incorreta');
+    createRoot(rootElement).render(<EnvErrorScreen error={envValidation} />);
+  } else {
+    createRoot(rootElement).render(<App />);
+  }
 } catch (error) {
   console.error("Error rendering app:", error);
   rootElement.innerHTML = `

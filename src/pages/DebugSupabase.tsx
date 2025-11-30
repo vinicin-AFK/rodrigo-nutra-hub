@@ -11,10 +11,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
+import { supabase, isSupabaseConfigured, validateSupabaseEnv } from '@/lib/supabaseClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface DebugInfo {
   supabaseUrl: string;
@@ -24,6 +25,11 @@ interface DebugInfo {
   lastPosts: any[];
   lastMessages: any[];
   error?: string;
+  validation: {
+    isValid: boolean;
+    errors: string[];
+  };
+  urlMatches: boolean;
 }
 
 export default function DebugSupabase() {
@@ -38,10 +44,15 @@ export default function DebugSupabase() {
     setIsLoading(true);
     
     try {
+      const SUPABASE_URL_REQUIRED = 'https://kfyzcqaerlwqcmlbcgts.supabase.co';
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'NÃO CONFIGURADO';
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY 
         ? import.meta.env.VITE_SUPABASE_ANON_KEY.slice(0, 20) + '...' 
         : 'NÃO CONFIGURADO';
+      
+      // Validar configuração
+      const validation = validateSupabaseEnv();
+      const urlMatches = supabaseUrl === SUPABASE_URL_REQUIRED;
 
       let connectionStatus: 'connected' | 'error' | 'checking' = 'checking';
       let lastPosts: any[] = [];
@@ -97,8 +108,14 @@ export default function DebugSupabase() {
         lastPosts,
         lastMessages,
         error,
+        validation: {
+          isValid: !validation.hasError,
+          errors: validation.hasError ? [validation.message] : [],
+        },
+        urlMatches,
       });
     } catch (err: any) {
+      const validation = validateSupabaseEnv();
       setDebugInfo({
         supabaseUrl: 'ERRO',
         supabaseKey: 'ERRO',
@@ -107,6 +124,11 @@ export default function DebugSupabase() {
         lastPosts: [],
         lastMessages: [],
         error: err?.message || 'Erro ao carregar informações',
+        validation: {
+          isValid: false,
+          errors: [err?.message || 'Erro desconhecido'],
+        },
+        urlMatches: false,
       });
     } finally {
       setIsLoading(false);
@@ -168,6 +190,42 @@ export default function DebugSupabase() {
                   {debugInfo.isConfigured ? 'Sim' : 'Não'}
                 </Badge>
               </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-2">Validação de Configuração</h3>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                {debugInfo.validation.isValid ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                )}
+                <Badge variant={debugInfo.validation.isValid ? 'default' : 'destructive'}>
+                  {debugInfo.validation.isValid ? '✅ Configuração Válida' : '❌ Configuração Inválida'}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                {debugInfo.urlMatches ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                )}
+                <Badge variant={debugInfo.urlMatches ? 'default' : 'destructive'}>
+                  {debugInfo.urlMatches ? '✅ URL Correta' : '❌ URL Incorreta'}
+                </Badge>
+              </div>
+              {debugInfo.validation.errors.length > 0 && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded p-3 mt-2">
+                  <p className="text-sm font-semibold text-destructive mb-1">Erros:</p>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground">
+                    {debugInfo.validation.errors.map((error, idx) => (
+                      <li key={idx}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
 

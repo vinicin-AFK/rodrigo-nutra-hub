@@ -14,8 +14,12 @@
     "push": "git push",
     "commit:push": "git add -A && git commit -m \"$npm_config_message\" && git push",
     "save": "git add -A && git commit -m \"Auto commit: $(date +'%Y-%m-%d %H:%M:%S')\" && git push",
-    "deploy": "npm run build && vercel --prod",
-    "deploy:preview": "npm run build && vercel"
+    "deploy": "npm run verify:prod && npm run build && vercel --prod",
+    "deploy:preview": "npm run verify:prod && npm run build && vercel",
+    "verify:prod": "node scripts/verify-env.js",
+    "verify:env": "node scripts/verify-env.js",
+    "build:apk:verified": "npm run verify:env && rm -rf dist build android/app/build 2>/dev/null || true && npm run build",
+    "clean:build": "rm -rf dist build android/app/build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
