@@ -157,28 +157,43 @@ export function usePosts() {
         }
       }
       
-      // Se todas as tentativas falharam, mostrar erro mas NÃO usar localStorage
-      console.error('❌ Todas as tentativas de sincronização falharam:', lastError);
-      toast({
-        title: '⚠️ Erro ao carregar feed',
-        description: isMobile 
-          ? 'Não foi possível sincronizar. Verifique sua conexão e tente novamente.'
-          : 'Erro ao carregar publicações do servidor.',
-        variant: 'destructive',
-        duration: 5000,
-      });
+      // Se todas as tentativas falharam, usar dados do localStorage (já carregados)
+      console.warn('⚠️ Supabase falhou após todas as tentativas, usando dados do localStorage');
+      const savedPosts = safeGetItem('nutraelite_posts');
+      if (savedPosts) {
+        try {
+          const parsed = JSON.parse(savedPosts);
+          const loadedPosts: Post[] = parsed.map((post: any) => ({
+            ...post,
+            createdAt: new Date(post.createdAt),
+            commentsList: post.commentsList?.map((c: any) => ({
+              ...c,
+              createdAt: new Date(c.createdAt),
+            })) || [],
+          }));
+          setPosts(loadedPosts);
+          setIsLoading(false);
+          console.log('✅ Posts restaurados do localStorage após falha do Supabase:', loadedPosts.length);
+          
+          // Tentar sincronizar novamente em background após 5 segundos
+          setTimeout(() => {
+            console.log('🔄 Tentando sincronizar novamente em background...');
+            syncWithSupabase(currentUser, false).catch(() => {});
+          }, 5000);
+          return;
+        } catch (e) {
+          console.warn('Erro ao restaurar posts do localStorage:', e);
+        }
+      }
       
-      // ⚠️ CRÍTICO: NUNCA usar localStorage como fallback se Supabase está configurado
-      // localStorage é isolado por dispositivo e causaria feeds diferentes
-      // Se Supabase falhou, mostrar erro e tentar novamente, não usar cache local
-      console.log('❌ Supabase configurado mas falhou - NÃO usando localStorage (garantir feed global)');
+      // Se não há dados locais, mostrar vazio mas tentar novamente
       setPosts([]);
       setIsLoading(false);
       
       // Tentar novamente após 5 segundos
       setTimeout(() => {
         console.log('🔄 Tentando recarregar feed após falha...');
-        loadPosts(true);
+        loadPosts(false); // Não forçar - pode usar localStorage
       }, 5000);
       
       return;
